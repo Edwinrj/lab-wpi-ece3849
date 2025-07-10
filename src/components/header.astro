@@ -8,13 +8,13 @@ import SocialIcons from '@astrojs/starlight/components/SocialIcons.astro';
 const { siteTitle, siteTitleHref } = Astro.props;
 ---
 
-<header class="sl-flex sl-items-center sl-justify-between sl-gap-4 sl-px-4 sl-py-2 sm:sl-px-6 sl-bg-[var(--sl-color-white)] dark:sl-bg-[var(--sl-color-black)] sl-z-[1000] sl-sticky sl-top-0">
+<header class="sl-flex sl-items-center sl-justify-between sl-px-4 sl-py-2 sm:sl-px-6 sl-bg-[var(--sl-color-white)] dark:sl-bg-[var(--sl-color-black)] sl-z-[1000] sl-sticky sl-top-0">
 	<div class="sl-flex sl-items-center sl-gap-4">
 		<SiteTitle title={siteTitle} href={siteTitleHref} />
 	</div>
 
 	<div class="sl-flex sl-items-center sl-gap-3">
-		<ThemeSelect /> <!-- Siempre visible -->
+		<ThemeSelect />
 		<SocialIcons />
 		<Search />
 	</div>
