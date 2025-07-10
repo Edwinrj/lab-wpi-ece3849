@@ -32,8 +32,6 @@ export default defineConfig({
 
 			components: {
 				Head: './src/components/head.astro',
-				Banner: './src/components/banner.astro',
-				Footer: './src/components/footer.astro',
 			},
 
 			// Configuración de la página principal
@@ -42,12 +40,6 @@ export default defineConfig({
 			},
 
 			lastUpdated: true,
-
-			// Logo del curso (opcional)
-			logo: {
-				src: './src/assets/logo.svg',
-				alt: 'ECE3849 Logo',
-			},
 
 			// Configuración del sidebar
 			sidebar: [
