@@ -16,11 +16,8 @@ const { siteTitle, siteTitleHref } = Astro.props;
 
 	<!-- Íconos y utilidades -->
 	<div class="sl-flex sl-items-center sl-gap-3">
-		<!-- Visible solo en pantallas grandes -->
-		<ThemeSelect class="hidden sm:block" />
-
-		<!-- Visible solo en móviles (ícono compacto) -->
-		<ThemeSelect class="block sm:hidden sl-w-8 sl-h-8 sl-rounded-full sl-p-1 sl-bg-transparent sl-border sl-border-gray-400 dark:sl-border-gray-600" />
+		<!-- Theme selector - visible en todas las pantallas -->
+		<ThemeSelect />
 
 		<SocialIcons />
 		<Search />
