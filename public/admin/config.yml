@@ -9,7 +9,7 @@ backend:
 publish_mode: editorial_workflow
 media_folder: assets/uploads
 
-ccollections: # A list of collections the CMS should be able to edit
+collections: # A list of collections the CMS should be able to edit
   - name: 'posts' # Used in routes, ie.: /admin/collections/:slug/edit
     label: 'Posts' # Used in the UI
     label_singular: 'Post' # Used in the UI, ie: "New Post"
