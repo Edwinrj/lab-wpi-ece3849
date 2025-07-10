@@ -16,6 +16,8 @@
     "@vercel/speed-insights": "^1.2.0",
     "astro": "5.11.0",
     "astro-decap-cms-oauth": "^0.5.1",
-    "sharp": "^0.34.2"
+    "sharp": "^0.34.2",
+    "starlight-giscus": "^0.6.1",
+    "starlight-scroll-to-top": "^0.1.1"
   }
 }
