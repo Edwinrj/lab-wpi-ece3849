@@ -8,282 +8,214 @@ backend:
   base_url: https://ece3849.wpiembedded.com # change this to your prod URL
   auth_endpoint: oauth # the oauth route provided by the integration
 
+media_folder: "public/uploads"
+public_folder: "/uploads"
+
 publish_mode: editorial_workflow
-media_folder: assets/uploads
 
-collections: # A list of collections the CMS should be able to edit
-  - name: 'posts' # Used in routes, ie.: /admin/collections/:slug/edit
-    label: 'Posts' # Used in the UI
-    label_singular: 'Post' # Used in the UI, ie: "New Post"
-    description: >
-      The description is a great place for tone setting, high level information, and editing
-      guidelines that are specific to a collection.
-    folder: '_posts'
-    slug: '{{year}}-{{month}}-{{day}}-{{slug}}'
-    summary: '{{title}} -- {{year}}/{{month}}/{{day}}'
-    create: true # Allow users to create new documents in this collection
+collections:
+  # Laboratorios - Colección principal
+  - name: "labs"
+    label: "Laboratorios"
+    label_singular: "Laboratorio"
+    description: "Gestión de laboratorios del curso ECE3849 Real-Time Embedded Systems"
+    folder: "src/content/docs/labs"
+    create: true
+    slug: "lab-{{fields.lab_number}}-{{slug}}"
     editor:
-      visualEditing: true
-    view_filters:
-      - label: Posts With Index
-        field: title
-        pattern: 'This is post #'
-      - label: Posts Without Index
-        field: title
-        pattern: front matter post
-      - label: Drafts
-        field: draft
-        pattern: true
-    view_groups:
-      - label: Year
-        field: date
-        pattern: \d{4}
-      - label: Drafts
-        field: draft
-    fields: # The fields each document in this collection have
-      - { label: 'Title', name: 'title', widget: 'string', tagname: 'h1' }
-      - { label: 'Draft', name: 'draft', widget: 'boolean', default: false }
-      - {
-          label: 'Publish Date',
-          name: 'date',
-          widget: 'datetime',
-          format: 'YYYY-MM-DD HH:mm',
-          default: '{{now}}',
-        }
-      - label: 'Cover Image'
-        name: 'image'
-        widget: 'image'
+      preview: true
+    fields:
+      - { label: "Título", name: "title", widget: "string", hint: "ej: Lab 0: Tutorial - Stopwatch and Graphical Menu" }
+      - { label: "Descripción", name: "description", widget: "text", hint: "Descripción breve del laboratorio" }
+      - { label: "Número de Lab", name: "lab_number", widget: "number", min: 0, max: 10 }
+      - { label: "Duración Estimada", name: "duration", widget: "string", hint: "ej: 2 semanas" }
+      - { label: "Orden", name: "sidebar.order", widget: "number", hint: "Orden en la navegación" }
+      - label: "Estado"
+        name: "status"
+        widget: "select"
+        options: 
+          - { label: "Borrador", value: "draft" }
+          - { label: "Disponible", value: "available" }
+          - { label: "En Progreso", value: "in_progress" }
+          - { label: "Finalizado", value: "completed" }
+        default: "draft"
+      
+      # Fechas importantes
+      - label: "Fechas"
+        name: "dates"
+        widget: "object"
+        fields:
+          - { label: "Fecha de Inicio", name: "start_date", widget: "datetime", format: "YYYY-MM-DD", required: false }
+          - { label: "Fecha de Sign-off", name: "signoff_date", widget: "datetime", format: "YYYY-MM-DD", required: false }
+          - { label: "Fecha Límite Reporte", name: "report_deadline", widget: "datetime", format: "YYYY-MM-DD", required: false }
+
+      # Objetivos de aprendizaje
+      - label: "Objetivos"
+        name: "objectives"
+        widget: "list"
+        summary: "{{fields.objective}}"
+        field: { label: "Objetivo", name: "objective", widget: "string" }
+
+      # Actividad principal
+      - { label: "Actividad Principal", name: "main_activity", widget: "markdown", hint: "Descripción detallada de la actividad principal" }
+
+      # Temas clave
+      - label: "Temas Clave"
+        name: "key_topics"
+        widget: "list"
+        summary: "{{fields.topic}}"
+        field: { label: "Tema", name: "topic", widget: "string" }
+
+      # Prerrequisitos
+      - label: "Prerrequisitos"
+        name: "prerequisites"
+        widget: "list"
+        summary: "{{fields.prerequisite}}"
+        field: { label: "Prerrequisito", name: "prerequisite", widget: "string" }
         required: false
-        tagname: ''
 
-      - { label: 'Body', name: 'body', widget: 'markdown', hint: 'Main content goes here.' }
-
-  - name: 'restaurants' # Used in routes, ie.: /admin/collections/:slug/edit
-    label: 'Restaurants' # Used in the UI
-    label_singular: 'Restaurant' # Used in the UI, ie: "New Post"
-    description: >
-      Restaurants is an entry type used for testing galleries, relations and other widgets.
-      The tests must be written in such way that adding new fields does not affect previous flows.
-    folder: '_restaurants'
-    slug: '{{year}}-{{month}}-{{day}}-{{slug}}'
-    summary: '{{title}} -- {{year}}/{{month}}/{{day}}'
-    create: true # Allow users to create new documents in this collection
-    editor:
-      visualEditing: true
-    fields: # The fields each document in this collection have
-      - { label: 'Title', name: 'title', widget: 'string', tagname: 'h1' }
-      - { label: 'Body', name: 'body', widget: 'markdown', hint: 'Main content goes here.' }
-      - { name: 'gallery', widget: 'image', choose_url: true, media_library: {config: {multiple: true, max_files: 999}}}
-      - { name: 'post', widget: relation, collection: posts, multiple: true, search_fields: [ "title" ], display_fields: [ "title" ], value_field: "{{slug}}", filters: [ {field: "draft", values: [false]} ] }
-      - name: authors
-        label: Authors
-        label_singular: 'Author'
-        widget: list
+      # Hardware necesario
+      - label: "Hardware"
+        name: "hardware"
+        widget: "list"
+        summary: "{{fields.component}}"
         fields:
-          - { label: 'Name', name: 'name', widget: 'string', hint: 'First and Last' }
-          - { label: 'Description', name: 'description', widget: 'markdown' }
+          - { label: "Componente", name: "component", widget: "string" }
+          - { label: "Descripción", name: "description", widget: "text", required: false }
+          - { label: "Link", name: "link", widget: "string", required: false }
 
-  - name: 'faq' # Used in routes, ie.: /admin/collections/:slug/edit
-    label: 'FAQ' # Used in the UI
-    folder: '_faqs'
-    create: true # Allow users to create new documents in this collection
-    fields: # The fields each document in this collection have
-      - { label: 'Question', name: 'title', widget: 'string', tagname: 'h1' }
-      - { label: 'Answer', name: 'body', widget: 'markdown' }
+      # Software/Herramientas
+      - label: "Software/Herramientas"
+        name: "tools"
+        widget: "list"
+        summary: "{{fields.tool}}"
+        fields:
+          - { label: "Herramienta", name: "tool", widget: "string" }
+          - { label: "Versión", name: "version", widget: "string", required: false }
+          - { label: "Link de descarga", name: "download_link", widget: "string", required: false }
 
-  - name: 'settings'
-    label: 'Settings'
-    delete: false # Prevent users from deleting documents in this collection
-    editor:
-      preview: false
+      # Recursos/Materiales
+      - label: "Recursos"
+        name: "resources"
+        widget: "list"
+        summary: "{{fields.title}}"
+        fields:
+          - { label: "Título", name: "title", widget: "string" }
+          - { label: "Tipo", name: "type", widget: "select", options: ["PDF", "Video", "Código", "Datasheet", "Manual", "Tutorial"] }
+          - { label: "Archivo", name: "file", widget: "file", required: false }
+          - { label: "URL", name: "url", widget: "string", required: false }
+          - { label: "Descripción", name: "description", widget: "text", required: false }
+
+      # Criterios de evaluación
+      - label: "Evaluación"
+        name: "evaluation"
+        widget: "object"
+        fields:
+          - { label: "Requiere Reporte", name: "requires_report", widget: "boolean", default: true }
+          - { label: "Formato de Reporte", name: "report_format", widget: "string", hint: "ej: PDF, máximo 10 páginas" }
+          - label: "Criterios"
+            name: "criteria"
+            widget: "list"
+            summary: "{{fields.criterion}}"
+            fields:
+              - { label: "Criterio", name: "criterion", widget: "string" }
+              - { label: "Puntos", name: "points", widget: "number", required: false }
+
+      # Contenido principal del laboratorio
+      - { label: "Contenido", name: "body", widget: "markdown", hint: "Contenido principal del laboratorio en Markdown" }
+
+  # Recursos generales del curso
+  - name: "resources"
+    label: "Recursos"
+    label_singular: "Recurso"
+    description: "Recursos generales del curso (datasheets, manuales, tutoriales)"
+    folder: "src/content/docs/resources"
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "Título", name: "title", widget: "string" }
+      - { label: "Descripción", name: "description", widget: "text" }
+      - { label: "Orden", name: "sidebar.order", widget: "number" }
+      - label: "Categoría"
+        name: "category"
+        widget: "select"
+        options: ["Hardware", "Software", "Datasheets", "Tutoriales", "Referencias"]
+      - label: "Tipo de Recurso"
+        name: "resource_type"
+        widget: "select"
+        options: ["PDF", "Video", "Link", "Código", "Herramienta"]
+      - { label: "Archivo", name: "file", widget: "file", required: false }
+      - { label: "URL Externa", name: "external_url", widget: "string", required: false }
+      - { label: "Autor/Fuente", name: "author", widget: "string", required: false }
+      - { label: "Contenido", name: "body", widget: "markdown" }
+
+  # FAQ del curso
+  - name: "faq"
+    label: "FAQ"
+    label_singular: "Pregunta"
+    description: "Preguntas frecuentes del curso"
+    folder: "src/content/docs/faq"
+    create: true
+    slug: "{{slug}}"
+    fields:
+      - { label: "Pregunta", name: "title", widget: "string" }
+      - { label: "Orden", name: "sidebar.order", widget: "number" }
+      - label: "Categoría"
+        name: "category"
+        widget: "select"
+        options: ["Hardware", "Software", "Laboratorios", "Evaluación", "General"]
+      - { label: "Respuesta", name: "body", widget: "markdown" }
+
+  # Cronograma/Calendario
+  - name: "schedule"
+    label: "Cronograma"
+    description: "Gestión del cronograma del curso"
     files:
-      - name: 'general'
-        label: 'Site Settings'
-        file: '_data/settings.json'
-        description: 'General Site Settings'
+      - name: "semester_schedule"
+        label: "Cronograma del Semestre"
+        file: "src/content/docs/schedule.md"
         fields:
-          - { label: 'Global title', name: 'site_title', widget: 'string' }
-          - label: 'Post Settings'
-            name: posts
-            widget: 'object'
+          - { label: "Título", name: "title", widget: "string", default: "Cronograma del Curso" }
+          - { label: "Descripción", name: "description", widget: "text" }
+          - label: "Semanas"
+            name: "weeks"
+            widget: "list"
+            summary: "Semana {{fields.week_number}}: {{fields.topic}}"
             fields:
-              - {
-                  label: 'Number of posts on frontpage',
-                  name: front_limit,
-                  widget: number,
-                  min: 1,
-                  max: 10,
-                }
-              - { label: 'Default Author', name: author, widget: string }
-              - {
-                  label: 'Default Thumbnail',
-                  name: thumb,
-                  widget: image,
-                  class: 'thumb',
-                  required: false,
-                }
+              - { label: "Número de Semana", name: "week_number", widget: "number" }
+              - { label: "Fechas", name: "dates", widget: "string", hint: "ej: Sept 16-20" }
+              - { label: "Tema Principal", name: "topic", widget: "string" }
+              - { label: "Laboratorio", name: "lab", widget: "string", required: false }
+              - { label: "Entregables", name: "deliverables", widget: "string", required: false }
+              - { label: "Notas", name: "notes", widget: "text", required: false }
+          - { label: "Contenido", name: "body", widget: "markdown" }
 
-      - name: 'authors'
-        label: 'Authors'
-        file: '_data/authors.yml'
-        description: 'Author descriptions'
+  # Configuración del sitio
+  - name: "settings"
+    label: "Configuración"
+    description: "Configuración general del sitio"
+    files:
+      - name: "site_config"
+        label: "Configuración del Sitio"
+        file: "src/content/config.ts"
         fields:
-          - name: authors
-            label: Authors
-            label_singular: 'Author'
-            widget: list
-            fields:
-              - { label: 'Name', name: 'name', widget: 'string', hint: 'First and Last' }
-              - { label: 'Description', name: 'description', widget: 'markdown' }
+          - { label: "Título del Curso", name: "course_title", widget: "string", default: "ECE3849: Real-Time Embedded Systems" }
+          - { label: "Semestre", name: "semester", widget: "string", hint: "ej: Fall 2024" }
+          - { label: "Instructor", name: "instructor", widget: "string" }
+          - { label: "Descripción del Curso", name: "course_description", widget: "text" }
 
-  - name: 'kitchenSink' # all the things in one entry, for documentation and quick testing
-    label: 'Kitchen Sink'
-    folder: '_sink'
+  # Páginas estáticas
+  - name: "pages"
+    label: "Páginas"
+    label_singular: "Página"
+    description: "Páginas estáticas del sitio"
+    folder: "src/content/docs"
     create: true
+    slug: "{{slug}}"
+    filter: { field: "type", value: "page" }
     fields:
-      - label: 'Related Post'
-        name: 'post'
-        widget: 'relationKitchenSinkPost'
-        collection: 'posts'
-        display_fields: ['title', 'datetime']
-        search_fields: ['title', 'body']
-        value_field: 'title'
-      - { label: 'Title', name: 'title', widget: 'string' }
-      - { label: 'Boolean', name: 'boolean', widget: 'boolean', default: true }
-      - { label: 'Map', name: 'map', widget: 'map' }
-      - { label: 'Text', name: 'text', widget: 'text', hint: 'Plain text, not markdown' }
-      - { label: 'Number', name: 'number', widget: 'number', hint: 'To infinity and beyond!' }
-      - { label: 'Markdown', name: 'markdown', widget: 'markdown' }
-      - { label: 'Datetime', name: 'datetime', widget: 'datetime' }
-      - { label: 'Image', name: 'image', widget: 'image' }
-      - { label: 'File', name: 'file', widget: 'file' }
-      - { label: 'Select', name: 'select', widget: 'select', options: ['a', 'b', 'c'] }
-      - {
-          label: 'Select multiple',
-          name: 'select_multiple',
-          widget: 'select',
-          options: ['a', 'b', 'c'],
-          multiple: true,
-        }
-      - { label: 'Hidden', name: 'hidden', widget: 'hidden', default: 'hidden' }
-      - { label: 'Color', name: 'color', widget: 'color' }
-      - label: 'Object'
-        name: 'object'
-        widget: 'object'
-        collapsed: true
-        fields:
-          - label: 'Related Post'
-            name: 'post'
-            widget: 'relationKitchenSinkPost'
-            collection: 'posts'
-            search_fields: ['title', 'body']
-            value_field: 'title'
-          - { label: 'String', name: 'string', widget: 'string' }
-          - { label: 'Boolean', name: 'boolean', widget: 'boolean', default: false }
-          - { label: 'Text', name: 'text', widget: 'text' }
-          - { label: 'Number', name: 'number', widget: 'number' }
-          - { label: 'Markdown', name: 'markdown', widget: 'markdown' }
-          - { label: 'Datetime', name: 'datetime', widget: 'datetime' }
-          - { label: 'Image', name: 'image', widget: 'image' }
-          - { label: 'File', name: 'file', widget: 'file' }
-          - { label: 'Select', name: 'select', widget: 'select', options: ['a', 'b', 'c'] }
-      - label: 'List'
-        name: 'list'
-        widget: 'list'
-        fields:
-          - { label: 'String', name: 'string', widget: 'string' }
-          - { label: 'Boolean', name: 'boolean', widget: 'boolean' }
-          - { label: 'Text', name: 'text', widget: 'text' }
-          - { label: 'Number', name: 'number', widget: 'number' }
-          - { label: 'Markdown', name: 'markdown', widget: 'markdown' }
-          - { label: 'Datetime', name: 'datetime', widget: 'datetime' }
-          - { label: 'Image', name: 'image', widget: 'image' }
-          - { label: 'File', name: 'file', widget: 'file' }
-          - { label: 'Select', name: 'select', widget: 'select', options: ['a', 'b', 'c'] }
-          - label: 'Object'
-            name: 'object'
-            widget: 'object'
-            fields:
-              - { label: 'String', name: 'string', widget: 'string' }
-              - { label: 'Boolean', name: 'boolean', widget: 'boolean' }
-              - { label: 'Text', name: 'text', widget: 'text' }
-              - { label: 'Number', name: 'number', widget: 'number' }
-              - { label: 'Markdown', name: 'markdown', widget: 'markdown' }
-              - { label: 'Datetime', name: 'datetime', widget: 'datetime' }
-              - { label: 'Image', name: 'image', widget: 'image' }
-              - { label: 'File', name: 'file', widget: 'file' }
-              - { label: 'Select', name: 'select', widget: 'select', options: ['a', 'b', 'c'] }
-              - label: 'List'
-                name: 'list'
-                widget: 'list'
-                fields:
-                  - label: 'Related Post'
-                    name: 'post'
-                    widget: 'relationKitchenSinkPost'
-                    collection: 'posts'
-                    search_fields: ['title', 'body']
-                    value_field: 'title'
-                  - { label: 'String', name: 'string', widget: 'string' }
-                  - { label: 'Boolean', name: 'boolean', widget: 'boolean' }
-                  - { label: 'Text', name: 'text', widget: 'text' }
-                  - { label: 'Number', name: 'number', widget: 'number' }
-                  - { label: 'Markdown', name: 'markdown', widget: 'markdown' }
-                  - { label: 'Datetime', name: 'datetime', widget: 'datetime' }
-                  - { label: 'Image', name: 'image', widget: 'image' }
-                  - { label: 'File', name: 'file', widget: 'file' }
-                  - { label: 'Select', name: 'select', widget: 'select', options: ['a', 'b', 'c'] }
-                  - { label: 'Hidden', name: 'hidden', widget: 'hidden', default: 'hidden' }
-                  - label: 'Object'
-                    name: 'object'
-                    widget: 'object'
-                    fields:
-                      - { label: 'String', name: 'string', widget: 'string' }
-                      - { label: 'Boolean', name: 'boolean', widget: 'boolean' }
-                      - { label: 'Text', name: 'text', widget: 'text' }
-                      - { label: 'Number', name: 'number', widget: 'number' }
-                      - { label: 'Markdown', name: 'markdown', widget: 'markdown' }
-                      - { label: 'Datetime', name: 'datetime', widget: 'datetime' }
-                      - { label: 'Image', name: 'image', widget: 'image' }
-                      - { label: 'File', name: 'file', widget: 'file' }
-                      - {
-                          label: 'Select',
-                          name: 'select',
-                          widget: 'select',
-                          options: ['a', 'b', 'c'],
-                        }
-      - label: 'Typed List'
-        name: 'typed_list'
-        widget: 'list'
-        types:
-          - label: 'Type 1 Object'
-            name: 'type_1_object'
-            widget: 'object'
-            fields:
-              - { label: 'String', name: 'string', widget: 'string' }
-              - { label: 'Boolean', name: 'boolean', widget: 'boolean' }
-              - { label: 'Text', name: 'text', widget: 'text' }
-          - label: 'Type 2 Object'
-            name: 'type_2_object'
-            widget: 'object'
-            fields:
-              - { label: 'Number', name: 'number', widget: 'number' }
-              - { label: 'Select', name: 'select', widget: 'select', options: ['a', 'b', 'c'] }
-              - { label: 'Datetime', name: 'datetime', widget: 'datetime' }
-              - { label: 'Markdown', name: 'markdown', widget: 'markdown' }
-          - label: 'Type 3 Object'
-            name: 'type_3_object'
-            widget: 'object'
-            fields:
-              - { label: 'Image', name: 'image', widget: 'image' }
-              - { label: 'File', name: 'file', widget: 'file' }
-  - name: pages # a nested collection
-    label: Pages
-    label_singular: 'Page'
-    folder: _pages
-    create: true
-    nested: { depth: 100, subfolders: false }
-    fields:
-      - label: Title
-        name: title
-        widget: string
-    meta: { path: { widget: string, label: 'Path', index_file: 'index' } }
+      - { label: "Título", name: "title", widget: "string" }
+      - { label: "Descripción", name: "description", widget: "text" }
+      - { label: "Tipo", name: "type", widget: "hidden", default: "page" }
+      - { label: "Orden", name: "sidebar.order", widget: "number", required: false }
+      - { label: "Contenido", name: "body", widget: "markdown" }
