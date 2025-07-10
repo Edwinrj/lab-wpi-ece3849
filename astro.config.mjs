@@ -27,16 +27,16 @@ export default defineConfig({
 			},
 			sidebar: [
 				{
-					label: 'Course Information',
-					items: [
-						{ label: 'Introduction', slug: 'introduction' },
-						{ label: 'Schedule', slug: 'schedule' },
-						{ label: 'Evaluation', slug: 'evaluation' },
-					],
-				},
-				{
 					label: 'Laboratories',
 					autogenerate: { directory: 'labs' },
+				},
+				{
+					label: 'Guides',
+					autogenerate: { directory: 'guides' },
+				},
+				{
+					label: 'Reference',
+					autogenerate: { directory: 'reference' },
 				},
 				{
 					label: 'Resources',
