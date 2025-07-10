@@ -13,209 +13,56 @@ public_folder: "/uploads"
 
 publish_mode: editorial_workflow
 
+backend:
+  name: git-gateway
+  branch: main
+
+media_folder: "public/uploads"
+public_folder: "/uploads"
+
+publish_mode: editorial_workflow
+
 collections:
-  # Laboratorios - Colección principal
+  # Labs
   - name: "labs"
-    label: "Laboratorios"
-    label_singular: "Laboratorio"
-    description: "Gestión de laboratorios del curso ECE3849 Real-Time Embedded Systems"
+    label: "Labs"
+    label_singular: "Lab"
     folder: "src/content/docs/labs"
     create: true
-    slug: "lab-{{fields.lab_number}}-{{slug}}"
-    editor:
-      preview: true
+    slug: "{{slug}}"
     fields:
-      - { label: "Título", name: "title", widget: "string", hint: "ej: Lab 0: Tutorial - Stopwatch and Graphical Menu" }
-      - { label: "Descripción", name: "description", widget: "text", hint: "Descripción breve del laboratorio" }
-      - { label: "Número de Lab", name: "lab_number", widget: "number", min: 0, max: 10 }
-      - { label: "Duración Estimada", name: "duration", widget: "string", hint: "ej: 2 semanas" }
-      - { label: "Orden", name: "sidebar.order", widget: "number", hint: "Orden en la navegación" }
-      - label: "Estado"
-        name: "status"
-        widget: "select"
-        options: 
-          - { label: "Borrador", value: "draft" }
-          - { label: "Disponible", value: "available" }
-          - { label: "En Progreso", value: "in_progress" }
-          - { label: "Finalizado", value: "completed" }
-        default: "draft"
-      
-      # Fechas importantes
-      - label: "Fechas"
-        name: "dates"
-        widget: "object"
-        fields:
-          - { label: "Fecha de Inicio", name: "start_date", widget: "datetime", format: "YYYY-MM-DD", required: false }
-          - { label: "Fecha de Sign-off", name: "signoff_date", widget: "datetime", format: "YYYY-MM-DD", required: false }
-          - { label: "Fecha Límite Reporte", name: "report_deadline", widget: "datetime", format: "YYYY-MM-DD", required: false }
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "Content", name: "body", widget: "markdown" }
 
-      # Objetivos de aprendizaje
-      - label: "Objetivos"
-        name: "objectives"
-        widget: "list"
-        summary: "{{fields.objective}}"
-        field: { label: "Objetivo", name: "objective", widget: "string" }
-
-      # Actividad principal
-      - { label: "Actividad Principal", name: "main_activity", widget: "markdown", hint: "Descripción detallada de la actividad principal" }
-
-      # Temas clave
-      - label: "Temas Clave"
-        name: "key_topics"
-        widget: "list"
-        summary: "{{fields.topic}}"
-        field: { label: "Tema", name: "topic", widget: "string" }
-
-      # Prerrequisitos
-      - label: "Prerrequisitos"
-        name: "prerequisites"
-        widget: "list"
-        summary: "{{fields.prerequisite}}"
-        field: { label: "Prerrequisito", name: "prerequisite", widget: "string" }
-        required: false
-
-      # Hardware necesario
-      - label: "Hardware"
-        name: "hardware"
-        widget: "list"
-        summary: "{{fields.component}}"
-        fields:
-          - { label: "Componente", name: "component", widget: "string" }
-          - { label: "Descripción", name: "description", widget: "text", required: false }
-          - { label: "Link", name: "link", widget: "string", required: false }
-
-      # Software/Herramientas
-      - label: "Software/Herramientas"
-        name: "tools"
-        widget: "list"
-        summary: "{{fields.tool}}"
-        fields:
-          - { label: "Herramienta", name: "tool", widget: "string" }
-          - { label: "Versión", name: "version", widget: "string", required: false }
-          - { label: "Link de descarga", name: "download_link", widget: "string", required: false }
-
-      # Recursos/Materiales
-      - label: "Recursos"
-        name: "resources"
-        widget: "list"
-        summary: "{{fields.title}}"
-        fields:
-          - { label: "Título", name: "title", widget: "string" }
-          - { label: "Tipo", name: "type", widget: "select", options: ["PDF", "Video", "Código", "Datasheet", "Manual", "Tutorial"] }
-          - { label: "Archivo", name: "file", widget: "file", required: false }
-          - { label: "URL", name: "url", widget: "string", required: false }
-          - { label: "Descripción", name: "description", widget: "text", required: false }
-
-      # Criterios de evaluación
-      - label: "Evaluación"
-        name: "evaluation"
-        widget: "object"
-        fields:
-          - { label: "Requiere Reporte", name: "requires_report", widget: "boolean", default: true }
-          - { label: "Formato de Reporte", name: "report_format", widget: "string", hint: "ej: PDF, máximo 10 páginas" }
-          - label: "Criterios"
-            name: "criteria"
-            widget: "list"
-            summary: "{{fields.criterion}}"
-            fields:
-              - { label: "Criterio", name: "criterion", widget: "string" }
-              - { label: "Puntos", name: "points", widget: "number", required: false }
-
-      # Contenido principal del laboratorio
-      - { label: "Contenido", name: "body", widget: "markdown", hint: "Contenido principal del laboratorio en Markdown" }
-
-  # Recursos generales del curso
+  # Resources
   - name: "resources"
-    label: "Recursos"
-    label_singular: "Recurso"
-    description: "Recursos generales del curso (datasheets, manuales, tutoriales)"
+    label: "Resources"
+    label_singular: "Resource"
     folder: "src/content/docs/resources"
     create: true
     slug: "{{slug}}"
     fields:
-      - { label: "Título", name: "title", widget: "string" }
-      - { label: "Descripción", name: "description", widget: "text" }
-      - { label: "Orden", name: "sidebar.order", widget: "number" }
-      - label: "Categoría"
-        name: "category"
-        widget: "select"
-        options: ["Hardware", "Software", "Datasheets", "Tutoriales", "Referencias"]
-      - label: "Tipo de Recurso"
-        name: "resource_type"
-        widget: "select"
-        options: ["PDF", "Video", "Link", "Código", "Herramienta"]
-      - { label: "Archivo", name: "file", widget: "file", required: false }
-      - { label: "URL Externa", name: "external_url", widget: "string", required: false }
-      - { label: "Autor/Fuente", name: "author", widget: "string", required: false }
-      - { label: "Contenido", name: "body", widget: "markdown" }
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "Content", name: "body", widget: "markdown" }
 
-  # FAQ del curso
+  # FAQ
   - name: "faq"
     label: "FAQ"
-    label_singular: "Pregunta"
-    description: "Preguntas frecuentes del curso"
+    label_singular: "Question"
     folder: "src/content/docs/faq"
     create: true
     slug: "{{slug}}"
     fields:
-      - { label: "Pregunta", name: "title", widget: "string" }
-      - { label: "Orden", name: "sidebar.order", widget: "number" }
-      - label: "Categoría"
-        name: "category"
-        widget: "select"
-        options: ["Hardware", "Software", "Laboratorios", "Evaluación", "General"]
-      - { label: "Respuesta", name: "body", widget: "markdown" }
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "Content", name: "body", widget: "markdown" }
 
-  # Cronograma/Calendario
-  - name: "schedule"
-    label: "Cronograma"
-    description: "Gestión del cronograma del curso"
-    files:
-      - name: "semester_schedule"
-        label: "Cronograma del Semestre"
-        file: "src/content/docs/schedule.md"
-        fields:
-          - { label: "Título", name: "title", widget: "string", default: "Cronograma del Curso" }
-          - { label: "Descripción", name: "description", widget: "text" }
-          - label: "Semanas"
-            name: "weeks"
-            widget: "list"
-            summary: "Semana {{fields.week_number}}: {{fields.topic}}"
-            fields:
-              - { label: "Número de Semana", name: "week_number", widget: "number" }
-              - { label: "Fechas", name: "dates", widget: "string", hint: "ej: Sept 16-20" }
-              - { label: "Tema Principal", name: "topic", widget: "string" }
-              - { label: "Laboratorio", name: "lab", widget: "string", required: false }
-              - { label: "Entregables", name: "deliverables", widget: "string", required: false }
-              - { label: "Notas", name: "notes", widget: "text", required: false }
-          - { label: "Contenido", name: "body", widget: "markdown" }
-
-  # Configuración del sitio
-  - name: "settings"
-    label: "Configuración"
-    description: "Configuración general del sitio"
-    files:
-      - name: "site_config"
-        label: "Configuración del Sitio"
-        file: "src/content/config.ts"
-        fields:
-          - { label: "Título del Curso", name: "course_title", widget: "string", default: "ECE3849: Real-Time Embedded Systems" }
-          - { label: "Semestre", name: "semester", widget: "string", hint: "ej: Fall 2024" }
-          - { label: "Instructor", name: "instructor", widget: "string" }
-          - { label: "Descripción del Curso", name: "course_description", widget: "text" }
-
-  # Páginas estáticas
+  # General Pages
   - name: "pages"
-    label: "Páginas"
-    label_singular: "Página"
-    description: "Páginas estáticas del sitio"
+    label: "Pages"
+    label_singular: "Page"
     folder: "src/content/docs"
     create: true
     slug: "{{slug}}"
-    filter: { field: "type", value: "page" }
     fields:
-      - { label: "Título", name: "title", widget: "string" }
-      - { label: "Descripción", name: "description", widget: "text" }
-      - { label: "Tipo", name: "type", widget: "hidden", default: "page" }
-      - { label: "Orden", name: "sidebar.order", widget: "number", required: false }
-      - { label: "Contenido", name: "body", widget: "markdown" }
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "Content", name: "body", widget: "markdown" }

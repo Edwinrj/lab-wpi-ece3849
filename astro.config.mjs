@@ -13,132 +13,40 @@ export default defineConfig({
 		decapCmsOauth(),
 		starlight({
 			title: 'ECE3849: Real-Time Embedded Systems',
-			description: 'Laboratory documentation and resources for Real-Time Embedded Systems course using TI microcontrollers.',
-
+			description: 'Labs and resources for Real-Time Embedded Systems course',
 			social: [
 				{
 					icon: 'github',
-					label: 'Course Repository',
-					href: 'https://github.com/your-university/ece3849-labs'
-				},
-				{
-					icon: 'email',
-					label: 'Instructor Email',
-					href: 'mailto:instructor@university.edu'
+					label: 'GitHub',
+					href: 'https://github.com/your-username/ece3849-labs'
 				}
 			],
-
 			customCss: ['./src/styles/custom.css'],
-
 			components: {
 				Head: './src/components/head.astro',
 			},
-
-			// Configuración de la página principal
-			editLink: {
-				baseUrl: 'https://github.com/your-university/ece3849-labs/edit/main/',
-			},
-
-			lastUpdated: true,
-
-			// Configuración del sidebar
 			sidebar: [
-				// Página de inicio
 				{
-					label: '🏠 Inicio',
-					link: '/',
+					label: 'Course Information',
+					items: [
+						{ label: 'Introduction', slug: 'introduction' },
+						{ label: 'Schedule', slug: 'schedule' },
+						{ label: 'Evaluation', slug: 'evaluation' },
+					],
 				},
-
-				// Laboratorios - sección principal
 				{
-					label: '🔬 Laboratorios',
-					autogenerate: {
-						directory: 'labs',
-						collapsed: false,
-					},
+					label: 'Laboratories',
+					autogenerate: { directory: 'labs' },
 				},
-
-				// Guías
 				{
-					label: '📚 Guías',
-					autogenerate: {
-						directory: 'guides',
-						collapsed: false,
-					},
+					label: 'Resources',
+					autogenerate: { directory: 'resources' },
 				},
-
-				// Referencia
 				{
-					label: '📖 Referencia',
-					autogenerate: {
-						directory: 'reference',
-						collapsed: false,
-					},
+					label: 'FAQ',
+					autogenerate: { directory: 'faq' },
 				},
 			],
-
-			// Configuración de tabla de contenidos
-			tableOfContents: {
-				minHeadingLevel: 2,
-				maxHeadingLevel: 4,
-			},
-
-			// Configuración de paginación
-			pagination: true,
-
-			// Configuración de localización (si necesitas soporte multiidioma)
-			defaultLocale: 'en',
-			locales: {
-				en: {
-					label: 'English',
-					lang: 'en',
-				},
-				es: {
-					label: 'Español',
-					lang: 'es',
-					dir: 'ltr',
-				},
-			},
-
-			// Configuración de metadatos adicionales
-			head: [
-				{
-					tag: 'meta',
-					attrs: {
-						name: 'keywords',
-						content: 'embedded systems, real-time, microcontrollers, TI, TM4C1294, RTOS, ECE3849',
-					},
-				},
-				{
-					tag: 'meta',
-					attrs: {
-						property: 'og:type',
-						content: 'website',
-					},
-				},
-				{
-					tag: 'meta',
-					attrs: {
-						property: 'og:title',
-						content: 'ECE3849: Real-Time Embedded Systems',
-					},
-				},
-				{
-					tag: 'meta',
-					attrs: {
-						property: 'og:description',
-						content: 'Laboratory documentation and resources for Real-Time Embedded Systems course.',
-					},
-				},
-			],
-
-			// Configuración para el CMS
-			expressiveCode: {
-				themes: ['github-dark', 'github-light'],
-				defaultProps: {
-					wrap: true,
-				},
-			},
 			plugins: [
 				starlightScrollToTop({
 					position: 'right',
