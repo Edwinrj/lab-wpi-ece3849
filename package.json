@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@astrojs/starlight": "^0.34.4",
-    "astro": "^5.6.1",
+    "astro": "5.11.0",
+    "astro-decap-cms-oauth": "^0.5.1",
     "sharp": "^0.34.2"
   }
 }
