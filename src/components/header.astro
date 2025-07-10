@@ -9,12 +9,19 @@ const { siteTitle, siteTitleHref } = Astro.props;
 ---
 
 <header class="sl-flex sl-items-center sl-justify-between sl-px-4 sl-py-2 sm:sl-px-6 sl-bg-[var(--sl-color-white)] dark:sl-bg-[var(--sl-color-black)] sl-z-[1000] sl-sticky sl-top-0">
+	<!-- Logo y título -->
 	<div class="sl-flex sl-items-center sl-gap-4">
 		<SiteTitle title={siteTitle} href={siteTitleHref} />
 	</div>
 
+	<!-- Íconos y utilidades -->
 	<div class="sl-flex sl-items-center sl-gap-3">
-		<ThemeSelect />
+		<!-- Visible solo en pantallas grandes -->
+		<ThemeSelect class="hidden sm:block" />
+
+		<!-- Visible solo en móviles (ícono compacto) -->
+		<ThemeSelect class="block sm:hidden sl-w-8 sl-h-8 sl-rounded-full sl-p-1 sl-bg-transparent sl-border sl-border-gray-400 dark:sl-border-gray-600" />
+
 		<SocialIcons />
 		<Search />
 	</div>
