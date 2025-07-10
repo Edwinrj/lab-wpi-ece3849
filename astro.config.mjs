@@ -46,164 +46,34 @@ export default defineConfig({
 				// Página de inicio
 				{
 					label: '🏠 Inicio',
-					slug: 'index',
-				},
-
-				// Información del curso
-				{
-					label: '📚 Información del Curso',
-					items: [
-						{ label: 'Cronograma', slug: 'schedule' },
-						{ label: 'Objetivos de Aprendizaje', slug: 'learning-objectives' },
-						{ label: 'Evaluación y Calificaciones', slug: 'evaluation' },
-						{ label: 'Políticas del Curso', slug: 'policies' },
-					],
+					link: '/',
 				},
 
 				// Laboratorios - sección principal
 				{
 					label: '🔬 Laboratorios',
-					items: [
-						{
-							label: 'Lab 0: Tutorial',
-							badge: { text: 'Tutorial', variant: 'tip' },
-							items: [
-								{ label: 'Stopwatch & Menu', slug: 'labs/lab-0-stopwatch-menu' },
-								{ label: 'Recursos Lab 0', slug: 'labs/lab-0-resources' },
-							],
-						},
-						{
-							label: 'Lab 1: Sensor Hub',
-							badge: { text: 'Sensores', variant: 'note' },
-							items: [
-								{ label: 'Light, Compass, Temperature', slug: 'labs/lab-1-sensor-hub' },
-								{ label: 'Sound Generation', slug: 'labs/lab-1-sound' },
-								{ label: 'Recursos Lab 1', slug: 'labs/lab-1-resources' },
-							],
-						},
-						{
-							label: 'Lab 2: Spectrum Analyzer',
-							badge: { text: 'FFT', variant: 'caution' },
-							items: [
-								{ label: 'Real-time Audio Analysis', slug: 'labs/lab-2-spectrum-analyzer' },
-								{ label: 'ADC & FFT Processing', slug: 'labs/lab-2-fft' },
-								{ label: 'Recursos Lab 2', slug: 'labs/lab-2-resources' },
-							],
-						},
-						{
-							label: 'Lab 3: RTOS Migration',
-							badge: { text: 'RTOS', variant: 'success' },
-							items: [
-								{ label: 'Multitasking Implementation', slug: 'labs/lab-3-rtos-migration' },
-								{ label: 'Task Synchronization', slug: 'labs/lab-3-synchronization' },
-								{ label: 'Recursos Lab 3', slug: 'labs/lab-3-resources' },
-							],
-						},
-						{
-							label: 'Lab 4: Logic Analyzer',
-							badge: { text: 'Digital', variant: 'note' },
-							items: [
-								{ label: 'Two-Channel Analyzer', slug: 'labs/lab-4-logic-analyzer' },
-								{ label: 'Signal Visualization', slug: 'labs/lab-4-visualization' },
-								{ label: 'Recursos Lab 4', slug: 'labs/lab-4-resources' },
-							],
-						},
-						{
-							label: 'Lab 5: System Integration',
-							badge: { text: 'Final', variant: 'danger' },
-							items: [
-								{ label: 'Complete System', slug: 'labs/lab-5-integration' },
-								{ label: 'Advanced Diagnostics', slug: 'labs/lab-5-diagnostics' },
-								{ label: 'Custom Module', slug: 'labs/lab-5-custom' },
-								{ label: 'Recursos Lab 5', slug: 'labs/lab-5-resources' },
-							],
-						},
-					],
-				},
-
-				// Hardware y herramientas
-				{
-					label: '🔧 Hardware & Herramientas',
-					items: [
-						{
-							label: 'Kit de Laboratorio',
-							items: [
-								{ label: 'TI EK-TM4C1294XL', slug: 'hardware/tm4c1294xl' },
-								{ label: 'BOOSTXL-EDUMKII', slug: 'hardware/boostxl-edumkii' },
-								{ label: 'Pinout y Conexiones', slug: 'hardware/pinout' },
-							],
-						},
-						{
-							label: 'Software',
-							items: [
-								{ label: 'Code Composer Studio', slug: 'software/ccs' },
-								{ label: 'TI-RTOS Setup', slug: 'software/ti-rtos' },
-								{ label: 'TivaWare Libraries', slug: 'software/tivaware' },
-								{ label: 'Debugging Tools', slug: 'software/debugging' },
-							],
-						},
-					],
-				},
-
-				// Recursos y documentación
-				{
-					label: '📖 Recursos',
 					autogenerate: {
-						directory: 'resources',
+						directory: 'labs',
 						collapsed: false,
 					},
 				},
 
-				// FAQ
+				// Guías
 				{
-					label: '❓ FAQ',
-					items: [
-						{
-							label: 'Preguntas Frecuentes',
-							autogenerate: {
-								directory: 'faq',
-								collapsed: true,
-							},
-						},
-					],
+					label: '📚 Guías',
+					autogenerate: {
+						directory: 'guides',
+						collapsed: false,
+					},
 				},
 
-				// Ejemplos y tutoriales adicionales
+				// Referencia
 				{
-					label: '💡 Ejemplos y Tutoriales',
-					items: [
-						{ label: 'Código de Ejemplo', slug: 'examples/code-samples' },
-						{ label: 'Video Tutoriales', slug: 'examples/video-tutorials' },
-						{ label: 'Troubleshooting', slug: 'examples/troubleshooting' },
-						{ label: 'Best Practices', slug: 'examples/best-practices' },
-					],
-				},
-
-				// Enlaces externos útiles
-				{
-					label: '🔗 Enlaces Útiles',
-					items: [
-						{
-							label: 'TI Resource Explorer',
-							link: 'https://www.ti.com/tool/TIREX',
-							attrs: { target: '_blank', rel: 'noopener' }
-						},
-						{
-							label: 'TM4C1294 Datasheet',
-							link: 'https://www.ti.com/lit/ds/symlink/tm4c1294ncpdt.pdf',
-							attrs: { target: '_blank', rel: 'noopener' }
-						},
-						{
-							label: 'TivaWare Documentation',
-							link: 'https://www.ti.com/tool/SW-TM4C',
-							attrs: { target: '_blank', rel: 'noopener' }
-						},
-						{
-							label: 'Course Canvas Page',
-							link: 'https://canvas.university.edu/courses/ece3849',
-							attrs: { target: '_blank', rel: 'noopener' }
-						},
-					],
+					label: '📖 Referencia',
+					autogenerate: {
+						directory: 'reference',
+						collapsed: false,
+					},
 				},
 			],
 
