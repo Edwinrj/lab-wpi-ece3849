@@ -12,6 +12,12 @@ export default defineConfig({
 		starlight({
 			title: 'My Docs',
 			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/withastro/starlight' }],
+			customCss: [
+				'./src/styles/custom.css',
+			],
+			components: {
+				Head: './src/components/head.astro',
+			},
 			sidebar: [
 				{
 					label: 'Guides',
