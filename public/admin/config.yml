@@ -1,4 +1,4 @@
-logo_url: 'public/favicon.svg'
+#logo_url: 'public/favicon.svg'
 
 backend:
   name: github
@@ -7,15 +7,6 @@ backend:
   site_domain: ece3849.wpiembedded.com # change this to your domain
   base_url: https://ece3849.wpiembedded.com # change this to your prod URL
   auth_endpoint: oauth # the oauth route provided by the integration
-
-media_folder: "public/uploads"
-public_folder: "/uploads"
-
-publish_mode: editorial_workflow
-
-backend:
-  name: git-gateway
-  branch: main
 
 media_folder: "public/uploads"
 public_folder: "/uploads"
