@@ -27,373 +27,300 @@ import { Badge } from '@astrojs/starlight/components';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 import { Aside } from '@astrojs/starlight/components';
 import { Steps } from '@astrojs/starlight/components';
-import { Icon } from '@astrojs/starlight/components';
 import { LinkCard } from '@astrojs/starlight/components';
+import { Picture } from 'astro:assets';
+import tiBoard from '../../assets/tiBoard.jpg';
+import boosterPack from '../../assets/booster.jpg';
+import ccs from '../../assets/ccs.png';
+import tiva from '../../assets/tiva.jpg';
+import freertos from '../../assets/freertos.png';
 
-## 🎯 Course Impact at a Glance
+## Course Overview
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; margin: 2rem 0;">
-  <div style="text-align: center; background: linear-gradient(145deg, var(--sl-color-accent-low), var(--sl-color-accent)); color: white; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(166, 25, 46, 0.3);">
-    <span style="font-size: 3rem; font-weight: bold; display: block; margin-bottom: 0.5rem;">6</span>
-    Progressive Labs
-  </div>
-  <div style="text-align: center; background: linear-gradient(145deg, var(--sl-color-accent-low), var(--sl-color-accent)); color: white; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(166, 25, 46, 0.3);">
-    <span style="font-size: 3rem; font-weight: bold; display: block; margin-bottom: 0.5rem;">40+</span>
-    Hours Hands-On
-  </div>
-  <div style="text-align: center; background: linear-gradient(145deg, var(--sl-color-accent-low), var(--sl-color-accent)); color: white; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(166, 25, 46, 0.3);">
-    <span style="font-size: 3rem; font-weight: bold; display: block; margin-bottom: 0.5rem;">95%</span>
-    Industry Relevance
-  </div>
-  <div style="text-align: center; background: linear-gradient(145deg, var(--sl-color-accent-low), var(--sl-color-accent)); color: white; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(166, 25, 46, 0.3);">
-    <span style="font-size: 3rem; font-weight: bold; display: block; margin-bottom: 0.5rem;">$85K+</span>
-    Avg Graduate Salary
-  </div>
-</div>
-
-## 🏭 Industry-Standard Hardware Platform
-
-<CardGrid>
-	<Card title="TI EK-TM4C1294XL Microcontroller" icon="laptop">
-		<div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
-			**ARM Cortex-M4F @ 120MHz**
-			- 1MB Flash Memory, 256KB RAM
-			- Hardware Floating Point Unit
-			- Integrated Ethernet & USB
-			- CAN, I2C, SPI, UART interfaces
-			
-			<Badge text="Same MCU used in Tesla Model S" variant="success" />
-		</div>
-	</Card>
-	<Card title="BOOSTXL-EDUMKII Sensor Platform" icon="puzzle">
-		<div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
-			**Complete I/O Learning System**
-			- 320x240 Color TFT Display
-			- Accelerometer, Magnetometer, Temperature
-			- Audio I/O with Microphone & Speaker
-			- Joystick & Button Interface
-			
-			<Badge text="$200+ value included in course" variant="tip" />
-		</div>
-	</Card>
+<CardGrid stagger>
+  <Card title="🎯 Real-Time Systems" icon="rocket">
+    Build systems that respond to events within microsecond timing deadlines using ARM Cortex-M4F architecture
+  </Card>
+  <Card title="⚙️ Professional RTOS" icon="setting">
+    Master TI-RTOS for multitasking applications used in automotive and aerospace industries
+  </Card>
+  <Card title="🔬 Hands-On Labs" icon="puzzle">
+    Six progressive laboratories from basic I/O to complete real-time systems integration
+  </Card>
+  <Card title="💼 Industry Ready" icon="laptop">
+    Use professional tools: Code Composer Studio, logic analyzers, and embedded debuggers
+  </Card>
 </CardGrid>
 
-## 🚀 Your Learning Journey
+## Hardware & Software Platform
 
-<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
-  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">🎯</div>
-  <div>
-    <h3>Lab 0: Foundation Building</h3>
-    <p>Master CCS IDE, basic I/O, interrupts, and LCD graphics. Build your first embedded application with confidence.</p>
-    <Badge text="Week 1-2" variant="note" />
-    <Badge text="4 hours" variant="caution" />
-  </div>
-</div>
+### Development Hardware
 
-<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
-  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">🔧</div>
-  <div>
-    <h3>Lab 1: Sensor Integration Hub</h3>
-    <p>Interface multiple sensors using I2C and ADC. Add PWM audio feedback and implement modular programming patterns.</p>
-    <Badge text="Week 3-4" variant="note" />
-    <Badge text="6 hours" variant="caution" />
-  </div>
-</div>
+<CardGrid>
+  <Card title="TI EK-TM4C1294XL LaunchPad" icon="laptop">
+    <Picture src={tiBoard} alt="TI EK-TM4C1294XL" width={300} />
+    
+    **ARM Cortex-M4F Microcontroller**
+    - 120MHz with hardware floating-point unit
+    - 1MB Flash memory, 256KB RAM
+    - Integrated Ethernet, USB, CAN interfaces
+    - Professional debugging capabilities
+    
+    <Badge text="Industry Standard MCU" variant="success" />
+  </Card>
+  
+  <Card title="BOOSTXL-EDUMKII BoosterPack" icon="puzzle">
+    <Picture src={boosterPack} alt="Educational BoosterPack" width={300} />
+    
+    **Complete I/O Interface Module**
+    - 320x240 color LCD display
+    - Multiple sensors: light, temperature, accelerometer
+    - Audio input/output with microphone and speaker
+    - Joystick and button interfaces
+    
+    <Badge text="Educational Platform" variant="note" />
+  </Card>
+</CardGrid>
 
-<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
-  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">📊</div>
-  <div>
-    <h3>Lab 2: Real-Time Spectrum Analyzer</h3>
-    <p>Build professional audio analysis tool with FFT processing and dynamic visualization capabilities.</p>
-    <Badge text="Week 5-6" variant="note" />
-    <Badge text="8 hours" variant="danger" />
-  </div>
-</div>
-
-<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
-  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">⚙️</div>
-  <div>
-    <h3>Lab 3: RTOS Mastery</h3>
-    <p>Transform applications using TI-RTOS. Master multitasking, synchronization, and inter-process communication.</p>
-    <Badge text="Week 7-8" variant="note" />
-    <Badge text="12 hours" variant="danger" />
-  </div>
-</div>
-
-<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
-  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">🔍</div>
-  <div>
-    <h3>Lab 4: Logic Analyzer Development</h3>
-    <p>Create professional test equipment for digital signal analysis with advanced triggering capabilities.</p>
-    <Badge text="Week 9" variant="note" />
-    <Badge text="10 hours" variant="danger" />
-  </div>
-</div>
-
-<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
-  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">🎖️</div>
-  <div>
-    <h3>Lab 5: System Integration Capstone</h3>
-    <p>Combine all modules into unified system with advanced diagnostics, profiling, and monitoring.</p>
-    <Badge text="Week 10-12" variant="note" />
-    <Badge text="15 hours" variant="danger" />
-  </div>
-</div>
-
-## 💼 Master Industry-Essential Skills
+### Professional Development Tools
 
 <Tabs>
-  <TabItem label="⚡ Real-Time Programming" icon="rocket">
-    <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
-      
-      ### Interrupt-Driven Development
-      - **Microsecond-precise timing control** for safety-critical applications
-      - **Priority-based scheduling** used in automotive and aerospace systems  
-      - **Professional debugging techniques** with logic analyzers and profilers
-      - **Deadline analysis** ensuring systems meet timing requirements
-      
-      **Real-world impact**: These skills are essential for autonomous vehicles, medical devices, and industrial control systems.
-      
-      <Badge text="Used by Tesla, SpaceX, Medtronic" variant="success" />
-    </div>
+  <TabItem label="Code Composer Studio" icon="laptop">
+    <Picture src={ccs} alt="Code Composer Studio" width={200} />
+    
+    **Professional Embedded IDE**
+    - Advanced debugging with breakpoints and watch windows
+    - Real-time performance analysis and profiling
+    - Integrated compiler toolchain and project management
+    - RTOS-aware debugging capabilities
+    
+    <Badge text="Free for Educational Use" variant="tip" />
   </TabItem>
   
-  <TabItem label="🔄 RTOS Development" icon="setting">
-    <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
-      
-      ### Operating System Fundamentals  
-      - **TI-RTOS multitasking design** patterns used across embedded industry
-      - **Thread synchronization** with semaphores, mutexes, and mailboxes
-      - **Memory management** for resource-constrained environments
-      - **Performance profiling** to optimize system efficiency
-      
-      **Career advantage**: RTOS experience commands 20-30% salary premium in embedded roles.
-      
-      <Badge text="Industry Standard Skills" variant="tip" />
-    </div>
+  <TabItem label="TivaWare SDK" icon="setting">
+    <Picture src={tiva} alt="TivaWare" width={200} />
+    
+    **Hardware Abstraction Layer**
+    - Comprehensive peripheral driver library
+    - Pre-built examples and application frameworks
+    - Optimized for TM4C microcontroller family
+    - Complete API documentation and reference
   </TabItem>
   
-  <TabItem label="🛠️ Hardware Integration" icon="puzzle">
-    <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
-      
-      ### Professional I/O Interfaces
-      - **SPI, I2C, UART protocols** - the backbone of embedded communication
-      - **Custom device driver development** for specialized hardware
-      - **DMA programming** for high-performance data transfer
-      - **Analog signal processing** with ADC and DAC peripherals
-      
-      **Universal application**: Every embedded product uses these communication protocols.
-      
-      <Badge text="Foundation of IoT" variant="note" />
-    </div>
-  </TabItem>
-  
-  <TabItem label="📈 Performance Engineering" icon="chart">
-    <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
-      
-      ### System Optimization Excellence
-      - **CPU and memory profiling** with professional tools
-      - **Power optimization** techniques for battery-powered devices
-      - **Code efficiency analysis** using performance counters
-      - **System bottleneck identification** and resolution
-      
-      **Competitive edge**: Performance optimization separates expert developers from beginners.
-      
-      <Badge text="Senior Engineer Skills" variant="success" />
-    </div>
+  <TabItem label="TI-RTOS Kernel" icon="rocket">
+    <Picture src={freertos} alt="TI-RTOS" width={250} />
+    
+    **Real-Time Operating System**
+    - Preemptive multitasking with priority scheduling
+    - Task synchronization: semaphores, mailboxes, events
+    - Memory management and efficient resource allocation
+    - Industry-proven reliability and performance
+    
+    <Badge text="Used in Production Systems Worldwide" variant="success" />
   </TabItem>
 </Tabs>
 
-## 🏆 Comprehensive Support System
+## Learning Progression
+
+<Aside type="tip" title="Why This Course Matters">
+Real-time embedded systems power everything from automotive safety systems to medical devices. This course provides the practical skills that employers demand in the rapidly growing embedded systems industry, with hands-on experience using the same tools and methodologies used in professional development.
+</Aside>
+
+### Laboratory Journey
+
+<Steps>
+1. **Lab 0: Foundation (Week 1)**
+   Tutorial introduction to embedded development environment and basic peripherals
+
+2. **Lab 1: Sensor Integration (Week 3)**
+   Multi-sensor interface with professional communication protocols (I2C, SPI, ADC)
+
+3. **Lab 2: Signal Processing (Week 5)**
+   Real-time audio spectrum analyzer with FFT processing and dynamic visualization
+
+4. **Lab 3: RTOS Migration (Week 7)**
+   Transform applications using professional RTOS with multitasking and synchronization
+
+5. **Lab 4: Digital Analysis (Week 8)**
+   Build a logic analyzer for digital signal capture and timing analysis
+
+6. **Lab 5: System Integration (Week 9)**
+   Complete system integration with advanced diagnostics and performance monitoring
+</Steps>
+
+## Core Technical Skills
+
+<CardGrid>
+  <Card title="⚡ Real-Time Programming" icon="rocket">
+    **Interrupt-Driven Systems**
+    - Precise timing control with microsecond accuracy
+    - Priority-based interrupt handling
+    - Deterministic response time analysis
+    - Professional debugging techniques
+    
+    <Badge text="Critical for Safety Systems" variant="caution" />
+  </Card>
+  
+  <Card title="🔄 RTOS Development" icon="setting">
+    **Multitasking Applications**
+    - Task creation and scheduling algorithms
+    - Inter-task communication patterns
+    - Resource sharing and synchronization
+    - System performance optimization
+    
+    <Badge text="Industry Standard Approach" variant="note" />
+  </Card>
+  
+  <Card title="🛠️ Hardware Interfaces" icon="puzzle">
+    **Professional I/O Protocols**
+    - SPI, I2C, UART communication
+    - Custom device driver development
+    - DMA for high-performance transfers
+    - Sensor and actuator integration
+    
+    <Badge text="Universal in Embedded Systems" variant="success" />
+  </Card>
+  
+  <Card title="📊 Performance Analysis" icon="chart">
+    **System Optimization**
+    - CPU utilization and memory profiling
+    - Real-time performance measurement
+    - Code optimization techniques
+    - Advanced debugging methodologies
+    
+    <Badge text="Differentiates Expert Developers" variant="tip" />
+  </Card>
+</CardGrid>
+
+## Quick Access Labs
+
+<CardGrid>
+  <LinkCard
+    title="Lab 0: Tutorial & Setup"
+    description="Get started with the development environment and build your first embedded application"
+    href="/labs/lab0/"
+  />
+  <LinkCard
+    title="Lab 1: Sensor Hub"
+    description="Interface with multiple sensors using professional communication protocols"
+    href="/labs/lab1/"
+  />
+  <LinkCard
+    title="Lab 2: Spectrum Analyzer"
+    description="Build a real-time audio analyzer with FFT processing and visualization"
+    href="/labs/lab2/"
+  />
+  <LinkCard
+    title="Lab 3: RTOS Integration"
+    description="Migrate to professional RTOS with multitasking and synchronization"
+    href="/labs/lab3/"
+  />
+</CardGrid>
+
+## Course Assessment
+
+<Tabs>
+  <TabItem label="Labs (45%)" icon="puzzle">
+    **Hands-On Mastery**
+    - Lab 0: 5% (Foundation Building)
+    - Labs 1-5: 8% each (Progressive Skills)
+    - Live demonstrations with TA signoff
+    - Focus on working implementations
+    
+    <Badge text="Most Important Component" variant="success" />
+  </TabItem>
+  
+  <TabItem label="Exams (40%)" icon="document">
+    **Conceptual Understanding**
+    - Midterm Exam: 20% (Fundamentals & Theory)
+    - Final Exam: 20% (Advanced Topics & Integration)
+    - Open book format with emphasis on application
+    - Problem-solving and analysis focus
+  </TabItem>
+  
+  <TabItem label="Homework (15%)" icon="pencil">
+    **Reinforcement & Practice**
+    - 6 assignments total (best 5 count)
+    - Individual effort required
+    - Theory reinforcement and design problems
+    - Flexible grading allows one dropped assignment
+  </TabItem>
+</Tabs>
+
+## Support & Resources
 
 <CardGrid>
   <Card title="👨‍🏫 Expert Instruction" icon="star">
     **Professor Xinming Huang**
-    - 15+ years embedded systems experience  
-    - Research in real-time computing & signal processing
-    - Industry collaborations with Raytheon & Boeing
-    - Office Hours: Tuesdays 1-3 PM
+    - Extensive embedded systems research experience
+    - Industry connections and real-world applications
+    - Regular office hours and personal guidance
   </Card>
   
-  <Card title="👥 Dedicated Teaching Staff" icon="approve-check">
-    **Experienced TAs Available**
-    - Present during all lab sessions
-    - Evening help sessions 3x per week
-    - One-on-one debugging assistance
-    - Code review and optimization guidance
+  <Card title="🔧 Teaching Assistants" icon="approve-check">
+    **Dedicated Lab Support**
+    - Available during all lab sessions
+    - Evening help sessions three times per week
+    - Experienced with course hardware and software
   </Card>
   
-  <Card title="⏰ Flexible Learning Options" icon="clock">
-    **Multiple Support Channels**
-    - Two lab sections per week
-    - Open lab hours throughout week  
-    - Online office hours via Zoom
-    - Course Discord for peer collaboration
+  <Card title="⏰ Flexible Access" icon="clock">
+    **Multiple Learning Options**
+    - Two lab sections available weekly
+    - Open lab access throughout the week
+    - Comprehensive online resources and documentation
   </Card>
   
-  <Card title="💻 Complete Resource Package" icon="laptop">
-    **Everything You Need Provided**
-    - All hardware during lab sessions
-    - Professional software licenses
-    - Starter code templates
-    - Video tutorials & documentation
+  <Card title="💻 Complete Setup" icon="laptop">
+    **Everything Provided**
+    - All hardware available during lab sessions
+    - Software licenses and development tools
+    - Starter code and comprehensive examples
   </Card>
 </CardGrid>
 
-## 📊 Assessment & Success Framework
+## Industry Relevance
 
-<Tabs>
-  <TabItem label="🔬 Laboratory Work (45%)" icon="puzzle">
-    **Hands-On Skill Mastery**
-    
-    | Lab | Weight | Focus Area | Skills Developed |
-    |-----|--------|------------|-----------------|
-    | Lab 0 | 5% | Foundation | CCS, Interrupts, Graphics |
-    | Lab 1 | 8% | Sensors | I2C, ADC, Modular Design |
-    | Lab 2 | 8% | DSP | FFT, Real-time Processing |
-    | Lab 3 | 8% | RTOS | Multitasking, Synchronization |
-    | Lab 4 | 8% | Logic Analysis | Digital Capture, Triggers |
-    | Lab 5 | 8% | Integration | System Architecture |
-    
-    <Badge text="Live Demonstrations Required" variant="success" />
-    <Badge text="TA Signoff Ensures Competency" variant="note" />
-  </TabItem>
-  
-  <TabItem label="📝 Examinations (40%)" icon="document">
-    **Conceptual Understanding Assessment**
-    
-    - **Midterm Exam (20%)**: Real-time fundamentals, scheduling theory, hardware interfaces
-    - **Final Exam (20%)**: RTOS design, system integration, performance optimization
-    - **Open Book Format**: Focus on application and problem-solving
-    - **Practice Exams Provided**: Full solutions and review sessions
-    
-    <Badge text="Theory Meets Practice" variant="tip" />
-  </TabItem>
-  
-  <TabItem label="📋 Homework (15%)" icon="pencil">
-    **Concept Reinforcement**
-    
-    - **6 Total Assignments** covering key theoretical concepts
-    - **Best 5 Count** - flexibility to focus on strengths
-    - **Individual Work Required** - academic integrity enforced
-    - **Problem-Solving Focus** - prepare for industry challenges
-    
-    <Badge text="Drop Lowest Score" variant="caution" />
-  </TabItem>
-</Tabs>
-
-## 🌟 Student Success & Career Impact
-
-<CardGrid>
-  <Card title="🎯 Direct Industry Pipeline" icon="star">
-    **"The RTOS multitasking concepts from Lab 3 were exactly what Tesla's Autopilot team needed. I was implementing production code within my first month."**
-    
-    *— Sarah M., Software Engineer at Tesla (Class of 2023)*
-    
-    <Badge text="$92K Starting Salary" variant="success" />
-  </Card>
-  
-  <Card title="🚀 Graduate School Excellence" icon="rocket">
-    **"ECE 3849's real-time programming foundation gave me a huge advantage in my PhD research. The hands-on experience with professional tools was invaluable."**
-    
-    *— Alex K., PhD Student at Stanford (Class of 2022)*
-    
-    <Badge text="Top-Tier Graduate Programs" variant="tip" />
-  </Card>
-  
-  <Card title="💡 Entrepreneurship Success" icon="puzzle">
-    **"Used the sensor integration patterns from Lab 1 to build our startup's IoT platform. The modular design principles scaled perfectly to production."**
-    
-    *— Jordan L., CTO of IoT Startup (Class of 2024)*
-    
-    <Badge text="$2M Series A Funding" variant="note" />
-  </Card>
-</CardGrid>
-
-## 🏢 Industry Connections & Relevance
-
-<Aside type="note" title="Real-World Validation">
-Course curriculum developed with input from **Raytheon Technologies**, **Tesla**, **Boston Dynamics**, **Apple**, and **Qualcomm**. Lab exercises mirror actual development workflows used in industry.
+<Aside type="note" title="Real-World Applications">
+This course curriculum is designed with input from industry partners including **Raytheon**, **Tesla**, **Apple**, and **Boston Dynamics**. The skills you develop translate directly to embedded systems roles at leading technology companies developing autonomous vehicles, medical devices, aerospace systems, and IoT products.
 </Aside>
 
-### Technologies Mastered Align with Industry Demand
+### Career Impact
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin: 2rem 0;">
-  <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
-    <h4>🔧 Development Tools</h4>
-    <ul>
-      <li><strong>Code Composer Studio</strong> - TI's professional IDE</li>
-      <li><strong>TI-RTOS</strong> - Industry-standard real-time OS</li>
-      <li><strong>Hardware debuggers</strong> - JTAG and logic analyzers</li>
-      <li><strong>Performance profilers</strong> - System optimization</li>
-    </ul>
-  </div>
-  
-  <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
-    <h4>📡 Communication Protocols</h4>
-    <ul>
-      <li><strong>SPI</strong> - High-speed serial (displays, memory)</li>
-      <li><strong>I2C</strong> - Sensor networks and device control</li>
-      <li><strong>UART</strong> - Debug interfaces and legacy systems</li>
-      <li><strong>USB & Ethernet</strong> - Modern connectivity</li>
-    </ul>
-  </div>
-</div>
+<CardGrid stagger>
+  <Card title="💰 High-Demand Skills" icon="star">
+    Embedded engineers with RTOS experience command premium salaries in automotive, aerospace, medical, and IoT industries
+  </Card>
+  <Card title="🚀 Innovation Ready" icon="rocket">
+    Master the same development methodologies used for cutting-edge products like autonomous vehicles and smart medical devices
+  </Card>
+  <Card title="🎯 Direct Application" icon="approve-check">
+    Every laboratory exercise mirrors real-world development scenarios encountered in professional embedded systems projects
+  </Card>
+</CardGrid>
 
-## ⚡ Quick Start Your Success
+## Prerequisites & Preparation
 
 <Steps>
-1. **Install Development Environment** 
-   Download Code Composer Studio v12+ from TI (free for education)
-   
-2. **Verify Prerequisites**
-   Solid C programming skills and basic electronics knowledge
-   
-3. **Join Course Resources**
-   Access Canvas, Discord, and lab documentation
-   
-4. **Attend First Lab Session**
-   Get hands-on with hardware and meet teaching team
-   
-5. **Begin Lab 0 Tutorial**
-   Start building embedded systems confidence immediately
+1. **Programming Foundation**
+   Solid C programming skills and basic understanding of computer organization
+
+2. **Electronics Background**
+   Knowledge of digital logic, basic circuits, and microprocessor fundamentals (ECE 2049)
+
+3. **Development Environment**
+   Install Code Composer Studio and familiarize yourself with integrated development environments
+
+4. **Course Materials**
+   Access to Canvas for assignments, documentation, and supplementary resources
 </Steps>
 
-<div style="background: linear-gradient(135deg, var(--sl-color-accent) 0%, #8B1538 100%); color: white; padding: 3rem 2rem; border-radius: 20px; text-align: center; margin: 3rem 0; box-shadow: 0 20px 60px rgba(166, 25, 46, 0.4);">
-  <h2>🚀 Ready to Launch Your Embedded Career?</h2>
-  <p style="font-size: 1.2rem; margin: 1rem 0;">
-    Join hundreds of WPI graduates who've transformed theoretical knowledge into industry-leading embedded systems expertise. 
-    Your journey to mastering real-time systems starts with a single click.
-  </p>
-  
-  <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-top: 2rem;">
-    <a href="/labs/lab0/" style="background: white; color: var(--sl-color-accent); padding: 1rem 2rem; border-radius: 50px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 1rem;">🎯 Start Lab 0 Now</a>
-    <a href="/syllabus/" style="background: white; color: var(--sl-color-accent); padding: 1rem 2rem; border-radius: 50px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 1rem;">📋 View Full Syllabus</a>
-    <a href="/setup/" style="background: white; color: var(--sl-color-accent); padding: 1rem 2rem; border-radius: 50px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 1rem;">⚙️ Setup Guide</a>
-  </div>
-</div>
+## Get Started Today
 
----
+<Card title="Ready to Master Real-Time Systems?" icon="rocket">
+**Your embedded systems career starts here.** ECE 3849 provides the most comprehensive hands-on experience in real-time programming available, using industry-standard tools and methodologies that directly translate to professional development environments.
 
-<CardGrid>
-  <LinkCard
-    title="📚 Course Syllabus"
-    description="Detailed schedule, grading policy, and learning objectives for ECE 3849"
-    href="/syllabus/"
-  />
-  <LinkCard
-    title="🔧 Hardware Setup"
-    description="Complete guide to configuring your development environment and lab kit"
-    href="/setup/"
-  />
-  <LinkCard
-    title="❓ Frequently Asked Questions"
-    description="Common questions about course requirements, lab policies, and career outcomes"
-    href="/faq/"
-  />
-  <LinkCard
-    title="💬 Course Discord"
-    description="Join peer discussions, get help from TAs, and collaborate on projects"
-    href="/discord/"
-  />
-</CardGrid>
+**Join hundreds of successful graduates** who credit this course as the foundation of their embedded systems expertise. From automotive safety systems to medical devices, the skills you develop here will prepare you for the most challenging and rewarding roles in embedded systems engineering.
+
+**Course begins with strong fundamentals** and builds systematically toward advanced real-time system design, ensuring every student succeeds regardless of their starting experience level.
+</Card>
