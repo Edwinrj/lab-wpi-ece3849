@@ -30,134 +30,23 @@ import { Steps } from '@astrojs/starlight/components';
 import { Icon } from '@astrojs/starlight/components';
 import { LinkCard } from '@astrojs/starlight/components';
 
-<style>
-/* Hero Background with WPI Crimson Gradient */
-.page.type-splash .hero {
-  background: linear-gradient(135deg, var(--sl-color-accent) 0%, var(--sl-color-accent-high) 50%, var(--sl-color-accent-low) 100%);
-  border-radius: 16px;
-  margin-bottom: 3rem;
-  box-shadow: 0 20px 60px rgba(166, 25, 46, 0.3);
-}
-
-.page.type-splash .hero h1 {
-  color: white;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-}
-
-.page.type-splash .hero .tagline {
-  color: rgba(255,255,255,0.95);
-  font-size: 1.1rem;
-  font-weight: 500;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
-}
-
-/* Custom Card Styling */
-.custom-card {
-  background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5));
-  border: 2px solid var(--sl-color-accent-low);
-  border-radius: 12px;
-  padding: 2rem;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.custom-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 35px rgba(166, 25, 46, 0.2);
-  border-color: var(--sl-color-accent);
-}
-
-.stat-card {
-  text-align: center;
-  background: linear-gradient(145deg, var(--sl-color-accent-low), var(--sl-color-accent));
-  color: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 10px 30px rgba(166, 25, 46, 0.3);
-}
-
-.stat-number {
-  font-size: 3rem;
-  font-weight: bold;
-  display: block;
-  margin-bottom: 0.5rem;
-}
-
-.lab-progress {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 1.5rem 0;
-  padding: 1.5rem;
-  background: var(--sl-color-gray-6);
-  border-radius: 12px;
-  border-left: 4px solid var(--sl-color-accent);
-}
-
-.lab-icon {
-  font-size: 2rem;
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--sl-color-accent);
-  color: white;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.feature-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  margin: 2rem 0;
-}
-
-.cta-section {
-  background: linear-gradient(135deg, var(--sl-color-accent) 0%, #8B1538 100%);
-  color: white;
-  padding: 3rem 2rem;
-  border-radius: 20px;
-  text-align: center;
-  margin: 3rem 0;
-  box-shadow: 0 20px 60px rgba(166, 25, 46, 0.4);
-}
-
-.cta-button {
-  background: white;
-  color: var(--sl-color-accent);
-  padding: 1rem 2rem;
-  border-radius: 50px;
-  text-decoration: none;
-  font-weight: bold;
-  display: inline-block;
-  margin-top: 1rem;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.cta-button:hover {
-  transform: scale(1.05);
-  box-shadow: 0 10px 30px rgba(255,255,255,0.3);
-}
-</style>
-
 ## 🎯 Course Impact at a Glance
 
-<div class="feature-grid">
-  <div class="stat-card">
-    <span class="stat-number">6</span>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; margin: 2rem 0;">
+  <div style="text-align: center; background: linear-gradient(145deg, var(--sl-color-accent-low), var(--sl-color-accent)); color: white; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(166, 25, 46, 0.3);">
+    <span style="font-size: 3rem; font-weight: bold; display: block; margin-bottom: 0.5rem;">6</span>
     Progressive Labs
   </div>
-  <div class="stat-card">
-    <span class="stat-number">40+</span>
+  <div style="text-align: center; background: linear-gradient(145deg, var(--sl-color-accent-low), var(--sl-color-accent)); color: white; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(166, 25, 46, 0.3);">
+    <span style="font-size: 3rem; font-weight: bold; display: block; margin-bottom: 0.5rem;">40+</span>
     Hours Hands-On
   </div>
-  <div class="stat-card">
-    <span class="stat-number">95%</span>
+  <div style="text-align: center; background: linear-gradient(145deg, var(--sl-color-accent-low), var(--sl-color-accent)); color: white; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(166, 25, 46, 0.3);">
+    <span style="font-size: 3rem; font-weight: bold; display: block; margin-bottom: 0.5rem;">95%</span>
     Industry Relevance
   </div>
-  <div class="stat-card">
-    <span class="stat-number">$85K+</span>
+  <div style="text-align: center; background: linear-gradient(145deg, var(--sl-color-accent-low), var(--sl-color-accent)); color: white; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(166, 25, 46, 0.3);">
+    <span style="font-size: 3rem; font-weight: bold; display: block; margin-bottom: 0.5rem;">$85K+</span>
     Avg Graduate Salary
   </div>
 </div>
@@ -166,7 +55,7 @@ import { LinkCard } from '@astrojs/starlight/components';
 
 <CardGrid>
 	<Card title="TI EK-TM4C1294XL Microcontroller" icon="laptop">
-		<div class="custom-card">
+		<div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
 			**ARM Cortex-M4F @ 120MHz**
 			- 1MB Flash Memory, 256KB RAM
 			- Hardware Floating Point Unit
@@ -177,7 +66,7 @@ import { LinkCard } from '@astrojs/starlight/components';
 		</div>
 	</Card>
 	<Card title="BOOSTXL-EDUMKII Sensor Platform" icon="puzzle">
-		<div class="custom-card">
+		<div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
 			**Complete I/O Learning System**
 			- 320x240 Color TFT Display
 			- Accelerometer, Magnetometer, Temperature
@@ -191,8 +80,8 @@ import { LinkCard } from '@astrojs/starlight/components';
 
 ## 🚀 Your Learning Journey
 
-<div class="lab-progress">
-  <div class="lab-icon">🎯</div>
+<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
+  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">🎯</div>
   <div>
     <h3>Lab 0: Foundation Building</h3>
     <p>Master CCS IDE, basic I/O, interrupts, and LCD graphics. Build your first embedded application with confidence.</p>
@@ -201,8 +90,8 @@ import { LinkCard } from '@astrojs/starlight/components';
   </div>
 </div>
 
-<div class="lab-progress">
-  <div class="lab-icon">🔧</div>
+<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
+  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">🔧</div>
   <div>
     <h3>Lab 1: Sensor Integration Hub</h3>
     <p>Interface multiple sensors using I2C and ADC. Add PWM audio feedback and implement modular programming patterns.</p>
@@ -211,8 +100,8 @@ import { LinkCard } from '@astrojs/starlight/components';
   </div>
 </div>
 
-<div class="lab-progress">
-  <div class="lab-icon">📊</div>
+<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
+  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">📊</div>
   <div>
     <h3>Lab 2: Real-Time Spectrum Analyzer</h3>
     <p>Build professional audio analysis tool with FFT processing and dynamic visualization capabilities.</p>
@@ -221,8 +110,8 @@ import { LinkCard } from '@astrojs/starlight/components';
   </div>
 </div>
 
-<div class="lab-progress">
-  <div class="lab-icon">⚙️</div>
+<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
+  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">⚙️</div>
   <div>
     <h3>Lab 3: RTOS Mastery</h3>
     <p>Transform applications using TI-RTOS. Master multitasking, synchronization, and inter-process communication.</p>
@@ -231,8 +120,8 @@ import { LinkCard } from '@astrojs/starlight/components';
   </div>
 </div>
 
-<div class="lab-progress">
-  <div class="lab-icon">🔍</div>
+<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
+  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">🔍</div>
   <div>
     <h3>Lab 4: Logic Analyzer Development</h3>
     <p>Create professional test equipment for digital signal analysis with advanced triggering capabilities.</p>
@@ -241,8 +130,8 @@ import { LinkCard } from '@astrojs/starlight/components';
   </div>
 </div>
 
-<div class="lab-progress">
-  <div class="lab-icon">🎖️</div>
+<div style="display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--sl-color-gray-6); border-radius: 12px; border-left: 4px solid var(--sl-color-accent);">
+  <div style="font-size: 2rem; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--sl-color-accent); color: white; border-radius: 50%; flex-shrink: 0;">🎖️</div>
   <div>
     <h3>Lab 5: System Integration Capstone</h3>
     <p>Combine all modules into unified system with advanced diagnostics, profiling, and monitoring.</p>
@@ -255,7 +144,7 @@ import { LinkCard } from '@astrojs/starlight/components';
 
 <Tabs>
   <TabItem label="⚡ Real-Time Programming" icon="rocket">
-    <div class="custom-card">
+    <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
       
       ### Interrupt-Driven Development
       - **Microsecond-precise timing control** for safety-critical applications
@@ -270,7 +159,7 @@ import { LinkCard } from '@astrojs/starlight/components';
   </TabItem>
   
   <TabItem label="🔄 RTOS Development" icon="setting">
-    <div class="custom-card">
+    <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
       
       ### Operating System Fundamentals  
       - **TI-RTOS multitasking design** patterns used across embedded industry
@@ -285,7 +174,7 @@ import { LinkCard } from '@astrojs/starlight/components';
   </TabItem>
   
   <TabItem label="🛠️ Hardware Integration" icon="puzzle">
-    <div class="custom-card">
+    <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
       
       ### Professional I/O Interfaces
       - **SPI, I2C, UART protocols** - the backbone of embedded communication
@@ -300,7 +189,7 @@ import { LinkCard } from '@astrojs/starlight/components';
   </TabItem>
   
   <TabItem label="📈 Performance Engineering" icon="chart">
-    <div class="custom-card">
+    <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
       
       ### System Optimization Excellence
       - **CPU and memory profiling** with professional tools
@@ -429,8 +318,8 @@ Course curriculum developed with input from **Raytheon Technologies**, **Tesla**
 
 ### Technologies Mastered Align with Industry Demand
 
-<div class="feature-grid">
-  <div class="custom-card">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin: 2rem 0;">
+  <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
     <h4>🔧 Development Tools</h4>
     <ul>
       <li><strong>Code Composer Studio</strong> - TI's professional IDE</li>
@@ -440,7 +329,7 @@ Course curriculum developed with input from **Raytheon Technologies**, **Tesla**
     </ul>
   </div>
   
-  <div class="custom-card">
+  <div style="background: linear-gradient(145deg, var(--sl-color-gray-6), var(--sl-color-gray-5)); border: 2px solid var(--sl-color-accent-low); border-radius: 12px; padding: 2rem;">
     <h4>📡 Communication Protocols</h4>
     <ul>
       <li><strong>SPI</strong> - High-speed serial (displays, memory)</li>
@@ -470,7 +359,7 @@ Course curriculum developed with input from **Raytheon Technologies**, **Tesla**
    Start building embedded systems confidence immediately
 </Steps>
 
-<div class="cta-section">
+<div style="background: linear-gradient(135deg, var(--sl-color-accent) 0%, #8B1538 100%); color: white; padding: 3rem 2rem; border-radius: 20px; text-align: center; margin: 3rem 0; box-shadow: 0 20px 60px rgba(166, 25, 46, 0.4);">
   <h2>🚀 Ready to Launch Your Embedded Career?</h2>
   <p style="font-size: 1.2rem; margin: 1rem 0;">
     Join hundreds of WPI graduates who've transformed theoretical knowledge into industry-leading embedded systems expertise. 
@@ -478,9 +367,9 @@ Course curriculum developed with input from **Raytheon Technologies**, **Tesla**
   </p>
   
   <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-top: 2rem;">
-    <a href="/labs/lab0/" class="cta-button">🎯 Start Lab 0 Now</a>
-    <a href="/syllabus/" class="cta-button">📋 View Full Syllabus</a>
-    <a href="/setup/" class="cta-button">⚙️ Setup Guide</a>
+    <a href="/labs/lab0/" style="background: white; color: var(--sl-color-accent); padding: 1rem 2rem; border-radius: 50px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 1rem;">🎯 Start Lab 0 Now</a>
+    <a href="/syllabus/" style="background: white; color: var(--sl-color-accent); padding: 1rem 2rem; border-radius: 50px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 1rem;">📋 View Full Syllabus</a>
+    <a href="/setup/" style="background: white; color: var(--sl-color-accent); padding: 1rem 2rem; border-radius: 50px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 1rem;">⚙️ Setup Guide</a>
   </div>
 </div>
 
