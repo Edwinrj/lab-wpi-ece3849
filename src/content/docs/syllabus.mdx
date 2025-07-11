@@ -1,0 +1,308 @@
+---
+title: Course Syllabus
+description: ECE 3849 Real-Time Embedded Systems - Course policies, schedule, and requirements
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Badge } from '@astrojs/starlight/components';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
+
+# ECE 3849 Real-Time Embedded Systems
+
+## Course Syllabus - Spring 2025
+
+<CardGrid>
+  <Card title="Course Information" icon="information">
+    **Course**: ECE 3849 Real-Time Embedded Systems  
+    **Credits**: 3 Credit Hours  
+    **Prerequisites**: ECE 2049 (recommended)  
+    **Meeting Times**: Tuesdays & Fridays 10:00-11:50 AM
+  </Card>
+  <Card title="Location" icon="home">
+    **Lectures**: Unity Hall 420  
+    **Labs**: AK317  
+    **Office Hours**: AK303  
+    **All sessions recorded on Echo360**
+  </Card>
+</CardGrid>
+
+## Instructor and Teaching Staff
+
+<CardGrid>
+  <Card title="Instructor" icon="star">
+    **Professor Xinming Huang**  
+    Email: xhuang@wpi.edu  
+    Office: AK303  
+    Office Hours: Tuesdays 1:00-3:00 PM
+  </Card>
+  <Card title="Teaching Assistant" icon="approve-check">
+    **Edwin A. Rios**  
+    Email: earios1@wpi.edu
+  </Card>
+</CardGrid>
+
+## Lab and Help Session Schedule
+
+<Tabs>
+  <TabItem label="Lab Sections">
+    | Section | Day | Time | Location | TAs |
+    |---------|-----|------|----------|-----|
+    | Dx01 | Thursday | 2:00-5:00 PM | AK317 | Edwin |
+    | Dx02 | Thursday | 10:00 AM-1:00 PM | AK317 | Edwin |
+  </TabItem>
+  <TabItem label="Help Sessions">
+    | Day | Time | TA | Location |
+    |-----|------|----| ---------|
+    | Monday | 5:00-7:00 PM | Edwin | AK317 |
+    | Tuesday | 6:00-8:00 PM | Edwin | AK317 |
+    | Wednesday | 5:00-7:00 PM | Edwin | AK317 |
+  </TabItem>
+  <TabItem label="Additional Labs">
+    | Day | Time | Description |
+    |-----|------|-------------|
+    | Monday | 10:00 AM-1:00 PM | Open Lab (Edwin) |
+    | Tuesday | 2:00-5:00 PM | Open Lab (Edwin) |
+  </TabItem>
+</Tabs>
+
+## Course Description
+
+This course continues the embedded systems sequence by expanding on real-time software and embedded microprocessor system architecture. Students will develop applications that meet strict real-time constraints with limited resources.
+
+<Aside type="note" title="Focus Areas">
+The course covers both software design for deterministic execution and hardware components including CPU architecture, buses, memory devices, and peripheral interfaces.
+</Aside>
+
+### Topics Covered
+
+<CardGrid>
+  <Card title="Software Development" icon="laptop">
+    - Embedded software development
+    - Real-time scheduling algorithms
+    - Inter-task communication
+    - Software performance optimization
+  </Card>
+  <Card title="System Architecture" icon="puzzle">
+    - CPU architecture and organization
+    - Bus interfaces and timing
+    - Memory management systems
+    - Peripheral interface design
+  </Card>
+  <Card title="Real-Time Concepts" icon="rocket">
+    - Deterministic execution timing
+    - Interrupt controllers and handling
+    - Direct memory access (DMA)
+    - Multitasking and RTOS
+  </Card>
+  <Card title="Practical Applications" icon="setting">
+    - Device driver development
+    - Hardware debugging techniques
+    - Performance analysis tools
+    - System integration methods
+  </Card>
+</CardGrid>
+
+## Learning Outcomes
+
+Upon successful completion of this course, students will be able to:
+
+<Steps>
+1. Write real-time software that uses hardware support via interrupt controllers and timers, without requiring an operating system
+2. Develop multitasking applications using a real-time operating system (RTOS) with proper synchronization
+3. Analyze and optimize software performance at both instruction and high levels using profiling techniques
+4. Design memory systems using appropriate technologies such as SRAM, DRAM, and NOR/NAND flash
+5. Create peripheral interfaces using memory-mapped, SPI, I2C, USB, and other standards, including device drivers
+6. Debug embedded systems using in-circuit emulators and logic analyzers
+</Steps>
+
+## Required Equipment and Textbooks
+
+### Hardware Platform
+- **TI EK-TM4C1294XL** evaluation board
+- **BOOSTXL-EDUMKII** educational BoosterPack
+- Equipment distributed during lab sessions
+- Teams of 1-2 students (no extra credit for single-person teams)
+
+### Textbooks (Optional)
+<Tabs>
+  <TabItem label="Primary Reference">
+    **Real-Time Operating Systems for ARM Cortex-M Microcontrollers**  
+    Author: J. W. Valvano  
+    Publisher: 2017  
+    ISBN: 978-1466468863
+  </TabItem>
+  <TabItem label="Secondary Reference">
+    **An Embedded Software Primer**  
+    Author: D. E. Simon  
+    Publisher: Pearson India, 2011  
+    ISBN: 978-8177581546
+  </TabItem>
+</Tabs>
+
+## Assessment and Grading
+
+### Grade Distribution
+
+| Component | Weight | Details |
+|-----------|--------|---------|
+| Exams | 40% | Midterm (20%) + Final (20%) |
+| Laboratory Work | 45% | Lab 0 (5%) + Labs 1-5 (8% each) |
+| Homework | 15% | Best 5 of 6 assignments (3% each) |
+| Total | 100% | |
+
+<Aside type="tip" title="Grading Scale">
+`A: >=90% | B: >=75% | C: >=60% | NR: <60%`
+</Aside>
+
+### Assessment Details
+
+<Tabs>
+  <TabItem label="Exams">
+    ### Exam Information
+    - **Format**: Open book, open notes
+    - **Technology**: Computers and tablets allowed (no internet)
+    - **Materials**: All necessary data sheets included
+    - **Dates**: 
+      - Midterm: Friday, April 11
+      - Final: Wednesday, May 7 (last day of term)
+    
+    <Aside type="caution" title="Make-up Policy">
+    Make-up exams available only for documented circumstances. Must attend at least two exams to receive course grade.
+    </Aside>
+  </TabItem>
+  <TabItem label="Laboratory">
+    ### Lab Requirements
+    - 6 lab assignments (Labs 0-5)
+    - All labs must be signed off by TA
+    - Lab reports required for Labs 1-5
+    - Late penalty: 20% for late submissions
+    - Partial completion acceptable (typically at least 50%)
+    
+    ### Lab Policies
+    - Work in groups of 1-2 students
+    - Discuss general approaches with other groups
+    - No copying of source code or reports
+    - No reuse of code from previous offerings
+  </TabItem>
+  <TabItem label="Homework">
+    ### Homework Policy
+    - 6 individual assignments
+    - Best 5 grades counted (can miss 1)
+    - No late submissions accepted
+    - Submit in Word or PDF format
+    - Show all work for partial credit
+    - Collaboration allowed during preparation
+  </TabItem>
+</Tabs>
+
+## Course Schedule
+
+### Weekly Topics Overview
+
+| Week | Lecture Topics | Lab Activity | Assignments |
+|------|---------------|--------------|-------------|
+| 1 | Introduction, Real-time fundamentals | Lab 0: Tutorial | - |
+| 2 | Scheduling theory, Response time | Lab 0 signoff | HW1 due |
+| 3 | Shared data, Concurrency | - | - |
+| 4 | FIFOs, Reentrancy | Lab 1 signoff | HW2 due |
+| 5 | RTOS, Multitasking | - | HW3 due |
+| 6 | Semaphores, Gates | Lab 2 signoff | Midterm |
+| 7 | Mailboxes, Software timers | Lab 3 signoff | HW4 due |
+| 8 | Memory management, Debugging | Lab 4 signoff | - |
+| 9 | I/O, DMA, Networks | - | HW5 due |
+| 10 | CPU architecture | Lab 5 signoff | - |
+| 11 | Assembly, Performance | - | HW6 due |
+| 12 | Review | - | Final Exam |
+
+<Badge text="Subject to minor adjustments" variant="note" />
+
+### Detailed Lecture Schedule
+
+<Tabs>
+  <TabItem label="Real-Time Fundamentals">
+    #### Weeks 1-4: Core Concepts
+    - Latency and response time analysis
+    - Interrupt-driven programming
+    - Priority scheduling basics
+    - Rate Monotonic Scheduling (RMS)
+    - Earliest Deadline First (EDF)
+    - Shared data protection
+    - Concurrency and atomicity
+    
+    Reading: Simon Ch. 4-5, Valvano Ch. 3
+  </TabItem>
+  <TabItem label="RTOS Development">
+    #### Weeks 5-8: Advanced Topics
+    - RTOS fundamentals
+    - Multitasking implementation
+    - Semaphores and synchronization
+    - Inter-task communication
+    - Mailboxes and queues
+    - Software timers
+    - Memory management
+    
+    Reading: Simon Ch. 6-7, Valvano Ch. 4
+  </TabItem>
+  <TabItem label="System Architecture">
+    #### Weeks 9-12: Hardware Integration
+    - CPU architecture and organization
+    - Memory systems design
+    - I/O interfaces (SPI, I2C, USB)
+    - Direct Memory Access (DMA)
+    - Performance analysis
+    - Assembly language optimization
+    
+    Reading: Valvano Ch. 1-2, 8-9
+  </TabItem>
+</Tabs>
+
+## Course Policies
+
+### Attendance and Participation
+- Lecture attendance strongly recommended (not graded)
+- Lab attendance required for signoffs
+- Lectures recorded on Echo360 for review
+- Class discussions encouraged
+
+### Academic Integrity
+<Aside type="caution" title="Important Policy">
+Individual effort required for homework assignments. Lab collaboration permitted within teams, but no code copying between teams or from previous course offerings.
+</Aside>
+
+### Late Work Policy
+- **Homework**: No late submissions accepted
+- **Lab reports**: 20% penalty per day late
+- **Lab signoffs**: Must be completed during lab sessions or office hours
+
+### Students with Disabilities
+Students requiring accommodations should contact the Disability Services Office (DSO) early in the term. Exam accommodations will be arranged through the Proctor Center in Unity Hall.
+
+## Resources and Support
+
+### Course Materials
+- Lecture notes posted on Canvas before each class
+- Completed notes posted after lectures
+- Practice exams and solutions provided
+- Review sessions before each exam
+
+### Technical Support
+- TAs available during all lab sessions
+- Help sessions three evenings per week
+- Professor office hours for additional support
+- Canvas discussion forums for questions
+
+### Development Environment
+- **Code Composer Studio (CCS)** - Required IDE
+- **TI-RTOS** - Real-time operating system
+- **Hardware debugger** - Integrated with CCS
+- **Logic analyzer access** - For advanced debugging
+
+---
+
+<Card title="Success in ECE 3849" icon="star">
+This course builds practical skills essential for embedded systems careers. Regular lab attendance, early homework completion, and active participation in help sessions are key to success.
+
+Remember: Start lab work early, attend help sessions when needed, and don't hesitate to ask questions during office hours.
+</Card>
