@@ -21,7 +21,6 @@ collections:
     folder: "src/content/docs/labs"
     create: true
     slug: "{{slug}}"
-    extension: "mdx"
     format: "frontmatter"
     extensions: ["md", "mdx"]
     fields:
@@ -35,7 +34,6 @@ collections:
     folder: "src/content/docs/guides"
     create: true
     slug: "{{slug}}"
-    extension: "mdx"
     format: "frontmatter"
     extensions: ["md", "mdx"]
     fields:
@@ -49,7 +47,6 @@ collections:
     folder: "src/content/docs/reference"
     create: true
     slug: "{{slug}}"
-    extension: "mdx"
     format: "frontmatter"
     extensions: ["md", "mdx"]
     fields:
@@ -63,7 +60,6 @@ collections:
     folder: "src/content/docs/resources"
     create: true
     slug: "{{slug}}"
-    extension: "mdx"
     format: "frontmatter"
     extensions: ["md", "mdx"]
     fields:
@@ -77,7 +73,6 @@ collections:
     folder: "src/content/docs/faq"
     create: true
     slug: "{{slug}}"
-    extension: "mdx"
     format: "frontmatter"
     extensions: ["md", "mdx"]
     fields:
