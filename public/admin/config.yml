@@ -27,6 +27,32 @@ collections:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
 
+  # Guides
+  - name: "guides"
+    label: "Guides"
+    label_singular: "Guides"
+    folder: "src/content/docs/guides"
+    create: true
+    slug: "{{slug}}"
+    extension: "mdx"
+    format: "frontmatter"
+    fields:
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "Content", name: "body", widget: "markdown" }
+
+  # Reference Materials
+  - name: "reference"
+    label: "Reference"
+    label_singular: "Reference"
+    folder: "src/content/docs/reference"
+    create: true
+    slug: "{{slug}}"
+    extension: "mdx"
+    format: "frontmatter"
+    fields:
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "Content", name: "body", widget: "markdown" }
+
   # Resources
   - name: "resources"
     label: "Resources"
@@ -39,6 +65,7 @@ collections:
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
+
 
   # FAQ
   - name: "faq"
