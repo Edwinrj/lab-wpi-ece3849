@@ -10,7 +10,7 @@ Welcome to Lab 0! This comprehensive guide will help you set up your development
 ## Lab Overview
 
 <Card title="Lab 0 Objectives" icon="rocket">
-\\*\\*Main Goal:\\*\\* Implement a stopwatch controlled by buttons and a navigable graphical menu.
+\*\*Main Goal:\*\* Implement a stopwatch controlled by buttons and a navigable graphical menu.
 
 **Key Learning Topics:**
 
@@ -27,18 +27,18 @@ Before diving into Lab 0, ensure you have all necessary components ready:
 
 <CardGrid>
 <Card title="Hardware Requirements" icon="laptop">
-- \\*\\*MSP430 Development Board\\*\\* (MSP430FR5994 or equivalent)
-- \\*\\*Graphical LCD Display\\*\\* (128x64 pixels recommended)
-- \\*\\*Push buttons\\*\\* (minimum 4 for navigation)
-- \\*\\*Breadboard and jumper wires\\*\\*
-- \\*\\*USB cable\\*\\* for programming and power
+- \*\*MSP430 Development Board\*\* (MSP430FR5994 or equivalent)
+- \*\*Graphical LCD Display\*\* (128x64 pixels recommended)
+- \*\*Push buttons\*\* (minimum 4 for navigation)
+- \*\*Breadboard and jumper wires\*\*
+- \*\*USB cable\*\* for programming and power
 </Card>
 
 <Card title="Software Requirements" icon="setting">
-- \\*\\*Code Composer Studio (CCS)\\*\\* v12.0+
-- \\*\\*MSP430 compiler tools\\*\\*
-- \\*\\*Device support packages\\*\\*
-- \\*\\*Git\\*\\* (recommended for version control)
+- \*\*Code Composer Studio (CCS)\*\* v12.0+
+- \*\*MSP430 compiler tools\*\*
+- \*\*Device support packages\*\*
+- \*\*Git\*\* (recommended for version control)
 </Card>
 </CardGrid>
 
@@ -54,54 +54,49 @@ Before diving into Lab 0, ensure you have all necessary components ready:
 
 <Tabs>
 <TabItem label="Windows">
-1. \\*\\*Download the Windows installer\\*\\* (\\`.exe\\` file)
-2. \\*\\*Run as Administrator\\*\\* to ensure proper installation
-3. \\*\\*Select installation directory\\*\\* (default: \\`C:\ti\ccs1250\\\`)
-4. \\*\\*Choose components:\\*\\*
+1. \*\*Download the Windows installer\*\* (\`.exe\` file)
+2. \*\*Run as Administrator\*\* to ensure proper installation
+3. \*\*Select installation directory\*\* (default: \`C:\ti\ccs1250\\`)
+4. \*\*Choose components:\*\*
    - ✅ MSP430 compiler tools
    - ✅ MSP430 device support
    - ✅ Debug probes support
    - ✅ MSP430 LaunchPad drivers
 
-```bash
-# Installation typically takes 10-15 minutes
-# Total size: ~2.5GB
-```
-
-5. **Restart your computer** after installation
-6. **Launch CCS** and verify installation
+1. **Restart your computer** after installation
+2. **Launch CCS** and verify installation
    </TabItem>
 
 <TabItem label="Linux">
-1. \\*\\*Download the Linux installer\\*\\* (\\`.run\\` file)
-2. \\*\\*Make executable and run:\\*\\*
-\\`\\`\\`bash
+1. \*\*Download the Linux installer\*\* (\`.run\` file)
+2. \*\*Make executable and run:\*\*
+\`\`\`bash
 chmod +x ccs_setup_12.7.0.00007_linux-x64.run
 sudo ./ccs_setup_12.7.0.00007_linux-x64.run
-\\`\\`\\`
-3. \\*\\*Select installation directory\\*\\* (default: \\`/opt/ti/ccs1250/\\`)
-4. \\*\\*Install dependencies:\\*\\*
-\\`\\`\\`bash
+\`\`\`
+3. \*\*Select installation directory\*\* (default: \`/opt/ti/ccs1250/\`)
+4. \*\*Install dependencies:\*\*
+\`\`\`bash
 sudo apt-get update
 sudo apt-get install libc6:i386 libusb-0.1-4 libgconf-2-4
-\\`\\`\\`
-5. \\*\\*Add user to dialout group:\\*\\*
-\\`\\`\\`bash
+\`\`\`
+5. \*\*Add user to dialout group:\*\*
+\`\`\`bash
 sudo usermod -a -G dialout $USER
-\\`\\`\\`
-6. \\*\\*Log out and log back in\\*\\* for group changes to take effect
+\`\`\`
+6. \*\*Log out and log back in\*\* for group changes to take effect
 </TabItem>
 
 <TabItem label="macOS">
-1. \\*\\*Download the macOS installer\\*\\* (\\`.dmg\\` file)
-2. \\*\\*Mount the disk image\\*\\* and run the installer
-3. \\*\\*Allow installation from identified developer\\*\\* in System Preferences
-4. \\*\\*Select installation directory\\*\\* (default: \\`/Applications/ti/ccs1250/\\`)
-5. \\*\\*Install Xcode Command Line Tools\\*\\* if prompted:
-\\`\\`\\`bash
+1. \*\*Download the macOS installer\*\* (\`.dmg\` file)
+2. \*\*Mount the disk image\*\* and run the installer
+3. \*\*Allow installation from identified developer\*\* in System Preferences
+4. \*\*Select installation directory\*\* (default: \`/Applications/ti/ccs1250/\`)
+5. \*\*Install Xcode Command Line Tools\*\* if prompted:
+\`\`\`bash
 xcode-select --install
-\\`\\`\\`
-6. \\*\\*Grant permissions\\*\\* for USB access when prompted
+\`\`\`
+6. \*\*Grant permissions\*\* for USB access when prompted
 </TabItem>
 </Tabs>
 
@@ -111,20 +106,20 @@ After CCS installation, configure device support:
 
 <Tabs>
 <TabItem label="Automatic Setup">
-1. \\*\\*Launch CCS\\*\\*
-2. \\*\\*Navigate to:\\*\\* Help → Install New Software
-3. \\*\\*Click "Add"\\*\\* and select "MSP430 Support"
-4. \\*\\*Install recommended packages:\\*\\*
+1. \*\*Launch CCS\*\*
+2. \*\*Navigate to:\*\* Help → Install New Software
+3. \*\*Click "Add"\*\* and select "MSP430 Support"
+4. \*\*Install recommended packages:\*\*
    - MSP430 compiler tools (latest)
    - MSP430Ware driver library
    - Energy Trace technology
 </TabItem>
 
 <TabItem label="Manual Setup">
-1. \\*\\*Download MSP430Ware\\*\\* separately from TI website
-2. \\*\\*Extract to:\\*\\* \\`C:\ti\msp430ware\\` (Windows) or \\`/opt/ti/msp430ware\\` (Linux/macOS)
-3. \\*\\*Add to CCS:\\*\\* Window → Preferences → Code Composer Studio → Products
-4. \\*\\*Browse and add\\*\\* MSP430Ware installation path
+1. \*\*Download MSP430Ware\*\* separately from TI website
+2. \*\*Extract to:\*\* \`C:\ti\msp430ware\` (Windows) or \`/opt/ti/msp430ware\` (Linux/macOS)
+3. \*\*Add to CCS:\*\* Window → Preferences → Code Composer Studio → Products
+4. \*\*Browse and add\*\* MSP430Ware installation path
 </TabItem>
 </Tabs>
 
@@ -138,25 +133,25 @@ If you encounter permission issues, ensure CCS is run with appropriate administr
 
 <Tabs>
 <TabItem label="New Project Wizard">
-1. \\*\\*Launch Code Composer Studio\\*\\*
-2. \\*\\*Create workspace:\\*\\* \\`C:\ti\workspace_ece3849\\` (Windows) or \\`~/ti/workspace_ece3849\\` (Linux/macOS)
-3. \\*\\*File → New → CCS Project\\*\\*
-4. \\*\\*Configure project settings:\\*\\*
-   - \\*\\*Family:\\*\\* MSP430
-   - \\*\\*Variant:\\*\\* MSP430FR5994 (or your specific device)
-   - \\*\\*Connection:\\*\\* MSP430 LaunchPad
-   - \\*\\*Project name:\\*\\* \\`Lab0_Stopwatch\\`
-   - \\*\\*Template:\\*\\* Empty project (add main.c)
-   - \\*\\*Compiler:\\*\\* TI v21.6.0.LTS or later
+1. \*\*Launch Code Composer Studio\*\*
+2. \*\*Create workspace:\*\* \`C:\ti\workspace_ece3849\` (Windows) or \`~/ti/workspace_ece3849\` (Linux/macOS)
+3. \*\*File → New → CCS Project\*\*
+4. \*\*Configure project settings:\*\*
+   - \*\*Family:\*\* MSP430
+   - \*\*Variant:\*\* MSP430FR5994 (or your specific device)
+   - \*\*Connection:\*\* MSP430 LaunchPad
+   - \*\*Project name:\*\* \`Lab0_Stopwatch\`
+   - \*\*Template:\*\* Empty project (add main.c)
+   - \*\*Compiler:\*\* TI v21.6.0.LTS or later
 </TabItem>
 
 <TabItem label="Import Template">
 If you have a template project:
-1. \\*\\*File → Import → General → Existing Projects\\*\\*
-2. \\*\\*Browse to template location\\*\\*
-3. \\*\\*Select project\\*\\* and click "Finish"
-4. \\*\\*Right-click project → Rename\\*\\* to \\`Lab0_Stopwatch\\`
-5. \\*\\*Update all references\\*\\* in code files
+1. \*\*File → Import → General → Existing Projects\*\*
+2. \*\*Browse to template location\*\*
+3. \*\*Select project\*\* and click "Finish"
+4. \*\*Right-click project → Rename\*\* to \`Lab0_Stopwatch\`
+5. \*\*Update all references\*\* in code files
 </TabItem>
 </Tabs>
 
@@ -164,41 +159,12 @@ If you have a template project:
 
 Organize your project with this modular structure:
 
-```
-Lab0_Stopwatch/
-├── 📁 src/
-│   ├── main.c                    # Main application entry point
-│   ├── 📁 hardware/              # Hardware abstraction layer
-│   │   ├── gpio.c/.h             # GPIO initialization and control
-│   │   ├── timer.c/.h            # Timer configuration and ISR
-│   │   ├── lcd.c/.h              # LCD display driver functions
-│   │   └── adc.c/.h              # ADC configuration (if needed)
-│   ├── 📁 ui/                    # User interface components
-│   │   ├── menu.c/.h             # Menu system implementation
-│   │   ├── stopwatch.c/.h        # Stopwatch functionality
-│   │   └── display.c/.h          # Display management
-│   ├── 📁 utils/                 # Utility functions
-│   │   ├── debounce.c/.h         # Button debouncing utilities
-│   │   ├── ringbuffer.c/.h       # Data structures
-│   │   └── math_utils.c/.h       # Mathematical functions
-│   └── 📁 config/                # Configuration files
-│       ├── system_config.h       # System-wide constants
-│       └── pin_config.h          # Pin definitions
-├── 📁 docs/                      # Documentation
-│   ├── README.md                 # Project documentation
-│   ├── hardware_setup.md         # Hardware connection guide
-│   └── user_manual.md            # User manual
-└── 📁 tests/                     # Test files (optional)
-    ├── test_timer.c              # Timer unit tests
-    └── test_menu.c               # Menu system tests
-```
-
 ## Hardware Connections
 
 ### MSP430 LaunchPad Pinout
 
 <Card title="Important Note" icon="warning">
-Always \\*\\*power off\\*\\* your LaunchPad before making connections to prevent damage to the microcontroller or peripherals.
+Always \*\*power off\*\* your LaunchPad before making connections to prevent damage to the microcontroller or peripherals.
 </Card>
 
 ### LCD Display Connections
@@ -207,48 +173,10 @@ Always \\*\\*power off\\*\\* your LaunchPad before making connections to prevent
 <TabItem label="Parallel Interface">
 Connect your LCD display using the following pinout:
 
-| LCD Pin | MSP430 Pin    | Function          | Notes                         |
-| ------- | ------------- | ----------------- | ----------------------------- |
-| **VDD** | 3.3V          | Power             | Use LaunchPad 3.3V rail       |
-| **VSS** | GND           | Ground            | Common ground                 |
-| **V0**  | Potentiometer | Contrast          | 10kΩ pot for contrast control |
-| **RS**  | P1.0          | Register Select   | Data/Command selection        |
-| **E**   | P1.1          | Enable            | Clock signal                  |
-| **D4**  | P1.4          | Data Bit 4        | 4-bit mode                    |
-| **D5**  | P1.5          | Data Bit 5        | 4-bit mode                    |
-| **D6**  | P1.6          | Data Bit 6        | 4-bit mode                    |
-| **D7**  | P1.7          | Data Bit 7        | 4-bit mode                    |
-| **A**   | 3.3V          | Backlight Anode   | Through 220Ω resistor         |
-| **K**   | GND           | Backlight Cathode | Direct connection             |
-
-```c
-// Pin definitions for LCD
-#define LCD_RS_PIN  BIT0  // P1.0
-#define LCD_E_PIN   BIT1  // P1.1
-#define LCD_DATA_PINS (BIT4 | BIT5 | BIT6 | BIT7)  // P1.4-P1.7
-```
-
 </TabItem>
 
 <TabItem label="SPI Interface">
 For SPI-based LCD displays:
-
-| LCD Pin | MSP430 Pin      | Function     |
-| ------- | --------------- | ------------ |
-| **VCC** | 3.3V            | Power        |
-| **GND** | GND             | Ground       |
-| **SCK** | P1.5 (UCB0CLK)  | SPI Clock    |
-| **SDA** | P1.6 (UCB0SIMO) | SPI Data     |
-| **CS**  | P1.3            | Chip Select  |
-| **DC**  | P1.2            | Data/Command |
-| **RST** | P1.4            | Reset        |
-
-```c
-// Pin definitions for SPI LCD
-#define LCD_CS_PIN   BIT3  // P1.3
-#define LCD_DC_PIN   BIT2  // P1.2
-#define LCD_RST_PIN  BIT4  // P1.4
-```
 
 </TabItem>
 </Tabs>
@@ -259,36 +187,11 @@ For SPI-based LCD displays:
 Configure buttons for menu navigation and stopwatch control:
 </Card>
 
-| Button   | MSP430 Pin | Function             | Pull-up  |
-| -------- | ---------- | -------------------- | -------- |
-| **BTN1** | P2.0       | Start/Stop Stopwatch | Internal |
-| **BTN2** | P2.1       | Reset Stopwatch      | Internal |
-| **BTN3** | P2.2       | Menu Up/Previous     | Internal |
-| **BTN4** | P2.3       | Menu Down/Next       | Internal |
-| **BTN5** | P2.4       | Menu Select/Enter    | Internal |
-
-```c
-// Button pin definitions
-#define BTN_START_STOP  BIT0  // P2.0
-#define BTN_RESET       BIT1  // P2.1
-#define BTN_MENU_UP     BIT2  // P2.2
-#define BTN_MENU_DOWN   BIT3  // P2.3
-#define BTN_MENU_SELECT BIT4  // P2.4
-
-// Enable internal pull-up resistors
-#define BTN_ALL_PINS (BTN_START_STOP | BTN_RESET | BTN_MENU_UP | BTN_MENU_DOWN | BTN_MENU_SELECT)
-```
-
 :::note\[Pull-up Resistors]
 Enable internal pull-up resistors for all button inputs to ensure proper logic levels and reduce external component count.
 :::
 
 ### Optional: LED Indicators
-
-| LED      | MSP430 Pin | Function          |
-| -------- | ---------- | ----------------- |
-| **LED1** | P1.0       | Status indicator  |
-| **LED2** | P9.7       | Stopwatch running |
 
 ## Compiler Configuration
 
@@ -298,12 +201,6 @@ Enable internal pull-up resistors for all button inputs to ensure proper logic l
 <TabItem label="Debug Configuration">
 Optimized for development and debugging:
 
-```c
-// Project Properties → Build → MSP430 Compiler → Optimization
-Optimization Level: None (-O0)
-Debug Level: Maximum (-g3)
-```
-
 **Additional Debug Settings:**
 
 * Enable all warnings (`-Wall`)
@@ -311,32 +208,16 @@ Debug Level: Maximum (-g3)
 * Generate debug information (`-g3`)
 * Disable optimizations (`-O0`)
 
-```c
-// Compiler flags for debug
--g3 -Wall -Werror -O0 -std=c99
-```
-
 </TabItem>
 
 <TabItem label="Release Configuration">
 Optimized for performance and size:
-
-```c
-// Project Properties → Build → MSP430 Compiler → Optimization
-Optimization Level: Size (-Os)
-Debug Level: None
-```
 
 **Additional Release Settings:**
 
 * Enable size optimizations (`-Os`)
 * Remove unused functions (`-ffunction-sections`)
 * Remove unused data (`-fdata-sections`)
-
-```c
-// Compiler flags for release
--Os -ffunction-sections -fdata-sections -std=c99
-```
 
 </TabItem>
 </Tabs>
@@ -347,12 +228,6 @@ Debug Level: None
 <TabItem label="Memory Settings">
 Configure memory allocation for your project:
 
-```c
-// Project Properties → Build → MSP430 Linker → Basic Options
-Heap Size: 512 bytes
-Stack Size: 256 bytes
-```
-
 **Memory Map (MSP430FR5994):**
 
 * **Flash:** 256KB (0x4400 - 0x43FFF)
@@ -362,17 +237,6 @@ Stack Size: 256 bytes
 
 <TabItem label="Advanced Settings">
 Advanced linker options for optimization:
-
-```c
-// Enable garbage collection
---gc-sections
-
-// Remove unused sections
---remove-unused-sections
-
-// Generate map file
---map-file=Lab0_Stopwatch.map
-```
 
 </TabItem>
 </Tabs>
@@ -385,66 +249,19 @@ Create a comprehensive test program to verify your setup:
 
 <Tabs>
 <TabItem label="LED Blink Test">
-\\`\\``c
+\`\``c
 #include <msp430.h>
 
 int main(void) {
     WDTCTL = WDTPW | WDTHOLD;   // Stop watchdog timer
     PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
 
-```
-// Configure LED pins
-P1DIR |= BIT0;              // Set P1.0 as output (LED1)
-P9DIR |= BIT7;              // Set P9.7 as output (LED2)
-
-// Initialize LEDs OFF
-P1OUT &= ~BIT0;
-P9OUT &= ~BIT7;
-
-while(1) {
-    P1OUT ^= BIT0;          // Toggle LED1
-    P9OUT ^= BIT7;          // Toggle LED2
-    __delay_cycles(500000); // Delay ~0.5 seconds at 1MHz
 }
-```
-
-}
-
-````
-</TabItem>
-
-<TabItem label="Button Test">
-```c
-#include <msp430.h>
-
-int main(void) {
-    WDTCTL = WDTPW | WDTHOLD;   // Stop watchdog timer
-    PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
-    
-    // Configure button pins
-    P2DIR &= ~(BIT0 | BIT1);    // Set buttons as input
-    P2REN |= (BIT0 | BIT1);     // Enable pull-up resistors
-    P2OUT |= (BIT0 | BIT1);     // Set pull-up resistors
-    
-    // Configure LED
-    P1DIR |= BIT0;              // Set LED as output
-    P1OUT &= ~BIT0;             // Initialize LED OFF
-    
-    while(1) {
-        if(!(P2IN & BIT0)) {    // Button pressed (active low)
-            P1OUT |= BIT0;      // Turn LED ON
-        } else {
-            P1OUT &= ~BIT0;     // Turn LED OFF
-        }
-        __delay_cycles(1000);   // Small delay for debouncing
-    }
-}
-````
 
 </TabItem>
 
 <TabItem label="LCD Test">
-\\`\\``c
+\`\``c
 #include <msp430.h>
 
 // Basic LCD initialization and test
@@ -454,19 +271,6 @@ void lcd_write_string(char* str);
 int main(void) {
     WDTCTL = WDTPW | WDTHOLD;   // Stop watchdog timer
     PM5CTL0 &= ~LOCKLPM5;       // Disable GPIO power-on default high-impedance mode
-
-```
-// Initialize LCD
-lcd_init();
-
-// Display test message
-lcd_write_string("Lab 0 Ready!");
-
-while(1) {
-    // Main loop - LCD should display message
-    __delay_cycles(1000000);
-}
-```
 
 }
 
@@ -481,57 +285,10 @@ void lcd_write_string(char* str) {
     // (Implementation depends on your specific LCD)
 }
 
-````
-</TabItem>
-</Tabs>
-
-### Verification Checklist
-
-<CardGrid>
-<Card title="Hardware Verification" icon="check">
-- ✅ LEDs blink correctly
-- ✅ Buttons respond to input
-- ✅ LCD displays characters
-- ✅ Power consumption is reasonable
-- ✅ No loose connections
-</Card>
-
-<Card title="Software Verification" icon="code">
-- ✅ Project compiles without errors
-- ✅ Code downloads to device
-- ✅ Debugger connects successfully
-- ✅ Breakpoints work properly
-- ✅ Variables can be monitored
-</Card>
-</CardGrid>
-
-## Troubleshooting Common Issues
-
-### Hardware Issues
-
-<Tabs>
-<TabItem label="Connection Problems">
-**Issue:** "Device not found" or "Connection failed"
-
-**Solutions:**
-1. **Check USB cable** - Use a data cable, not charge-only
-2. **Verify driver installation** - Reinstall LaunchPad drivers
-3. **Check device manager** (Windows) or `lsusb` (Linux)
-4. **Try different USB port** - Avoid hubs, use direct connection
-5. **Restart CCS** and try again
-
-```bash
-# Linux: Check USB device recognition
-lsusb | grep -i "texas instruments"
-
-# Windows: Check Device Manager
-# Look for "MSP430 Application UART" under Ports
-````
-
 </TabItem>
 
 <TabItem label="Programming Issues">
-\\*\\*Issue:\\*\\* "Flash programming failed"
+\*\*Issue:\*\* "Flash programming failed"
 
 **Solutions:**
 
@@ -541,11 +298,6 @@ lsusb | grep -i "texas instruments"
 4. **Check for shorts** - Use multimeter to verify connections
 5. **Try different firmware** - Update LaunchPad firmware
 
-```c
-// Add this to beginning of main() if having issues
-PM5CTL0 &= ~LOCKLPM5;  // Disable GPIO power-on default high-impedance mode
-```
-
 </TabItem>
 </Tabs>
 
@@ -553,7 +305,7 @@ PM5CTL0 &= ~LOCKLPM5;  // Disable GPIO power-on default high-impedance mode
 
 <Tabs>
 <TabItem label="Compilation Errors">
-\\*\\*Issue:\\*\\* Build errors or warnings
+\*\*Issue:\*\* Build errors or warnings
 
 **Common Solutions:**
 
@@ -562,18 +314,10 @@ PM5CTL0 &= ~LOCKLPM5;  // Disable GPIO power-on default high-impedance mode
 3. **Path issues** - Verify include paths in project settings
 4. **Device mismatch** - Ensure correct MSP430 variant selected
 
-```c
-// Common required includes
-#include <msp430.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
-```
-
 </TabItem>
 
 <TabItem label="Runtime Issues">
-\\*\\*Issue:\\*\\* Code doesn't behave as expected
+\*\*Issue:\*\* Code doesn't behave as expected
 
 **Debugging Steps:**
 
@@ -581,14 +325,6 @@ PM5CTL0 &= ~LOCKLPM5;  // Disable GPIO power-on default high-impedance mode
 2. **Monitor variables** - Add to watch window
 3. **Check register values** - Verify peripheral configuration
 4. **Add debug prints** - Use printf or LED indicators
-
-```c
-// Debug LED toggle macro
-#define DEBUG_TOGGLE_LED() (P1OUT ^= BIT0)
-
-// Use in code to track execution
-DEBUG_TOGGLE_LED();  // Place at key points
-```
 
 </TabItem>
 </Tabs>
@@ -611,7 +347,7 @@ Follow these principles for maintainable code:
 
 <Tabs>
 <TabItem label="Strategic Debugging">
-\\*\\*Effective Debugging Approach:\\*\\*
+\*\*Effective Debugging Approach:\*\*
 
 1. **Start Simple** - Test basic functionality first
 2. **Isolate Problems** - Comment out complex code
@@ -619,40 +355,16 @@ Follow these principles for maintainable code:
 4. **Log State Changes** - Track variable values
 5. **Systematic Testing** - Test one feature at a time
 
-```c
-// Example assertion macro
-#define ASSERT(condition) \
-    if (!(condition)) { \
-        while(1) { \
-            P1OUT ^= BIT0; \
-            __delay_cycles(100000); \
-        } \
-    }
-```
-
 </TabItem>
 
 <TabItem label="Performance Optimization">
-\\*\\*Optimization Techniques:\\*\\*
+\*\*Optimization Techniques:\*\*
 
 1. **Profile Code** - Identify bottlenecks
 2. **Optimize Algorithms** - Use efficient data structures
 3. **Minimize Interrupts** - Reduce ISR overhead
 4. **Power Management** - Use low-power modes
 5. **Memory Usage** - Optimize RAM and Flash usage
-
-```c
-// Performance monitoring
-volatile uint32_t cycle_count = 0;
-
-// Before critical section
-uint32_t start_time = __read_cycle_counter();
-
-// Your code here
-
-// After critical section
-cycle_count = __read_cycle_counter() - start_time;
-```
 
 </TabItem>
 </Tabs>
@@ -661,7 +373,7 @@ cycle_count = __read_cycle_counter() - start_time;
 
 <CardGrid>
 <Card title="Phase 1: Hardware Setup" icon="laptop">
-\\*\\*Tasks:\\*\\*
+\*\*Tasks:\*\*
 - Complete hardware connections
 - Verify all components work
 - Test basic GPIO functionality
@@ -669,7 +381,7 @@ cycle_count = __read_cycle_counter() - start_time;
 </Card>
 
 <Card title="Phase 2: Display System" icon="monitor">
-\\*\\*Tasks:\\*\\*
+\*\*Tasks:\*\*
 - Initialize LCD display
 - Create display driver functions
 - Implement menu rendering
@@ -677,7 +389,7 @@ cycle_count = __read_cycle_counter() - start_time;
 </Card>
 
 <Card title="Phase 3: Stopwatch Logic" icon="clock">
-\\*\\*Tasks:\\*\\*
+\*\*Tasks:\*\*
 - Configure timer for accurate timing
 - Implement start/stop functionality
 - Add reset capability
@@ -685,7 +397,7 @@ cycle_count = __read_cycle_counter() - start_time;
 </Card>
 
 <Card title="Phase 4: Menu System" icon="list">
-\\*\\*Tasks:\\*\\*
+\*\*Tasks:\*\*
 - Design menu structure
 - Implement navigation logic
 - Add settings options
@@ -719,10 +431,10 @@ cycle_count = __read_cycle_counter() - start_time;
   href="https://www.ti.com/tool/MSPDRIVERLIB"
 />
 
-- - -
-
 <Card title="Ready to Begin?" icon="rocket">
 Your development environment is now configured and ready for Lab 0 implementation. Start with the hardware verification tests, then proceed to implement the stopwatch functionality following the modular structure outlined above.
 
 **Good luck with your embedded systems journey!**
 </Card>
+
+Code Block 12Code Block26 1234567891011121314151617181920212223242526LCD PinMSP430 PinFunctionNotes**VDD**3.3VPowerUse LaunchPad 3.3V rail**VSS**GNDGroundCommon ground**V0**PotentiometerContrast10kΩ pot for contrast control**RS**P1.0Register SelectData/Command selection**E**P1.1EnableClock signal**D4**P1.4Data Bit 44-bit mode**D5**P1.5Data Bit 54-bit mode**D6**P1.6Data Bit 64-bit mode**D7**P1.7Data Bit 74-bit mode**A**3.3VBacklight AnodeThrough 220Ω resistor**K**GNDBacklight CathodeDirect connectionCode Block 1234LCD PinMSP430 PinFunction**VCC**3.3VPower**GND**GNDGround**SCK**P1.5 (UCB0CLK)SPI Clock**SDA**P1.6 (UCB0SIMO)SPI Data**CS**P1.3Chip Select**DC**P1.2Data/Command**RST**P1.4ResetCode Block 1234ButtonMSP430 PinFunctionPull-up**BTN1**P2.0Start/Stop StopwatchInternal**BTN2**P2.1Reset StopwatchInternal**BTN3**P2.2Menu Up/PreviousInternal**BTN4**P2.3Menu Down/NextInternal**BTN5**P2.4Menu Select/EnterInternalCode Block 123456789LEDMSP430 PinFunction**LED1**P1.0Status indicator**LED2**P9.7Stopwatch runningCode Block 123Code Block 12Code Block 123Code Block 12Code Block 123Code Block 12345678Code Block13 12345678910111213Code Block28 12345678910111213141516171819202122232425262728Code Block10 12345678910Code Block44 1234567891011121314151617181920212223242526272829303132333435363738394041424344Code Block 12Code Block 12345Code Block 12345Code Block 12345678Code Block10 12345678910
