@@ -1,32 +1,316 @@
 ---
 title: Installing Code Composer Studio
 ---
-\---
-
-title: Lab 3   - Test 02
-
-\---
-
-
-
 import { Tabs, TabItem } from '@astrojs/starlight/components';
-
 import { Card, CardGrid } from '@astrojs/starlight/components';
-
 import { LinkCard } from '@astrojs/starlight/components';
 
 
-Welcome to Lab 0! This comprehensive guide will help you set up your development environment for creating a stopwatch with graphical menu using the MSP430 microcontroller.
+Welcome to the setup guide for **Code Composer Studio (CCS) v12.8.1**, designed for the **Texas Instruments EK-TM4C1294XL LaunchPad**. This guide covers installation on **Windows**, **Linux**, and **macOS**, along with post-installation setup for the TM4C1294 platform.
 
-## Lab Overview
+---
 
-<Card title="Lab 0 Objectives" icon="rocket">
-**Main Goal:** Implement a stopwatch controlled by buttons and a navigable graphical menu.
+## Overview
 
-**Key Learning Topics:**
-- Peripheral initialization
-- Button debouncing techniques
-- Timer interrupt service routines (ISR)
-- Display management systems
-- Modular code structure design
+<Card title="Goal" icon="rocket">
+**Objective:** Set up your development environment for TI Tiva-C (TM4C1294) projects.
+
+**Includes:**
+- Installing Code Composer Studio v12.8.1
+- Setting up workspace and drivers
+- Installing TivaWare for TM4C series
+- Testing the EK-TM4C1294XL board connection
 </Card>
+
+---
+
+## Prerequisites
+
+<CardGrid>
+<Card title="Hardware Requirements" icon="cpu">
+- **EK-TM4C1294XL LaunchPad**
+- **USB cable** (for power + debugging)
+- **Windows / Linux / macOS** computer
+</Card>
+
+<Card title="Software Requirements" icon="settings">
+- **Code Composer Studio v12.8.1** ([Download](https://www.ti.com/tool/download/CCSTUDIO/12.8.1))
+- **TivaWare for TM4C** ([Download](https://www.ti.com/tool/SW-TM4C))
+- **ICDI Drivers** (automatically installed with CCS on Windows)
+</Card>
+</CardGrid>
+
+---
+
+## Installation Process
+
+<LinkCard
+  title="Download CCS v12.8.1"
+  description="Get the latest official version from Texas Instruments"
+  href="https://www.ti.com/tool/download/CCSTUDIO/12.8.1"
+/>
+
+<Tabs>
+<TabItem label="Windows">
+
+### Step 1: Download and Run the Installer
+
+Download the Windows `.exe` file and run it as **Administrator**.
+
+![Windows Installer Step 1](/public/assets/ccs_install/ccs_win_1.png)
+
+---
+
+### Step 2: Accept the License and Choose Components
+
+Select **Custom Installation**, then enable:
+- ✅ TM4C / Tiva-C Device Support
+- ✅ Debug Probe Support
+
+![Windows Installer Step 2](/public/assets/ccs_install/ccs_win_2.png)
+
+---
+
+### Step 3: Installation Directory
+
+Use the default path unless required otherwise:
+```bash
+C:\ti\ccs1281\
+```
+
+![Windows Installer Step 3](/public/assets/ccs_install/ccs_win_3.png)
+
+---
+
+### Step 4: Complete Installation
+
+The process takes 10–15 minutes. Restart the PC afterward.
+
+![Windows Installer Step 4](/public/assets/ccs_install/ccs_win_4.png)
+
+</TabItem>
+
+<TabItem label="Linux">
+
+### Step 1: Make Installer Executable
+
+```bash
+chmod +x ccstudio_12.8.1_linux-x64.run
+sudo ./ccstudio_12.8.1_linux-x64.run
+```
+
+![Linux Installer Step 1](/public/assets/ccs_install/ccs_linux_1.png)
+
+---
+
+### Step 2: Install Dependencies
+
+On Ubuntu/Debian systems:
+```bash
+sudo apt update
+sudo apt install libtinfo5 libnsl2 gconf2
+```
+
+![Linux Dependencies](/public/assets/ccs_install/ccs_linux_2.png)
+
+---
+
+### Step 3: Follow GUI Prompts
+
+Choose installation path (default `/opt/ti/ccs1281/`).
+
+![Linux Installer Step 3](/public/assets/ccs_install/ccs_linux_3.png)
+
+---
+
+### Step 4: Launch CCS
+
+After installation, run:
+```bash
+ccstudio &
+```
+
+![Linux Installer Step 4](/public/assets/ccs_install/ccs_linux_4.png)
+
+</TabItem>
+
+<TabItem label="macOS">
+
+### Step 1: Open the Installer
+
+Mount the `.dmg` and run the `.pkg` installer.
+
+![macOS Installer Step 1](/public/assets/ccs_install/ccs_mac_1.png)
+
+---
+
+### Step 2: Accept License and Choose Destination
+
+Default path:
+```bash
+/Applications/ti/ccs1281/
+```
+
+![macOS Installer Step 2](/public/assets/ccs_install/ccs_mac_2.png)
+
+---
+
+### Step 3: Grant Permissions
+
+If prompted, allow USB and developer permissions.
+
+![macOS Installer Step 3](/public/assets/ccs_install/ccs_mac_3.png)
+
+</TabItem>
+</Tabs>
+
+---
+
+## Post‑Installation Setup
+
+<Tabs>
+<TabItem label="Workspace Configuration">
+1. Launch CCS.
+2. Select your workspace directory, e.g.:
+   - `C:\ti\workspace_tm4c` (Windows)
+   - `~/ti/workspace_tm4c` (Linux/macOS)
+3. Verify the welcome screen loads successfully.
+
+![Workspace Selection](/public/assets/ccs_install/ccs_workspace.png)
+</TabItem>
+
+<TabItem label="Device Support">
+1. Open **Help → Install New Software**.
+2. Click **Add...**, select **Tiva C Series Support**.
+3. Install updates if available.
+
+![Device Support Install](/public/assets/ccs_install/ccs_device_support.png)
+</TabItem>
+</Tabs>
+
+---
+
+## Configuring the EK‑TM4C1294XL Board
+
+<Card title="Connect Your LaunchPad" icon="usb">
+Plug your **EK-TM4C1294XL** into the computer using the supplied USB cable. CCS should automatically detect the ICDI debug interface.
+</Card>
+
+![Board Connection](/public/assets/ccs_install/ek_tm4c1294xl_connection.png)
+
+### Create a New Project
+
+1. **File → New → CCS Project**
+2. Set the following parameters:
+   - **Target:** `TM4C1294NCPDT`
+   - **Connection:** `Stellaris ICDI`
+   - **Project name:** `TM4C_Blink`
+3. Finish and open the generated `main.c`.
+
+![New Project Wizard](/public/assets/ccs_install/ccs_new_project.png)
+
+### Example Blink Test
+
+```c
+#include <stdint.h>
+#include <stdbool.h>
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+
+int main(void) {
+    SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
+                        SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480), 120000000);
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_0);
+
+    while (1) {
+        GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, GPIO_PIN_0);
+        SysCtlDelay(20000000);
+        GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, 0);
+        SysCtlDelay(20000000);
+    }
+}
+```
+
+![Blink Test](/public/assets/ccs_install/ccs_blink_test.png)
+
+---
+
+## Installing TivaWare
+
+<LinkCard
+  title="Download TivaWare for TM4C"
+  description="Official TI driver library for TM4C microcontrollers"
+  href="https://www.ti.com/tool/SW-TM4C"
+/>
+
+### Installation Steps
+
+1. Extract TivaWare archive to:
+   - `C:\ti\TivaWare_C_Series-2.2.0.295` (Windows)
+   - `/opt/ti/TivaWare_C_Series-2.2.0.295` (Linux/macOS)
+2. In CCS → **Project Properties → Build → Include Options**, add:
+   ```
+   C:\ti\TivaWare_C_Series-2.2.0.295\driverlib\inc
+   ```
+3. Under **Linker → File Search Path**, add:
+   ```
+   C:\ti\TivaWare_C_Series-2.2.0.295\driverlib\ccs\Debug\driverlib.lib
+   ```
+
+![TivaWare Configuration](/public/assets/ccs_install/ccs_tivaware_config.png)
+
+---
+
+## Troubleshooting
+
+<Tabs>
+<TabItem label="USB Connection Issues">
+- Ensure ICDI drivers are installed (Windows)
+- On Linux, verify device recognition:
+```bash
+lsusb | grep -i texas
+```
+- Try different USB ports or cables
+![USB Issues](/public/assets/ccs_install/ccs_troubleshoot_usb.png)
+</TabItem>
+
+<TabItem label="Build Errors">
+- Check include and library paths
+- Ensure correct target (`TM4C1294NCPDT`) selected
+- Clean and rebuild project
+![Build Errors](/public/assets/ccs_install/ccs_troubleshoot_build.png)
+</TabItem>
+</Tabs>
+
+---
+
+## Verification Checklist
+
+<CardGrid>
+<Card title="Hardware Verification" icon="check">
+- ✅ EK-TM4C1294XL board detected
+- ✅ ICDI debug probe recognized
+- ✅ Blink example runs correctly
+</Card>
+
+<Card title="Software Verification" icon="code">
+- ✅ CCS launches without errors
+- ✅ Workspace configured
+- ✅ TivaWare linked successfully
+</Card>
+</CardGrid>
+
+---
+
+<Card title="You're Ready!" icon="rocket">
+Your Code Composer Studio 12.8.1 environment is now ready for TM4C development.
+
+Next steps:
+- Create your first FreeRTOS project
+- Explore the TivaWare examples in `examples/boards/ek-tm4c1294xl`
+- Start building your real-time embedded labs 🚀
+</Card>
+
