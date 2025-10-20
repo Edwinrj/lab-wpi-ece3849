@@ -21,8 +21,8 @@ collections:
     folder: "src/content/docs/labs"
     create: true
     slug: "{{slug}}"
+    extension: "mdx"
     format: "frontmatter"
-    extensions: ["md", "mdx"]
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
@@ -34,8 +34,8 @@ collections:
     folder: "src/content/docs/guides"
     create: true
     slug: "{{slug}}"
+    extension: "mdx"
     format: "frontmatter"
-    extensions: ["md", "mdx"]
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
@@ -47,8 +47,8 @@ collections:
     folder: "src/content/docs/reference"
     create: true
     slug: "{{slug}}"
+    extension: "mdx"
     format: "frontmatter"
-    extensions: ["md", "mdx"]
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
@@ -60,11 +60,12 @@ collections:
     folder: "src/content/docs/resources"
     create: true
     slug: "{{slug}}"
+    extension: "mdx"
     format: "frontmatter"
-    extensions: ["md", "mdx"]
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
+
 
   # FAQ
   - name: "faq"
@@ -73,8 +74,8 @@ collections:
     folder: "src/content/docs/faq"
     create: true
     slug: "{{slug}}"
+    extension: "mdx"
     format: "frontmatter"
-    extensions: ["md", "mdx"]
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
