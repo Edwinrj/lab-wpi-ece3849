@@ -23,6 +23,7 @@ collections:
     slug: "{{slug}}"
     extension: "mdx"
     format: "frontmatter"
+    extensions: ["md", "mdx"]
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
@@ -36,6 +37,7 @@ collections:
     slug: "{{slug}}"
     extension: "mdx"
     format: "frontmatter"
+    extensions: ["md", "mdx"]
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
@@ -49,6 +51,7 @@ collections:
     slug: "{{slug}}"
     extension: "mdx"
     format: "frontmatter"
+    extensions: ["md", "mdx"]
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
@@ -62,10 +65,10 @@ collections:
     slug: "{{slug}}"
     extension: "mdx"
     format: "frontmatter"
+    extensions: ["md", "mdx"]
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
-
 
   # FAQ
   - name: "faq"
@@ -76,6 +79,7 @@ collections:
     slug: "{{slug}}"
     extension: "mdx"
     format: "frontmatter"
+    extensions: ["md", "mdx"]
     fields:
       - { label: "Title", name: "title", widget: "string" }
       - { label: "Content", name: "body", widget: "markdown" }
