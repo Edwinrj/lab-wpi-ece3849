@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import decapCmsOauth from "astro-decap-cms-oauth";
+import mdx from '@astrojs/mdx';
 
 import vercel from '@astrojs/vercel';
 import starlightScrollToTop from 'starlight-scroll-to-top';
