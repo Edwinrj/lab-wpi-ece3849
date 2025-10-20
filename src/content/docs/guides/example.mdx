@@ -2,10 +2,45 @@
 title: Example Guide
 description: A guide in my new Starlight docs site.
 ---
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Card, CardGrid } from '@astrojs/starlight/components';
+import { LinkCard } from '@astrojs/starlight/components';
 
-Guides lead a user through a specific task they want to accomplish, often with a sequence of steps.
-Writing a good guide requires thinking about what your users are trying to do.
+# Code Composer Studio 12.8.1 Installation Guide (Sep 30, 2024)
 
-## Further reading
+Welcome to the setup guide for **Code Composer Studio (CCS) v12.8.1**, designed for the **Texas Instruments EK-TM4C1294XL LaunchPad**. This guide covers installation on **Windows**, **Linux**, and **macOS**, along with post-installation setup for the TM4C1294 platform.
 
-- Read [about how-to guides](https://diataxis.fr/how-to-guides/) in the Diátaxis framework
+---
+
+## Overview
+
+<Card title="Goal" icon="rocket">
+**Objective:** Set up your development environment for TI Tiva-C (TM4C1294) projects.
+
+**Includes:**
+- Installing Code Composer Studio v12.8.1
+- Setting up workspace and drivers
+- Installing TivaWare for TM4C series
+- Testing the EK-TM4C1294XL board connection
+</Card>
+
+---
+
+## Prerequisites
+
+<CardGrid>
+<Card title="Hardware Requirements" icon="cpu">
+- **EK-TM4C1294XL LaunchPad**
+- **USB cable** (for power + debugging)
+- **Windows / Linux / macOS** computer
+</Card>
+
+<Card title="Software Requirements" icon="settings">
+- **Code Composer Studio v12.8.1** ([Download](https://www.ti.com/tool/download/CCSTUDIO/12.8.1))
+- **TivaWare for TM4C** ([Download](https://www.ti.com/tool/SW-TM4C))
+- **ICDI Drivers** (automatically installed with CCS on Windows)
+</Card>
+</CardGrid>
+
+---
+
