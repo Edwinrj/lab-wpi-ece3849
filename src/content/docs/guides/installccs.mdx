@@ -1,0 +1,221 @@
+---
+title: "How to Install Code Composer Studio (CCS) and TivaWare"
+description: "Step-by-step installation tutorial for CCS and TivaWare on Windows, macOS, and Linux"
+---
+
+import { Tabs, TabItem, Aside, FileTree } from '@astrojs/starlight/components';
+
+## 🧰 Development Tools
+
+<Aside type="note" title="Download Required Files">
+Before starting, download the setup folder corresponding to your operating system:
+
+<Tabs syncKey="os">
+  <TabItem label="Windows">
+
+  <FileTree>
+  - software
+    - CCS12.8.1.00005_win64
+      - ccs_setup_12.8.1.00005.exe
+    - SW-TM4C-2.2.0.295.exe
+  </FileTree>
+
+  <a href="https://drive.google.com/file/d/1wISLk77SQzrNhrdEbzeM0hn7uikrPIhz" target="_blank" rel="noopener noreferrer">
+  🔗 Download Windows Setup Folder
+  </a>
+
+  </TabItem>
+
+  <TabItem label="macOS">
+
+  <FileTree>
+  - software
+    - CCS12.8.1.00005_macos
+      - ccs_setup_12.8.1.00005.dmg
+    - SW-TM4C-2.2.0.295.tar.gz
+  </FileTree>
+
+  <a href="https://www.ti.com/tool/CCSTUDIO" target="_blank" rel="noopener noreferrer">
+  🔗 Download CCS for macOS from TI
+  </a>
+
+  </TabItem>
+
+  <TabItem label="Linux">
+
+  <FileTree>
+  - software
+    - CCS12.8.1.00005_linux
+      - ccs_setup_12.8.1.00005.bin
+    - SW-TM4C-2.2.0.295.tar.gz
+  </FileTree>
+
+  <a href="https://www.ti.com/tool/CCSTUDIO" target="_blank" rel="noopener noreferrer">
+  🔗 Download CCS for Linux from TI
+  </a>
+
+  </TabItem>
+</Tabs>
+</Aside>
+
+---
+
+## 💻 Installation Instructions
+
+<Tabs syncKey="os">
+  <TabItem label="Windows">
+
+### 🧰 Install Code Composer Studio (CCS 12.8.1)
+
+1. Navigate to the downloaded folder and run:
+   ```bash
+   ccs_setup_12.8.1.00005.exe
+   ```
+2. When prompted for an installation directory, set the path to:
+   ```bash
+   C:\ti\ccs1281
+   ```
+3. Choose **Custom Installation** when asked for setup type.
+
+<p align="center">
+  <img src="https://hackmd.io/_uploads/rkP_X74Axx.png" alt="CCS Custom Installation" width="450" />
+  <br />
+  <sub>Select Custom Installation during setup</sub>
+</p>
+
+4. In the list of supported processors, check:
+   > **TM4C12X ARM Cortex M4F core-based MCUs**
+5. Continue with the default options for the rest of the installation.
+
+<p align="center">
+  <img src="https://hackmd.io/_uploads/Hksj77N0le.png" alt="Select TM4C12X ARM Cortex M4F core-based MCUs" width="450" />
+  <br />
+  <sub>Select TM4C12X ARM Cortex M4F core-based MCUs</sub>
+</p>
+
+<Aside type="tip" title="Tip">
+💡 After installation, verify that CCS created the folder `C:\ti\ccs1281`.
+</Aside>
+
+---
+
+### 🧩 Install TivaWare Drivers (SW-TM4C-2.2.0.295)
+
+1. After installing CCS, run the following installer from the same folder:
+   ```bash
+   SW-TM4C-2.2.0.295.exe
+   ```
+2. When prompted for the installation directory, choose:
+   ```bash
+   C:\ti\TivaWare_C_Series-2.2.0.295
+   ```
+
+<p align="center">
+  <img src="https://hackmd.io/_uploads/HJlIrmE0el.png" alt="TivaWare Installation Path" width="460" />
+  <br />
+  <sub>Install TivaWare drivers in C:\ti\TivaWare_C_Series-2.2.0.295</sub>
+</p>
+
+3. Proceed with the default installation options.
+
+<Aside type="note" title="Driver Note">
+These drivers are essential for the **TM4C1294XL LaunchPad** to communicate properly with CCS and enable flashing and debugging.
+</Aside>
+
+---
+
+### 🧩Code Composer Studio (CCS Configuration)
+
+<Aside type="caution" title="⚙️ Environment Configuration (Required in Lab Computers)">
+Every time you use a **lab computer**, you must reconfigure the CCS environment.  
+These computers reset to default settings each time you log out.
+</Aside>
+
+  </TabItem>
+
+  <TabItem label="macOS">
+
+### 🧰 Install Code Composer Studio (CCS 12.8.1)
+
+1. Download CCS for macOS from:
+   ```bash
+   https://www.ti.com/tool/CCSTUDIO
+   ```
+2. Open the `.dmg` file and drag **Code Composer Studio** into Applications.
+3. Allow system extensions for TI debuggers:
+   ```
+   System Settings → Privacy & Security
+   ```
+4. Verify device support includes TM4C12X MCUs.
+
+---
+
+### 🧩 Install TivaWare Drivers
+
+1. Extract the package:
+   ```bash
+   tar -xvzf SW-TM4C-2.2.0.295.tar.gz -C ~/ti/
+   ```
+2. Verify installation path:
+   ```bash
+   ~/ti/TivaWare_C_Series-2.2.0.295/
+   ```
+3. Optionally build libraries (requires `make`):
+   ```bash
+   cd ~/ti/TivaWare_C_Series-2.2.0.295
+   make
+   ```
+
+  </TabItem>
+
+  <TabItem label="Linux">
+
+### 🧰 Install Code Composer Studio (CCS 12.8.1)
+
+1. Make installer executable and run:
+   ```bash
+   chmod +x ccs_setup_12.8.1.00005.bin
+   sudo ./ccs_setup_12.8.1.00005.bin
+   ```
+2. Set installation directory:
+   ```bash
+   /opt/ti/ccs1281
+   ```
+3. Select:
+   > TM4C12X ARM Cortex M4F core-based MCUs
+4. Add user to `dialout` for USB debugging:
+   ```bash
+   sudo usermod -a -G dialout $USER
+   ```
+5. Launch CCS:
+   ```bash
+   /opt/ti/ccs1281/ccstudio
+   ```
+
+---
+
+### 🧩 Install TivaWare Drivers
+
+1. Extract:
+   ```bash
+   tar -xvzf SW-TM4C-2.2.0.295.tar.gz -C ~/ti/
+   ```
+2. Verify installation:
+   ```bash
+   ~/ti/TivaWare_C_Series-2.2.0.295/
+   ```
+3. (Optional) Build with:
+   ```bash
+   cd ~/ti/TivaWare_C_Series-2.2.0.295
+   make
+   ```
+
+  </TabItem>
+</Tabs>
+
+---
+
+<Aside type="note" title="Final Verification">
+Both **CCS** and **TivaWare** should now be installed under `/ti/` (or `C:\ti\` on Windows).  
+You are ready to start your first lab with the **TM4C1294XL LaunchPad** 🚀
+</Aside>
