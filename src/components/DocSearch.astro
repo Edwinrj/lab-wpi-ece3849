@@ -123,36 +123,35 @@ const docsearchTranslations: DocSearchTranslationProps = {
 </style>
 
 <script>
-	import config from 'virtual:starlight/docsearch-config';
+  class StarlightDocSearch extends HTMLElement {
+    constructor() {
+      super();
+      window.addEventListener('DOMContentLoaded', async () => {
+        const { default: docsearch } = await import('@docsearch/js');
 
-	class StarlightDocSearch extends HTMLElement {
-		constructor() {
-			super();
-			window.addEventListener('DOMContentLoaded', async () => {
-				const { default: docsearch } = await import('@docsearch/js');
+        // 🔐 Cargar credenciales desde variables de entorno
+        const options = {
+          container: 'sl-doc-search',
+          appId: import.meta.env.ALGOLIA_APP_ID,
+          apiKey: import.meta.env.ALGOLIA_API_KEY,
+          indexName: import.meta.env.ALGOLIA_INDEX,
 
-				// 🔧 Configuración base
-				const options = {
-					...config,
-					container: 'sl-doc-search',
-				};
+          // 🧠 Activar Ask AI
+          askAi: {
+            assistantId: import.meta.env.ALGOLIA_ASSISTANT_ID,
+            searchParameters: {
+              facetFilters: ['type:content'],
+            },
+          },
 
-				// 🧠 Integración opcional de Ask AI
-				if (config.askAi) {
-					options.askAi = config.askAi;
-				}
+          insights: true,
+        };
 
-				// Traducciones de Starlight
-				try {
-					const translations = JSON.parse(this.dataset.translations || '{}');
-					Object.assign(options, translations);
-				} catch {}
+        // 🚀 Inicializa DocSearch
+        docsearch(options);
+      });
+    }
+  }
 
-				// 🚀 Inicializa DocSearch v4
-				docsearch(options);
-			});
-		}
-	}
-	customElements.define('sl-doc-search', StarlightDocSearch);
+  customElements.define('sl-doc-search', StarlightDocSearch);
 </script>
-
