@@ -132,13 +132,13 @@ const docsearchTranslations: DocSearchTranslationProps = {
         // 🔐 Cargar credenciales desde variables de entorno
         const options = {
           container: 'sl-doc-search',
-          appId: import.meta.env.ALGOLIA_APP_ID,
-          apiKey: import.meta.env.ALGOLIA_API_KEY,
-          indexName: import.meta.env.ALGOLIA_INDEX,
+          appId: import.meta.env.PUBLIC_ALGOLIA_APP_ID,
+          apiKey: import.meta.env.PUBLIC_ALGOLIA_API_KEY,
+          indexName: import.meta.env.PUBLIC_ALGOLIA_INDEX,
 
           // 🧠 Activar Ask AI
           askAi: {
-            assistantId: import.meta.env.ALGOLIA_ASSISTANT_ID,
+            assistantId: import.meta.env.PUBLIC_ALGOLIA_ASSISTANT_ID,
             searchParameters: {
               facetFilters: ['type:content'],
             },
