@@ -55,13 +55,16 @@ export default defineConfig({
 			],
 			plugins: [
 				starlightSiteGraph({
-					starlight: true,           // ✅ activa modo embebido en docs
-					graph: true,               // ✅ muestra grafo dentro de cada doc
-					backlinks: true,           // muestra los enlaces entrantes
-					overridePageSidebar: true, // opcional: coloca el grafo en sidebar
-					graphConfig: {             // configuración visual
+					starlight: true,
+					graph: true,                 // muestra grafo en sidebar derecho
+					backlinks: true,             // muestra backlinks (ya los ves)
+					overridePageSidebar: true,   // fuerza a Starlight a colocar el grafo ahí
+					sitemapConfig: {
+						ignoreStarlightLinks: false,
+					},
+					graphConfig: {
 						depth: 3,
-						linkDistance: 150,
+						linkDistance: 140,
 					},
 				}),
 				starlightGitHubAlerts(),
