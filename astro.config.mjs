@@ -7,6 +7,8 @@ import vercel from '@astrojs/vercel';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightGiscus from 'starlight-giscus';
 import starlightGitHubAlerts from 'starlight-github-alerts'
+import starlightDocSearch from '@astrojs/starlight-docsearch';
+
 // https://astro.build/config
 export default defineConfig({
 	integrations: [
@@ -28,6 +30,7 @@ export default defineConfig({
 			customCss: ['./src/styles/custom.css'],
 			components: {
 				Head: './src/components/head.astro',
+				Search: './src/components/DocSearch.astro',
 			},
 			sidebar: [
 				{
@@ -52,6 +55,12 @@ export default defineConfig({
 				},
 			],
 			plugins: [
+				starlightDocSearch({
+					appId: '9QKX94D59B',
+					apiKey: 'a4656b080a9180341a3c8e4f646a949b',
+					indexName: '´DOCS',
+					askAi: 'eMYOn7glOEWM',
+					}),
 				starlightGitHubAlerts(),
 				starlightScrollToTop({
 					position: 'right',

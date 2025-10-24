@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "@astrojs/starlight": "^0.36.1",
+    "@astrojs/starlight-docsearch": "^0.6.0",
     "@astrojs/vercel": "^8.0.4",
+    "@docsearch/css": "^4.2.0",
+    "@docsearch/js": "^4.2.0",
     "@orama/orama": "^3.1.16",
     "@orama/react-components": "^0.8.1",
     "@vercel/analytics": "^1.5.0",
