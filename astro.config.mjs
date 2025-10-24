@@ -7,7 +7,6 @@ import vercel from '@astrojs/vercel';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightGiscus from 'starlight-giscus';
 import starlightGitHubAlerts from 'starlight-github-alerts'
-import starlightSiteGraph from 'starlight-site-graph'
 
 
 // https://astro.build/config
@@ -55,7 +54,6 @@ export default defineConfig({
 				},
 			],
 			plugins: [
-				starlightSiteGraph(),
 				starlightGitHubAlerts(),
 				starlightScrollToTop({
 					position: 'right',
