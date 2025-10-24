@@ -7,7 +7,6 @@ import vercel from '@astrojs/vercel';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightGiscus from 'starlight-giscus';
 import starlightGitHubAlerts from 'starlight-github-alerts'
-import starlightSiteGraph from 'starlight-site-graph'
 
 // https://astro.build/config
 export default defineConfig({
@@ -54,19 +53,6 @@ export default defineConfig({
 				},
 			],
 			plugins: [
-				starlightSiteGraph({
-					starlight: true,
-					graph: true,                 // muestra grafo en sidebar derecho
-					backlinks: true,             // muestra backlinks (ya los ves)
-					overridePageSidebar: true,   // fuerza a Starlight a colocar el grafo ahí
-					sitemapConfig: {
-						ignoreStarlightLinks: false,
-					},
-					graphConfig: {
-						depth: 3,
-						linkDistance: 140,
-					},
-				}),
 				starlightGitHubAlerts(),
 				starlightScrollToTop({
 					position: 'right',
