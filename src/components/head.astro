@@ -4,6 +4,10 @@ import StarlightHead from '@astrojs/starlight/components/Head.astro';
 import Analytics from '@vercel/analytics/astro';
 import SpeedInsights from "@vercel/speed-insights/astro";
 ---
-<StarlightHead {...Astro.props}><slot /></StarlightHead>
+<StarlightHead {...Astro.props}>
+	<!-- Meta de verificación para Algolia -->
+	<meta name="algolia-site-verification" content="3B3E8545D4F02777" />
+	<slot />
+</StarlightHead>
 <Analytics />
 <SpeedInsights />
