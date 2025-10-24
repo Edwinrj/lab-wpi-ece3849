@@ -7,16 +7,16 @@ import vercel from '@astrojs/vercel';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightGiscus from 'starlight-giscus';
 import starlightGitHubAlerts from 'starlight-github-alerts'
-
+import starlightSiteGraph from 'starlight-site-graph'
 
 // https://astro.build/config
 export default defineConfig({
 	integrations: [
 		decapCmsOauth(),
-		    mermaid({
-      theme: 'forest',
-      autoTheme: true
-    }),
+		mermaid({
+			theme: 'forest',
+			autoTheme: true
+		}),
 		starlight({
 			title: 'ECE3849: Real-Time Embedded Systems',
 			description: 'Labs and resources for Real-Time Embedded Systems course',
@@ -54,6 +54,16 @@ export default defineConfig({
 				},
 			],
 			plugins: [
+				starlightSiteGraph({
+					starlight: true,           // ✅ activa modo embebido en docs
+					graph: true,               // ✅ muestra grafo dentro de cada doc
+					backlinks: true,           // muestra los enlaces entrantes
+					overridePageSidebar: true, // opcional: coloca el grafo en sidebar
+					graphConfig: {             // configuración visual
+						depth: 3,
+						linkDistance: 150,
+					},
+				}),
 				starlightGitHubAlerts(),
 				starlightScrollToTop({
 					position: 'right',
@@ -78,4 +88,9 @@ export default defineConfig({
 			enabled: true,
 		},
 	}),
+	image: {
+		service: {
+			entrypoint: "astro/assets/services/sharp", // 👈 usa Sharp directamente
+		},
+	},
 });
