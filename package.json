@@ -13,6 +13,7 @@
     "@astrojs/starlight": "^0.36.1",
     "@astrojs/vercel": "^8.0.4",
     "@orama/orama": "^3.1.16",
+    "@orama/react-components": "^0.8.1",
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
     "astro": "^5.15.1",

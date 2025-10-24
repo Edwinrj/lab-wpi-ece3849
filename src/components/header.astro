@@ -2,6 +2,7 @@
 import type { Props } from "@astrojs/starlight/props";
 import SiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
 import SocialIcons from "@astrojs/starlight/components/SocialIcons.astro";
+import OramaSearchReact from './OramaSearchReact.jsx';
 
 const { siteTitle, siteTitleHref } = Astro.props;
 ---
@@ -16,8 +17,8 @@ const { siteTitle, siteTitleHref } = Astro.props;
 
 	<!-- Íconos y utilidades -->
 	<div class="sl-flex sl-items-center sl-gap-3">
-		<SocialIcons />
-		<SearchOrama />
+			<SocialIcons />
+			<OramaSearchReact client:idle />
 
 		<!-- Botón de toggle tema personalizado - más pequeño y al final -->
 		<button
