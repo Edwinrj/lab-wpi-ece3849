@@ -2,17 +2,22 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import decapCmsOauth from "astro-decap-cms-oauth";
-
+import mermaid from 'astro-mermaid';
 import vercel from '@astrojs/vercel';
 import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightGiscus from 'starlight-giscus';
-
+import starlightGitHubAlerts from 'starlight-github-alerts'
+import starlightSiteGraph from 'starlight-site-graph'
 
 
 // https://astro.build/config
 export default defineConfig({
 	integrations: [
 		decapCmsOauth(),
+		    mermaid({
+      theme: 'forest',
+      autoTheme: true
+    }),
 		starlight({
 			title: 'ECE3849: Real-Time Embedded Systems',
 			description: 'Labs and resources for Real-Time Embedded Systems course',
@@ -50,6 +55,8 @@ export default defineConfig({
 				},
 			],
 			plugins: [
+				starlightSiteGraph(),
+				starlightGitHubAlerts(),
 				starlightScrollToTop({
 					position: 'right',
 					tooltipText: 'Back to top',

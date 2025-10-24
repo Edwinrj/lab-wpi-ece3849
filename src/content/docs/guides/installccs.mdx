@@ -19,40 +19,36 @@ Before starting, download the setup folder corresponding to your operating syste
       - ccs_setup_12.8.1.00005.exe
     - SW-TM4C-2.2.0.295.exe
   </FileTree>
-
-  <a href="https://drive.google.com/file/d/1wISLk77SQzrNhrdEbzeM0hn7uikrPIhz" target="_blank" rel="noopener noreferrer">
-  🔗 Download Windows Setup Folder
-  </a>
-
+<div style={{ marginTop: '1rem' }}>
+   <a href="https://drive.google.com/file/d/1wISLk77SQzrNhrdEbzeM0hn7uikrPIhz" target="_blank" rel="noopener noreferrer">
+      🔗 Download Windows Setup Folder
+   </a>
+</div>
   </TabItem>
 
   <TabItem label="macOS">
 
   <FileTree>
-  - software
-    - CCS12.8.1.00005_macos
-      - ccs_setup_12.8.1.00005.dmg
-    - SW-TM4C-2.2.0.295.tar.gz
+  - ccs_setup_12.8.1.00005.dmg
   </FileTree>
-
+<div style={{ marginTop: '1rem' }}>
   <a href="https://www.ti.com/tool/CCSTUDIO" target="_blank" rel="noopener noreferrer">
   🔗 Download CCS for macOS from TI
   </a>
+</div>
 
   </TabItem>
 
   <TabItem label="Linux">
 
   <FileTree>
-  - software
-    - CCS12.8.1.00005_linux
-      - ccs_setup_12.8.1.00005.bin
-    - SW-TM4C-2.2.0.295.tar.gz
+   - ccs_setup_12.8.1.00005.bin
   </FileTree>
-
+<div style={{ marginTop: '1rem' }}>
   <a href="https://www.ti.com/tool/CCSTUDIO" target="_blank" rel="noopener noreferrer">
   🔗 Download CCS for Linux from TI
   </a>
+</div>
 
   </TabItem>
 </Tabs>
@@ -66,6 +62,15 @@ Before starting, download the setup folder corresponding to your operating syste
   <TabItem label="Windows">
 
 ### 🧰 Install Code Composer Studio (CCS 12.8.1)
+<Aside type="tip" title="Why CCS 12.8.1?">
+  <div>
+    <p><strong>CCS 12.8.1</strong> is recommended for its stability and compatibility with the TM4C1294XL LaunchPad.</p>
+    <ul>
+      <li>Based on Eclipse with advanced debugging features</li>
+      <li>Newer <strong>CCS 20</strong> uses Theia (VS Code-like), which may affect legacy SDKs</li>
+    </ul>
+  </div>
+</Aside>
 
 1. Navigate to the downloaded folder and run:
    ```bash
@@ -124,16 +129,14 @@ These drivers are essential for the **TM4C1294XL LaunchPad** to communicate prop
 
 ---
 
-### 🧩Code Composer Studio (CCS Configuration)
-
-<Aside type="caution" title="⚙️ Environment Configuration (Required in Lab Computers)">
-Every time you use a **lab computer**, you must reconfigure the CCS environment.  
-These computers reset to default settings each time you log out.
-</Aside>
-
   </TabItem>
 
   <TabItem label="macOS">
+<Aside type="tip" title="Why CCS 12.8.1?"> - CCS 12.8.1 is the recommended version for this course as it provides the necessary features and stability for working with the TM4C1294XL LaunchPad. - Newer versions may introduce compatibility issues with the provided libraries and examples. </Aside>
+<Aside type="danger" title="macOS Installation">
+The installation of **CCS 12.8.1** has not been fully tested on **macOS**.  
+If you successfully install and run it, please inform the course staff so we can update the documentation. Proceed with caution.
+</Aside>
 
 ### 🧰 Install Code Composer Studio (CCS 12.8.1)
 
@@ -169,7 +172,7 @@ These computers reset to default settings each time you log out.
   </TabItem>
 
   <TabItem label="Linux">
-
+<Aside type="tip" title="Why CCS 12.8.1?"> - CCS 12.8.1 is the recommended version for this course as it provides the necessary features and stability for working with the TM4C1294XL LaunchPad. - Newer versions may introduce compatibility issues with the provided libraries and examples. </Aside>
 ### 🧰 Install Code Composer Studio (CCS 12.8.1)
 
 1. Make installer executable and run:
@@ -215,7 +218,7 @@ These computers reset to default settings each time you log out.
 
 ---
 
-<Aside type="note" title="Final Verification">
+<Aside type="tip" title="Final Verification">
 Both **CCS** and **TivaWare** should now be installed under `/ti/` (or `C:\ti\` on Windows).  
 You are ready to start your first lab with the **TM4C1294XL LaunchPad** 🚀
 </Aside>

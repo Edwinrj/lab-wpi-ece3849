@@ -16,11 +16,15 @@
     "@vercel/speed-insights": "^1.2.0",
     "astro": "5.14.7",
     "astro-decap-cms-oauth": "^0.5.1",
+    "astro-mermaid": "^1.1.0",
+    "mermaid": "^11.12.0",
     "remark-admonitions": "^1.2.1",
     "remark-directive": "^4.0.0",
     "remark-gfm": "^4.0.1",
     "sharp": "^0.34.2",
     "starlight-giscus": "^0.6.1",
-    "starlight-scroll-to-top": "^0.1.1"
+    "starlight-github-alerts": "^0.1.1",
+    "starlight-scroll-to-top": "^0.1.1",
+    "starlight-site-graph": "^0.5.0"
   }
 }
