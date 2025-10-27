@@ -1,0 +1,97 @@
+
+---
+title: Mixing C and C++ in Lab Projects
+description: "Guidelines for integrating C libraries in C++ projects for embedded systems"
+---
+import { Tabs, TabItem, Aside, FileTree, CardGrid, Card, Badge } from '@astrojs/starlight/components';
+
+---
+Programming Style: Mixing C and C++
+
+> [!IMPORTANT]
+> Understand why this project uses a hybrid **C/C++ structure** and how to correctly integrate C-based libraries in a C++ environment.
+
+---
+
+### Why Use C and C++ Together?
+
+In this course, we use a **C/C++ mixed programming style** to make the code **modular, maintainable, and scalable**.
+
+- **C++** allows us to structure code using **object-oriented programming (OOP)** — for example, defining reusable classes such as `Button`, `Timer`, or `Sensor`.
+- **C** remains the language of the **TivaWare** and **Texas Instruments** peripheral drivers (like `driverlib`, `grlib`, or `Crystalfontz` display libraries).
+
+Fortunately, **C++ is backward-compatible with C**, meaning you can call C functions from C++ — **if** you handle the compiler linkage correctly.
+
+---
+
+### What Is Name Mangling?
+
+When a C++ compiler builds code, it performs **name mangling** — it changes function names internally to include extra information such as parameter types and namespaces.
+
+For example:
+```cpp
+// Original C++ function
+int add(int a, int b);
+```
+Might be compiled internally as something like:
+```
+_add_int_int
+```
+
+This helps C++ support **function overloading**, but it causes problems when linking with **pure C** code, since C compilers don’t mangle function names.
+
+So if your project mixes both languages, the linker won’t find matching symbols unless you tell it which functions should use **C-style naming**.
+
+---
+
+### Using `extern "C"` to Prevent Linker Errors
+
+To ensure that your C libraries compile correctly inside a C++ project, you must wrap them with the `extern "C"` block:
+
+```cpp
+// ===== Include C driverlib headers (wrapped in extern "C" for C++ builds) =====
+extern "C" {
+#include "driverlib/fpu.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/interrupt.h"
+#include "driverlib/timer.h"
+#include "inc/hw_memmap.h"
+#include "Crystalfontz128x128_ST7735.h"
+#include "grlib/grlib.h"
+#include "sysctl_pll.h"
+}
+
+// ===== Custom helper libraries =====
+#include "button.h"       // Physical button FSM + debounce
+#include "timerLib.h"     // Hardware timer wrapper
+#include "elapsedTime.h"  // millis-style elapsed time utilities
+```
+
+This block tells the compiler:
+> “Treat everything inside as **C code**, not C++ code.”
+
+That way, all Texas Instruments libraries — which are written in pure C — link correctly with your C++ source files.
+
+---
+
+### Library Protection (Already Included)
+
+The libraries provided for this course already include this protection internally. That means:
+
+- You **don’t** need to add `extern "C"` around our custom libraries (`button.h`, `timerLib.h`, etc.).
+- You **must** still wrap **Texas Instruments’ driver and hardware headers** inside an `extern "C"` block whenever you include them in a `.cpp` file.
+
+---
+
+### Summary
+
+| Type of Code | Example Files | Needs `extern "C"`? |
+|---------------|----------------|-----------------------|
+| TI Drivers / HAL | `driverlib/*`, `grlib/*`, `Crystalfontz128x128_ST7735.h` | ✅ Yes |
+| Custom Course Libraries | `button.h`, `timerLib.h`, `elapsedTime.h`, `HAL_TM4C1294XL.h` | ❌ No |
+| Your Application Code | `main.cpp`, `lab0.cpp` | ❌ No |
+
+> [!TIP]
+> 🧩 Always remember: **use C++ for structure, use C for hardware**, and wrap them cleanly with `extern "C"` to make both worlds work together without linker conflicts.
+
+---
