@@ -1,0 +1,149 @@
+
+---
+title: Importing External Libraries
+description: "Instructionss to configure Code Composer Studio for lab development"
+---
+import { Tabs, TabItem, Aside, FileTree } from '@astrojs/starlight/components';
+
+## Importing External Libraries
+
+> [!NOTE] 
+> Integrate pre-built libraries that simplify working with peripherals and timing on the TM4C1294XL LaunchPad.
+
+We have prepared several libraries to help you use the board peripherals more easily and modularly. These libraries allow you to write cleaner code without having to configure all registers manually.
+
+---
+
+### Available Libraries
+
+| Library | Description |
+|----------|-------------|
+| **buttonsDriver** | Manages hardware buttons with **debouncing**, and supports **click**, **double click**, and **long press** callbacks. |
+| **display** | Includes Texas Instruments drivers for the **Crystalfontz 128×128 ST7735 LCD** display. |
+| **timerLib** | Initializes a **hardware timer** to control time-based events without using SysTick. Ideal for periodic tasks. |
+| **elapsedTime** | Works with `timerLib` to measure elapsed time between events easily using one timer source. |
+| **HAL_TM4C1294XL** | Defines pin names and mappings for the TM4C1294XL to make code clearer and portable. |
+| **joystickDriver** | Simplifies joystick input: provides **Cartesian** and **polar coordinates**, plus callbacks for directional events (N, S, E, W). |
+| **PLL** | Calculates the **actual MCU frequency** after PLL configuration so timing values stay accurate. |
+
+---
+
+### Folder Organization
+
+When you open your workspace, you will find two main folders:
+
+<FileTree>
+- Lab_x
+  - Lab_x_workspace
+    - ...
+  - libraries
+    - buttonsDriver
+      - ...
+    - display
+      - ...
+    - timerLib
+      - ...
+    - elapsedTime 
+      - ...
+    - HAL_TM4C1294XL
+      - ...
+    - joystickDriver
+      - ...
+    - PLL
+      - ...
+</FileTree> 
+
+
+> [!TIP]
+> The **libraries** folder should always remain **outside** your project workspace folder. Keep all library files together in this single location.
+
+---
+
+### Importing the Libraries into Code Composer Studio
+
+1. Open your CCS workspace.
+2. **Drag the entire `libraries` folder** into the CCS Project Explorer panel.
+
+<p align="center">
+  <img src="https://hackmd.io/_uploads/Bkd879NAxg.png" alt="Drag libraries folder into CCS" width="500" style="border-radius:10px; box-shadow:0 0 10px #00ffff66;" />
+    <br />
+  <sub><span style="color:#4ec9b0; font-weight:bold;">Drag the <code>libraries</code> folder into Code Composer Studio</span></sub>
+</p>
+
+3. When the import dialog appears, choose:
+   - ✅ **Link to files and recreate folder structure with virtual folders**
+   - ✅ **Create link location relative to PROJECT_LOC**
+
+<p align="center">
+  <img src="https://hackmd.io/_uploads/HJA97qNRgg.png" alt="CCS link to files options" width="480" style="border-radius:10px; box-shadow:0 0 10px #66ccff99;" />
+    <br />
+  <sub><span style="color:#3399ff; font-weight:bold;">Always link files relative to PROJECT_LOC</span></sub>
+</p>
+
+> [!IMPORTANT]
+> ⚠️ This step is **crucial**. Always link libraries this way when adding them to any project. Do **not** copy them into the project directly.
+
+4. CCS will then ask if you want to **add include paths automatically**. Select:
+   - ✅ **Do this for all header files currently being added**
+   - ✅ **Yes**
+
+<p align="center">
+  <img src="https://hackmd.io/_uploads/Hy0aQ9NClx.png" alt="Include path confirmation" width="480" style="border-radius:10px; box-shadow:0 0 10px #00ffff66;" />
+    <br />
+  <sub><span style="color:#4ec9b0; font-weight:bold;">Confirm include path for all header files</span></sub>
+</p>
+
+---
+
+### Verify Project Structure
+
+After importing, your project should look like this:
+
+<p align="center"><img src="https://hackmd.io/_uploads/rk-lE9EAge.png" alt="Project structure after importing libraries" width="200" style="border-radius:10px; box-shadow:0 0 10px #00ffff66;"/>
+  <br />
+  <sub><span style="color:#4ec9b0; font-weight:bold;">Project structure with linked <code>libraries</code> folder</span></sub>
+</p>
+
+---
+
+### Verify Include Paths
+
+To confirm everything is correctly linked:
+1. Right-click your project → **Properties**
+2. Navigate to:
+   ```
+   Build → ARM Compiler → Include Options
+   ```
+3. You should see entries similar to:
+   ```
+   ${PROJECT_LOC}/libraries/buttonsDriver
+   ${PROJECT_LOC}/libraries/display
+   ${PROJECT_LOC}/libraries/timerLib
+   ${PROJECT_LOC}/libraries/elapsedTime
+   ${PROJECT_LOC}/libraries/HAL_TM4C1294XL
+   ${PROJECT_LOC}/libraries/joystickDriver
+   ${PROJECT_LOC}/libraries/PLL
+   ```
+<p align="center">
+  <img src="https://hackmd.io/_uploads/HJp7E5VRex.png" alt="Verify include paths in CCS" width="600" style="border-radius:10px; box-shadow:0 0 10px #00ffff66;" />
+   <br />
+    <sub><span style="color:#4ec9b0; font-weight:bold;">Include paths confirmation in CCS project properties</span></sub>
+</p>
+
+> [!TIP]
+> 💡 If any path is missing, click **Add...**, navigate to your `libraries` folder, and ensure the path is relative to `${PROJECT_LOC}`.
+
+---
+
+✅ Once all libraries are linked and visible in Project Explorer, you can include them in your code normally:
+
+```c
+#include "buttonDriver.h"
+#include "timerLib.h"
+#include "elapsedTime.h"
+#include "HAL_TM4C1294XL.h"
+```
+
+You are now ready to use modular drivers and utilities for your Lab development!
+
+---
