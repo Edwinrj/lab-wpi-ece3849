@@ -7,18 +7,14 @@ hero:
   tagline: Master real-time programming, RTOS development, and embedded system
     design through hands-on laboratory experiences
   actions:
-    - text: Start Lab 0
-      link: /labs/lab0/
+    - text: Lab Summary
+      link: /guides/labtimeline/
       icon: right-arrow
       variant: primary
-    - text: Course Syllabus
-      link: /syllabus/
-      icon: document
-      variant: secondary
     - text: Setup Guide
-      link: /setup/
+      link: /guides/setupguide/
       icon: setting
-      variant: minimal
+      variant: secondary
 giscus: true
 ---
 
@@ -35,21 +31,66 @@ import ccs from '../../assets/ccs.png';
 import tiva from '../../assets/tiva.jpg';
 import freertos from '../../assets/freertos.png';
 
-## Course Overview
+
+## Quick Access Labs
+
 <CardGrid stagger>
-  <Card title="🎯 Real-Time Systems" icon="rocket">
-    Build systems that respond to events within microsecond, timing deadlines using ARM Cortex-M4F architecture
+  <LinkCard
+    title="Lab 0 – Tutorial & Setup"
+    description="Get started with Code Composer Studio, TivaWare, and your first embedded application."
+    href="/labs/lab0/"
+  />
+  <LinkCard
+    title="Lab 1 – Sensor Hub"
+    description="Interface with multiple sensors using I2C, ADC, and PWM while building a real-time dashboard."
+    href="/labs/lab1/"
+  />
+  <LinkCard
+    title="Lab 2 – Spectrum Analyzer"
+    description="Implement a real-time FFT audio analyzer and visualize frequency bands on the LCD."
+    href="/labs/lab2/"
+  />
+  <LinkCard
+    title="Lab 3 – RTOS Integration"
+    description="Migrate to FreeRTOS, manage concurrent tasks, and synchronize data across threads."
+    href="/labs/lab3/"
+  />
+  <LinkCard
+    title="Lab 4 – RTOS Snake Game"
+    description="Create a multitasking Snake game with FreeRTOS timers, mutexes, and LCD rendering."
+    href="/labs/lab4/"
+  />
+  <LinkCard
+    title="Lab 5 – Final System Integration"
+    description="Combine all labs into a unified Embedded Arcade system running under FreeRTOS."
+    href="/labs/lab5/"
+  />
+</CardGrid>
+
+<Aside type="tip" title="What is an RTOS?">
+Real-time operating systems are used when software must respond to events quickly and predictably — for example, in robots, vehicles, and control systems. In this course, you’ll learn how an RTOS manages tasks, timing, and communication so that embedded programs run reliably in real-world applications.
+</Aside>
+
+## Course Overview
+
+<CardGrid stagger>
+  <Card title="Real-Time Systems" icon="rocket">
+    Learn the basics of designing systems that respond to events within specific timing requirements using the ARM Cortex-M4F microcontroller. Understand how timing and reliability affect embedded applications.
   </Card>
-  <Card title="⚙️ Professional RTOS" icon="setting">
-    Master TI-RTOS for multitasking applications used in automotive and aerospace industries
+
+  <Card title="FreeRTOS" icon="settings">
+    Use FreeRTOS to create simple multitasking programs. Learn how tasks, timing, and synchronization work together in a real-time environment.
   </Card>
-  <Card title="🔬 Hands-On Labs" icon="puzzle">
-    Six progressive laboratories from basic I/O to complete real-time systems integration
+
+  <Card title="Hands-On Labs" icon="puzzle">
+    Complete six labs that gradually introduce new concepts. Each lab builds on the previous one, giving you practical experience with real hardware and code.
   </Card>
-  <Card title="💼 Industry Ready" icon="laptop">
-    Use professional tools: Code Composer Studio, logic analyzers, and embedded debuggers
+
+  <Card title="C/C++ Programming" icon="laptop">
+    Write and test embedded programs in C and C++. Practice using these languages to control hardware and implement real-time features.
   </Card>
 </CardGrid>
+
 
 ## Hardware & Software Platform
 
@@ -64,15 +105,15 @@ import freertos from '../../assets/freertos.png';
     - 1MB Flash memory, 256KB RAM
     - Integrated Ethernet, USB, CAN interfaces
     - Professional debugging capabilities
-    
-    <Badge text="Industry Standard MCU" variant="success" />
+
+    <Badge text="ARM Cortex-M4F" variant="success" />
   </Card>
   
   <Card title="BOOSTXL-EDUMKII BoosterPack" icon="puzzle">
     <Picture src={boosterPack} alt="Educational BoosterPack" width={300} />
     
     **Complete I/O Interface Module**
-    - 320x240 color LCD display
+    - 128×128 color LCD display
     - Multiple sensors: light, temperature, accelerometer
     - Audio input/output with microphone and speaker
     - Joystick and button interfaces
@@ -80,246 +121,3 @@ import freertos from '../../assets/freertos.png';
     <Badge text="Educational Platform" variant="note" />
   </Card>
 </CardGrid>
-
-### Professional Development Tools
-
-<Tabs>
-  <TabItem label="Code Composer Studio" icon="laptop">
-    <Picture src={ccs} alt="Code Composer Studio" width={200} />
-    
-    **Professional Embedded IDE**
-    - Advanced debugging with breakpoints and watch windows
-    - Real-time performance analysis and profiling
-    - Integrated compiler toolchain and project management
-    - RTOS-aware debugging capabilities
-    
-    <Badge text="Free for Educational Use" variant="tip" />
-  </TabItem>
-  
-  <TabItem label="TivaWare SDK" icon="setting">
-    <Picture src={tiva} alt="TivaWare" width={200} />
-    
-    **Hardware Abstraction Layer**
-    - Comprehensive peripheral driver library
-    - Pre-built examples and application frameworks
-    - Optimized for TM4C microcontroller family
-    - Complete API documentation and reference
-  </TabItem>
-  
-  <TabItem label="TI-RTOS Kernel" icon="rocket">
-    <Picture src={freertos} alt="TI-RTOS" width={250} />
-    
-    **Real-Time Operating System**
-    - Preemptive multitasking with priority scheduling
-    - Task synchronization: semaphores, mailboxes, events
-    - Memory management and efficient resource allocation
-    - Industry-proven reliability and performance
-    
-    <Badge text="Used in Production Systems Worldwide" variant="success" />
-  </TabItem>
-</Tabs>
-
-## Learning Progression
-
-<Aside type="tip" title="Why This Course Matters">
-Real-time embedded systems power everything from automotive safety systems to medical devices. This course provides the practical skills that employers demand in the rapidly growing embedded systems industry, with hands-on experience using the same tools and methodologies used in professional development.
-</Aside>
-
-### Laboratory Journey
-
-<Steps>
-1. **Lab 0: Foundation (Week 1)**
-   Tutorial introduction to embedded development environment and basic peripherals
-
-2. **Lab 1: Sensor Integration (Week 3)**
-   Multi-sensor interface with professional communication protocols (I2C, SPI, ADC)
-
-3. **Lab 2: Signal Processing (Week 5)**
-   Real-time audio spectrum analyzer with FFT processing and dynamic visualization
-
-4. **Lab 3: RTOS Migration (Week 7)**
-   Transform applications using professional RTOS with multitasking and synchronization
-
-5. **Lab 4: Digital Analysis (Week 8)**
-   Build a logic analyzer for digital signal capture and timing analysis
-
-6. **Lab 5: System Integration (Week 9)**
-   Complete system integration with advanced diagnostics and performance monitoring
-</Steps>
-
-## Core Technical Skills
-
-<CardGrid>
-  <Card title="⚡ Real-Time Programming" icon="rocket">
-    **Interrupt-Driven Systems**
-    - Precise timing control with microsecond accuracy
-    - Priority-based interrupt handling
-    - Deterministic response time analysis
-    - Professional debugging techniques
-    
-    <Badge text="Critical for Safety Systems" variant="caution" />
-  </Card>
-  
-  <Card title="🔄 RTOS Development" icon="setting">
-    **Multitasking Applications**
-    - Task creation and scheduling algorithms
-    - Inter-task communication patterns
-    - Resource sharing and synchronization
-    - System performance optimization
-    
-    <Badge text="Industry Standard Approach" variant="note" />
-  </Card>
-  
-  <Card title="🛠️ Hardware Interfaces" icon="puzzle">
-    **Professional I/O Protocols**
-    - SPI, I2C, UART communication
-    - Custom device driver development
-    - DMA for high-performance transfers
-    - Sensor and actuator integration
-    
-    <Badge text="Universal in Embedded Systems" variant="success" />
-  </Card>
-  
-  <Card title="📊 Performance Analysis" icon="chart">
-    **System Optimization**
-    - CPU utilization and memory profiling
-    - Real-time performance measurement
-    - Code optimization techniques
-    - Advanced debugging methodologies
-    
-    <Badge text="Differentiates Expert Developers" variant="tip" />
-  </Card>
-</CardGrid>
-
-## Quick Access Labs
-
-<CardGrid>
-  <LinkCard
-    title="Lab 0: Tutorial & Setup"
-    description="Get started with the development environment and build your first embedded application"
-    href="/labs/lab0/"
-  />
-  <LinkCard
-    title="Lab 1: Sensor Hub"
-    description="Interface with multiple sensors using professional communication protocols"
-    href="/labs/lab1/"
-  />
-  <LinkCard
-    title="Lab 2: Spectrum Analyzer"
-    description="Build a real-time audio analyzer with FFT processing and visualization"
-    href="/labs/lab2/"
-  />
-  <LinkCard
-    title="Lab 3: RTOS Integration"
-    description="Migrate to professional RTOS with multitasking and synchronization"
-    href="/labs/lab3/"
-  />
-</CardGrid>
-
-## Course Assessment
-
-<Tabs>
-  <TabItem label="Labs (45%)" icon="puzzle">
-    **Hands-On Mastery**
-    - Lab 0: 5% (Foundation Building)
-    - Labs 1-5: 8% each (Progressive Skills)
-    - Live demonstrations with TA signoff
-    - Focus on working implementations
-    
-    <Badge text="Most Important Component" variant="success" />
-  </TabItem>
-  
-  <TabItem label="Exams (40%)" icon="document">
-    **Conceptual Understanding**
-    - Midterm Exam: 20% (Fundamentals & Theory)
-    - Final Exam: 20% (Advanced Topics & Integration)
-    - Open book format with emphasis on application
-    - Problem-solving and analysis focus
-  </TabItem>
-  
-  <TabItem label="Homework (15%)" icon="pencil">
-    **Reinforcement & Practice**
-    - 6 assignments total (best 5 count)
-    - Individual effort required
-    - Theory reinforcement and design problems
-    - Flexible grading allows one dropped assignment
-  </TabItem>
-</Tabs>
-
-## Support & Resources
-
-<CardGrid>
-  <Card title="👨‍🏫 Expert Instruction" icon="star">
-    **Professor Xinming Huang**
-    - Extensive embedded systems research experience
-    - Industry connections and real-world applications
-    - Regular office hours and personal guidance
-  </Card>
-  
-  <Card title="🔧 Teaching Assistants" icon="approve-check">
-    **Dedicated Lab Support**
-    - Available during all lab sessions
-    - Evening help sessions three times per week
-    - Experienced with course hardware and software
-  </Card>
-  
-  <Card title="⏰ Flexible Access" icon="clock">
-    **Multiple Learning Options**
-    - Two lab sections available weekly
-    - Open lab access throughout the week
-    - Comprehensive online resources and documentation
-  </Card>
-  
-  <Card title="💻 Complete Setup" icon="laptop">
-    **Everything Provided**
-    - All hardware available during lab sessions
-    - Software licenses and development tools
-    - Starter code and comprehensive examples
-  </Card>
-</CardGrid>
-
-## Industry Relevance
-
-<Aside type="note" title="Real-World Applications">
-This course curriculum is designed with input from industry partners including **Raytheon**, **Tesla**, **Apple**, and **Boston Dynamics**. The skills you develop translate directly to embedded systems roles at leading technology companies developing autonomous vehicles, medical devices, aerospace systems, and IoT products.
-</Aside>
-
-### Career Impact
-
-<CardGrid stagger>
-  <Card title="💰 High-Demand Skills" icon="star">
-    Embedded engineers with RTOS experience command premium salaries in automotive, aerospace, medical, and IoT industries
-  </Card>
-  <Card title="🚀 Innovation Ready" icon="rocket">
-    Master the same development methodologies used for cutting-edge products like autonomous vehicles and smart medical devices
-  </Card>
-  <Card title="🎯 Direct Application" icon="approve-check">
-    Every laboratory exercise mirrors real-world development scenarios encountered in professional embedded systems projects
-  </Card>
-</CardGrid>
-
-## Prerequisites & Preparation
-
-<Steps>
-1. **Programming Foundation**
-   Solid C programming skills and basic understanding of computer organization
-
-2. **Electronics Background**
-   Knowledge of digital logic, basic circuits, and microprocessor fundamentals (ECE 2049)
-
-3. **Development Environment**
-   Install Code Composer Studio and familiarize yourself with integrated development environments
-
-4. **Course Materials**
-   Access to Canvas for assignments, documentation, and supplementary resources
-</Steps>
-
-## Get Started Today
-
-<Card title="Ready to Master Real-Time Systems?" icon="rocket">
-**Your embedded systems career starts here.** ECE 3849 provides the most comprehensive hands-on experience in real-time programming available, using industry-standard tools and methodologies that directly translate to professional development environments.
-
-**Join hundreds of successful graduates** who credit this course as the foundation of their embedded systems expertise. From automotive safety systems to medical devices, the skills you develop here will prepare you for the most challenging and rewarding roles in embedded systems engineering.
-
-**Course begins with strong fundamentals** and builds systematically toward advanced real-time system design, ensuring every student succeeds regardless of their starting experience level.
-</Card>

@@ -1,0 +1,85 @@
+---
+title: "Lab Timeline & Summaries"
+description: "Timeline, due dates, and summaries for all ECE3849 labs."
+---
+
+import {
+  Card,
+  CardGrid,
+  Badge,
+  Aside,
+  Steps,
+  LinkButton
+} from '@astrojs/starlight/components';
+
+# ECE3849 Lab Timeline & Summaries
+
+<Aside type="note" title="Overview">
+  Each lab in **ECE3849: Real-Time Embedded Systems** builds upon the previous one,
+  culminating in a complete FreeRTOS-based multitasking system that integrates sensing,
+  signal processing, and interactive gameplay.
+</Aside>
+
+---
+
+## Lab Schedule & Summaries
+
+<CardGrid stagger>
+
+  <Card title="Lab 0 – Stopwatch & Graphical Menu" icon="seti:clock">
+    <Badge text="Due Oct 29" variant="success" size="medium" />
+    <p><strong>Objective:</strong> Familiarize with the TM4C1294XL LaunchPad, Code Composer Studio,
+    and basic peripheral programming.</p>
+    <p><strong>Highlights:</strong> System clock setup, LCD initialization, timer ISR, button debouncing,
+    and menu navigation.</p>
+    <LinkButton href="/labs/lab0/">View Lab 0 →</LinkButton>
+  </Card>
+
+  <Card title="Lab 1 – Sensor Hub (Light, Temp, Sound)" icon="sun">
+    <Badge text="Due Nov 5" variant="success" size="medium" />
+    <p><strong>Objective:</strong> Interface and read light, temperature, and microphone sensors in real time.</p>
+    <p><strong>Highlights:</strong> ADC/I2C interfacing, ISR-driven sampling, PWM feedback,
+    and data display integration.</p>
+    <LinkButton href="/labs/lab1/">View Lab 1 →</LinkButton>
+  </Card>
+
+  <Card title="Lab 2 – 8-Band Spectrum Analyzer" icon="seti:audio">
+    <Badge text="Due Nov 12" variant="note" size="medium" />
+    <p><strong>Objective:</strong> Implement a real-time audio spectrum analyzer using FFT on sampled audio.</p>
+    <p><strong>Highlights:</strong> ADC + DMA, circular buffers, 256-point FFT, dB conversion,
+    and performance measurement.</p>
+    <LinkButton href="/labs/lab2/">View Lab 2 →</LinkButton>
+  </Card>
+
+  <Card title="Lab 3 – Migration to FreeRTOS" icon="document">
+    <Badge text="Due Nov 19" variant="note" size="medium" />
+    <p><strong>Objective:</strong> Migrate your application to FreeRTOS and explore multitasking concepts.</p>
+    <p><strong>Highlights:</strong> Task creation, semaphores, message queues, priority tuning,
+    and runtime profiling.</p>
+    <LinkButton href="/labs/lab3/">View Lab 3 →</LinkButton>
+  </Card>
+
+  <Card title="Lab 4 – RTOS Snake Game" icon="rocket">
+    <Badge text="Due Dec 1" variant="caution" size="medium" />
+    <small>Due to Thanksgiving break, there is no rush on Nov 25.</small>
+    <p><strong>Objective:</strong> Create an interactive Snake game using FreeRTOS multitasking.</p>
+    <p><strong>Highlights:</strong> Input handling, game logic, software timers, LCD mutex, and sound feedback.</p>
+    <LinkButton href="/labs/lab4/">View Lab 4 →</LinkButton>
+  </Card>
+
+  <Card title="Lab 5 – Final System Integration" icon="laptop">
+    <Badge text="Due Dec 10" variant="danger" size="medium" />
+    <p><strong>Objective:</strong> Integrate all previous modules into a single multitasking system.</p>
+    <p><strong>Highlights:</strong> FreeRTOS task coordination, inter-task communication, performance monitor,
+    and adaptive Snake gameplay.</p>
+    <LinkButton href="/labs/lab5/">View Lab 5 →</LinkButton>
+  </Card>
+
+</CardGrid>
+---
+
+<Aside type="tip" title="Pro Tip">
+  Each lab builds directly on the previous one — by the end of the term you’ll have a fully integrated
+  **Embedded Arcade** combining stopwatch timing, sensor acquisition, spectrum analysis,
+  and a FreeRTOS-based Snake game.
+</Aside>

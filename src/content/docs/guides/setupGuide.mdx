@@ -1,0 +1,84 @@
+---
+title: "Lab Setup Quick Start Guide"
+description: "Start here! Links to all setup steps and guides for your lab environment."
+---
+
+import {
+  CardGrid,
+  LinkCard,
+  Aside,
+  Badge,
+  FileTree,
+  Steps,
+  LinkButton
+} from '@astrojs/starlight/components';
+
+<Aside type="note" title="Start Here!">
+  This guide provides direct links to all the essential setup steps for your lab environment.  
+  Follow each link in order to ensure your development environment is ready.
+</Aside>
+
+<CardGrid>
+  <LinkCard href="/guides/installccs" title="Install CCS & TivaWare" icon="download">
+    Step-by-step instructions for installing Code Composer Studio and TivaWare on Windows, macOS, and Linux.  
+    <Badge text="Required" variant="success" />
+  </LinkCard>
+
+  <LinkCard href="/guides/enviromentsetup" title="Configure CCS Environment" icon="settings">
+    How to set up compiler paths and environment variables in CCS.  
+    <Badge text="Lab Computers" variant="tip" />
+  </LinkCard>
+
+  <LinkCard href="/guides/openworkspace" title="Workspace Setup" icon="folder">
+    How to download, extract, and open your lab workspace in CCS.  
+    <Badge text="First Use" variant="note" />
+  </LinkCard>
+
+  <LinkCard href="/guides/labkit" title="Lab Kit Overview" icon="laptop">
+    Details about the TI EK-TM4C1294XL LaunchPad and BOOSTXL-EDUMKII BoosterPack.  
+    <Badge text="Hardware" variant="default" />
+  </LinkCard>
+
+  <LinkCard href="/guides/external_libraries" title="External Libraries" icon="library">
+    How to use and organize the provided libraries for peripherals and timing.  
+    <Badge text="Recommended" variant="caution" />
+  </LinkCard>
+
+  <LinkCard href="/guides/programmingstyle" title="Programming Style" icon="code">
+    Guidelines for mixing C and C++ in your lab projects.  
+    <Badge text="Best Practices" variant="success" />
+  </LinkCard>
+</CardGrid>
+
+---
+
+## Setup Steps Overview
+
+<Steps>
+  <ol>
+    <li><LinkButton href="/guides/installccs">Install CCS & TivaWare</LinkButton></li>
+    <li><LinkButton href="/guides/enviromentsetup">Configure CCS Environment</LinkButton></li>
+    <li><LinkButton href="/guides/openworkspace">Workspace Setup</LinkButton></li>
+    <li><LinkButton href="/guides/labkit">Lab Kit Overview</LinkButton></li>
+    <li><LinkButton href="/guides/external_libraries">External Libraries</LinkButton></li>
+    <li><LinkButton href="/guides/programmingstyle">Programming Style</LinkButton></li>
+  </ol>
+</Steps>
+
+---
+
+## 📁 Example Workspace Structure
+
+<FileTree>
+  - Lab_x
+    - Lab_x_workspace
+      - ...
+    - libraries
+      - ...
+</FileTree>
+
+---
+
+<Aside type="tip" title="Need Help?">
+  If you get stuck, check each guide above for troubleshooting tips and screenshots.
+</Aside>
