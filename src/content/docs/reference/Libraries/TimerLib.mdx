@@ -1,0 +1,155 @@
+---
+
+title: TimerLib
+description: Reference documentation for the Timer class used in TM4C1294XL projects.
+---
+
+import { Badge, Icon, CardGrid, Card, LinkCard } from '@astrojs/starlight/components';
+
+## Overview
+
+The **Timer** class provides a lightweight and precise timing abstraction over the TM4C1294XL’s hardware GPTM (General-Purpose Timer Module). It supports both **32-bit** and **64-bit (Wide Timer)** modes, allowing you to measure elapsed time in microseconds or milliseconds without relying on `SysTick`, which makes it ideal for FreeRTOS or interrupt-based applications.
+
+<Badge text="Hardware timer abstraction" variant="note" /> <Badge text="Supports 32-bit and 64-bit" variant="success" />
+
+---
+
+## Features
+
+* Uses **TivaWare driverlib** functions for reliability and precision.
+* Works with **TIMERx_BASE** (32-bit) or **WTIMERx_BASE** (64-bit) peripherals.
+* Provides `micros()` and `millis()` methods for elapsed time measurement.
+* Independent from `SysTick` and non-blocking.
+* Automatically enables and configures timer peripherals.
+* Compatible with low-level hardware timing and performance profiling.
+
+---
+
+## Basic Usage
+
+```cpp
+#include "timerLib.h"
+
+Timer t;
+
+int main(void)
+{
+    uint32_t gSystemClock = SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
+        SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
+
+    t.begin(gSystemClock, WTIMER0_BASE);
+
+    while (1) {
+        uint64_t ms = t.millis();
+        // Use ms for periodic tasks or delay control
+    }
+}
+```
+
+---
+
+## API Summary
+
+### Constructor
+
+```cpp
+Timer();
+```
+
+Creates an uninitialized timer instance.
+
+### Initialization
+
+```cpp
+bool begin(uint32_t sysclkHz, uint32_t timerBase);
+```
+
+Initializes and enables the selected timer peripheral.
+
+* **sysclkHz:** System clock frequency in Hz (e.g., 120000000).
+* **timerBase:** Base address of the timer (e.g., TIMER0_BASE, WTIMER0_BASE).
+* Returns **true** on success.
+
+### Control Methods
+
+| Method         | Description                                      |
+| :------------- | :----------------------------------------------- |
+| `void stop()`  | Stops the timer without resetting configuration. |
+| `void reset()` | Resets the logical start time reference.         |
+
+### Time Access
+
+| Method                    | Description                           |
+| :------------------------ | :------------------------------------ |
+| `uint64_t micros() const` | Returns elapsed time in microseconds. |
+| `uint64_t millis() const` | Returns elapsed time in milliseconds. |
+
+### Query Methods
+
+| Method                  | Description                                 |
+| :---------------------- | :------------------------------------------ |
+| `uint32_t base() const` | Returns the base address used by the timer. |
+| `bool isWide() const`   | Returns true if using a 64-bit wide timer.  |
+
+---
+
+## Example: LED Blink with `millis()`
+
+```cpp
+#include "timerLib.h"
+#include "driverlib/gpio.h"
+
+#define LED_PORT GPIO_PORTN_BASE
+#define LED_PIN  GPIO_PIN_1
+
+Timer t;
+
+int main(void)
+{
+    uint32_t sysclk = SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
+        SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION));
+    GPIOPinTypeGPIOOutput(LED_PORT, LED_PIN);
+
+    t.begin(sysclk, TIMER0_BASE);
+
+    uint64_t last = t.millis();
+    bool led = false;
+
+    while (1) {
+        uint64_t now = t.millis();
+        if (now - last >= 500) {
+            led = !led;
+            GPIOPinWrite(LED_PORT, LED_PIN, led ? LED_PIN : 0);
+            last = now;
+        }
+    }
+}
+```
+
+---
+
+## Integration Notes
+
+* Always call `begin()` **after system clock setup**.
+* Works with any GPTM module (Timer0–Timer5, WideTimer0–WideTimer5).
+* Does not configure interrupts; meant for **software polling**.
+* Ideal for measuring time intervals, creating periodic events, or benchmarking.
+
+## Dependencies
+
+* `driverlib/sysctl.h`
+* `driverlib/timer.h`
+* `inc/hw_memmap.h`
+
+---
+
+## License and Credits
+
+Developed for **ECE3849 — Real-Time Embedded Systems**. Based on TI TivaWare GPTM drivers and adapted for object-oriented use in C++.
+
+<Badge text="Author: Edwin R." variant="note" /> <Badge text="Version 1.0" variant="success" />

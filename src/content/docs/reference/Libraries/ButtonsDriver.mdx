@@ -1,0 +1,198 @@
+---
+
+title: Button Driver
+description: Reference documentation for the Button driver class used in TM4C1294XL projects.
+---
+
+import { Badge, Icon, CardGrid, Card, LinkCard } from '@astrojs/starlight/components';
+
+
+## Overview
+
+The **Button** class provides a flexible interface for managing physical buttons on the TM4C1294XL LaunchPad. It supports debounce filtering, single and double clicks, long presses, and user-defined callbacks for each type of event.
+
+This driver simplifies working with input switches by abstracting GPIO configuration, debounce logic, and timing-based event detection.
+
+<Badge text="Compatible with TivaWare" variant="note" /> <Badge text="Supports OneButton-style API" variant="tip" />
+
+---
+
+## Features
+
+* **Debounce filtering** (configurable in milliseconds)
+* **Single, double, and multi-click detection**
+* **Long press detection** (start, during, and stop events)
+* **Callback registration** for all major events
+* **Automatic GPIO configuration** based on Energia `pins.h`
+* **Pull-up or pull-down selection**
+* **Flag-based methods** (`wasPressed()`, `wasReleased()`, `isPressed()`, etc.)
+* **Lightweight FSM-based implementation** for polling or interrupt-driven systems
+
+---
+
+## Basic Usage
+
+### Include and Initialize
+
+```cpp
+#include "button.h"
+
+Button btn(USR_SW1); // Initialize with default debounce and pull-up
+
+int main(void) {
+    btn.begin();
+    while (1) {
+        btn.tick(); // Call periodically (~20ms)
+        if (btn.wasPressed()) {
+            // Do something when pressed
+        }
+    }
+}
+```
+
+---
+
+## Example: Callbacks
+
+```cpp
+#include <stdint.h>
+#include <stdbool.h>
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+#include "button.h"
+#include "pins.h"
+
+// LEDs en PN0 y PN1
+#define LED_PORT_BASE GPIO_PORTN_BASE
+#define LED1_PIN      GPIO_PIN_0
+#define LED2_PIN      GPIO_PIN_1
+
+static inline void ledOn(uint8_t pin) { GPIOPinWrite(LED_PORT_BASE, pin, pin); }
+static inline void ledOff(uint8_t pin){ GPIOPinWrite(LED_PORT_BASE, pin, 0); }
+static inline void ledToggle(uint8_t pin){
+    uint32_t v = GPIOPinRead(LED_PORT_BASE, pin);
+    GPIOPinWrite(LED_PORT_BASE, pin, (v & pin) ? 0 : pin);
+}
+
+// BotÃ³n con API estilo OneButton
+static Button btn(USR_SW1);
+
+static void onPress() { ledOn(LED1_PIN); }
+static void onClick() {
+    // Click simple: apaga LED1 y LED2
+    ledOff(LED1_PIN);
+    ledOff(LED2_PIN);
+}
+static void onDoubleClick() {
+    // Doble click: enciende LED2
+    ledOn(LED2_PIN);
+}
+static void onLongPressStart() { ledOn(LED1_PIN); ledOn(LED2_PIN); }
+static void onLongPressStop()  { ledOff(LED1_PIN); ledOff(LED2_PIN); }
+
+int main(void) {
+    uint32_t gSystemClock = SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
+        120000000);
+
+    // Inicializa GPIO de LEDs
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION));
+    GPIOPinTypeGPIOOutput(LED_PORT_BASE, LED1_PIN | LED2_PIN);
+
+    // Inicializa el botÃ³n (habilita clock del puerto y configura pad) despuÃ©s del clock del MCU
+    btn.begin();
+
+    // Ajustes de tiempos (opcionales): tick ~20 ms
+    btn.setTickIntervalMs(20);
+    btn.setDebounceMs(50);
+    btn.setClickMs(400);  // ventana para click/doble click
+    btn.setPressMs(800);  // umbral long-press
+
+    // Registrar callbacks tipo OneButton
+    btn.attachPress(onPress);
+    btn.attachClick(onClick);
+    btn.attachDoubleClick(onDoubleClick);
+    btn.attachLongPressStart(onLongPressStart);
+    btn.attachLongPressStop(onLongPressStop);
+
+    while(1){
+        btn.tick();
+        SysCtlDelay(gSystemClock / 3 / 50); // ~20 ms
+    }
+}
+
+```
+
+---
+
+## API Summary
+
+### Constructors
+
+```cpp
+Button(uint8_t pin, uint32_t debounceTicks = 3,
+       uint32_t longPressTicks = 50, uint32_t doubleClickTicks = 25,
+       ButtonPull pull = ButtonPull::PullUp);
+```
+
+Creates a button object and sets up timing thresholds in logical ticks (~20 ms each).
+
+### Configuration
+
+| Method                                         | Description                                          |
+| :--------------------------------------------- | :--------------------------------------------------- |
+| `void begin()`                                 | Initializes GPIO and pad configuration.              |
+| `void setPull(ButtonPull pull)`                | Reconfigure internal pull-up or pull-down.           |
+| `void setDebounceMs(int ms)`                   | Set debounce time.                                   |
+| `void setClickMs(unsigned int ms)`             | Time window for distinguishing single/double clicks. |
+| `void setPressMs(unsigned int ms)`             | Threshold for long press detection.                  |
+| `void setLongPressIntervalMs(unsigned int ms)` | Interval for continuous long-press callbacks.        |
+
+### State Queries
+
+| Method                       | Description                                               |
+| :--------------------------- | :-------------------------------------------------------- |
+| `bool wasPressed()`          | Returns true once when pressed, resets flag.              |
+| `bool wasReleased()`         | Returns true once when released, resets flag.             |
+| `bool isPressed()`           | Returns current physical level.                           |
+| `bool isDoubleClicked()`     | Returns true if a double-click occurred since last query. |
+| `unsigned int getHoldTime()` | Duration in ms the button was last held down.             |
+
+### Callback Attachments
+
+| Event             | Methods                     |
+| :---------------- | :-------------------------- |
+| Press             | `attachPress(fn)`           |
+| Release           | `attachRelease(fn)`         |
+| Click             | `attachClick(fn)`           |
+| Double Click      | `attachDoubleClick(fn)`     |
+| Long Press Start  | `attachLongPressStart(fn)`  |
+| Long Press Stop   | `attachLongPressStop(fn)`   |
+| During Long Press | `attachDuringLongPress(fn)` |
+| Idle              | `attachIdle(fn)`            |
+
+
+## Integration Notes
+
+* Call `tick()` every **10–20 ms** in your main loop or a timer interrupt.
+* Always call `begin()` after system clock initialization.
+* Adjust debounce and click thresholds to match hardware bounce characteristics.
+* The driver can be used with **polling**, **GPIO interrupts**, or **timer ISRs**.
+
+---
+
+## Dependencies
+
+* `driverlib/gpio.h`
+* `driverlib/sysctl.h`
+* `pins.h` (for Energia-style pin mapping)
+
+---
+
+## License and Credits
+
+Developed for educational use in **ECE3849 — Real-Time Embedded Systems**. Inspired by the Arduino **OneButton** library, adapted for TivaWare with performance and structure improvements.
+
+<Badge text="Author: Edwin R." variant="note" /> <Badge text="Version 1.0" variant="success" />

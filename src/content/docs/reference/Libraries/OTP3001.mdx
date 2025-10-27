@@ -1,0 +1,143 @@
+---
+
+title: OPT3001 
+description: Reference and example for using the OPT3001 I²C light sensor with TM4C1294XL.
+---
+
+import { Code, Badge, LinkCard } from '@astrojs/starlight/components';
+
+## Overview
+
+The **OPT3001** is a precision ambient light sensor from Texas Instruments that measures illuminance in lux and communicates via the **I²C bus**. This driver provides a simple API for initialization, reading lux values, and retrieving device information. It is designed for use with the **TM4C1294XL LaunchPad** and the **BOOSTXL-EDUMKII** BoosterPack.
+
+<Badge text="I²C0 PB2/PB3" variant="note" /> <Badge text="Continuous conversion mode" variant="success" />
+
+---
+
+## Features
+
+* Operates on **I²C0** using **PB2 (SCL)** and **PB3 (SDA)**.
+* Provides **lux readings** in floating-point format.
+* Supports **continuous measurement mode** with automatic range adjustment.
+* Includes helper functions to read **Manufacturer ID** and **Device ID**.
+* Configurable default integration time (800 ms).
+
+---
+
+## Basic Usage
+
+```cpp
+#include "OPT3001.h"
+
+int main(void)
+{
+    uint32_t sysclk = SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
+        SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
+
+    // Initialize the OPT3001 sensor
+    OPT3001_Init();
+
+    // Read a lux value
+    float lux = OPT3001_ReadLux();
+}
+```
+
+---
+
+## API Summary
+
+| Function                                                  | Description                                               |
+| :-------------------------------------------------------- | :-------------------------------------------------------- |
+| `void OPT3001_Init(void)`                                 | Initializes the I²C peripheral and configures the sensor. |
+| `void OPT3001_WriteRegister(uint8_t reg, uint16_t value)` | Writes a 16-bit value to a register.                      |
+| `uint16_t OPT3001_ReadRegister(uint8_t reg)`              | Reads a 16-bit register value.                            |
+| `uint16_t OPT3001_ReadManufacturerID(void)`               | Returns the manufacturer ID (should be 0x5449).           |
+| `uint16_t OPT3001_ReadDeviceID(void)`                     | Returns the device ID (should be 0x3001).                 |
+| `float OPT3001_ReadLux(void)`                             | Returns the measured lux value.                           |
+
+---
+
+## I²C Configuration
+
+The OPT3001 communicates using **I²C0**, mapped as follows:
+
+| Signal | Pin | MCU Port | Function |
+| :----- | :-- | :------- | :------- |
+| SCL    | PB2 | GPIOB    | I2C0SCL  |
+| SDA    | PB3 | GPIOB    | I2C0SDA  |
+
+---
+
+## Example: Reading and Printing Lux via UART
+
+```cpp
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/uart.h"
+#include "driverlib/gpio.h"
+#include "driverlib/pin_map.h"
+#include "driverlib/rom_map.h"
+#include "OPT3001.h"
+
+uint32_t g_ui32SysClock;
+
+void UARTSend(const char *pui8Buffer)
+{
+    while(*pui8Buffer)
+    {
+        MAP_UARTCharPut(UART0_BASE, *pui8Buffer++);
+    }
+}
+
+static void UART0_Init(void)
+{
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+
+    MAP_GPIOPinConfigure(GPIO_PA0_U0RX);
+    MAP_GPIOPinConfigure(GPIO_PA1_U0TX);
+    MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+    MAP_UARTConfigSetExpClk(UART0_BASE, g_ui32SysClock, 115200,
+                            (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
+                             UART_CONFIG_PAR_NONE));
+}
+
+int main(void)
+{
+    g_ui32SysClock = MAP_SysCtlClockFreqSet((SYSCTL_XTAL_25MHZ |
+                                             SYSCTL_OSC_MAIN |
+                                             SYSCTL_USE_PLL |
+                                             SYSCTL_CFG_VCO_240), 120000000);
+
+    UART0_Init();
+    OPT3001_Init();
+
+    char buffer[64];
+    while (1)
+    {
+        float lux = OPT3001_ReadLux();
+        snprintf(buffer, sizeof(buffer), "Lux = %.2f lx\r\n", lux);
+        UARTSend(buffer);
+        SysCtlDelay(g_ui32SysClock / 3);  // ~1s
+    }
+}
+```
+---
+
+## Integration Notes
+
+* Ensure **3.3V** logic levels; do not connect to 5V I²C devices.
+* Pull-up resistors on SCL and SDA (typically 4.7kΩ) are required for stable communication.
+* The sensor automatically handles gain and range adjustment; no manual scaling is needed.
+* Use `SysCtlDelay()` or timer-based delays between reads to avoid over-sampling.
+
+## License and Credits
+
+Developed for **ECE3849 — Real-Time Embedded Systems**. Based on TI’s TivaWare and OPT3001 datasheet.
+
+<Badge text="Author: Edwin R." variant="note" /> <Badge text="Version 1.0" variant="success" />

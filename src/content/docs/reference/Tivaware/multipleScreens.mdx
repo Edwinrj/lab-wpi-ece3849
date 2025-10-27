@@ -1,0 +1,198 @@
+---
+
+title: Multi-Screen Interface Tutorial
+description: How to implement multiple graphical screens with navigation buttons on the TM4C1294XL using the Crystalfontz 128x128 LCD and GRLIB.
+---
+
+import { Badge, Icon, CardGrid, Card, LinkCard, Steps } from '@astrojs/starlight/components';
+
+## Overview
+
+This tutorial explains how to design a **multi-screen user interface** on the **TM4C1294XL LaunchPad** with the **BOOSTXL-EDUMKII** display. You will learn how to:
+
+* Create and manage multiple display screens.
+* Switch between screens using hardware buttons (S1/S2).
+* Use timers to refresh content at regular intervals.
+* Organize code for scalable screen-based applications.
+
+---
+
+## 1. Concept
+
+Each screen in the system represents a self-contained visualization or module (e.g., Light sensor, Joystick, Microphone, Accelerometer). The screens share a common drawing context and are switched using navigation buttons.
+
+```cpp
+enum ScreenID {
+    SCREEN_LUX = 0,
+    SCREEN_JOYSTICK,
+    SCREEN_MIC,
+    SCREEN_ACCEL,
+    SCREEN_COUNT
+};
+
+uint8_t currentScreen = SCREEN_LUX;
+```
+
+Each screen has its own `Draw_*()` function that is responsible for updating the display content.
+
+---
+
+## 2. Navigation System
+
+Two physical buttons are used to navigate between screens:
+
+* **S1 (Left)** → Previous screen.
+* **S2 (Right)** → Next screen.
+
+Each button has an event callback that updates the `currentScreen` index:
+
+```cpp
+void OnLeftClick() {
+    Buzzer_Beep(200, 40); // Feedback tone
+    if (currentScreen > 0)
+        currentScreen--;
+    else
+        currentScreen = SCREEN_COUNT - 1;
+}
+
+void OnRightClick() {
+    Buzzer_Beep(300, 40); // Feedback tone
+    currentScreen = (currentScreen + 1) % SCREEN_COUNT;
+}
+```
+
+These callbacks are attached to button objects using the `attachClick()` method:
+
+```cpp
+btnLeft.attachClick(&OnLeftClick);
+btnRight.attachClick(&OnRightClick);
+```
+
+---
+
+## 3. Screen Update Timing
+
+To avoid unnecessary redrawing, each screen is updated periodically using an `elapsedMillis` timer. The example below updates the current screen every 50 ms:
+
+```cpp
+if (drawTimer >= 50) {
+    switch (currentScreen) {
+        case SCREEN_LUX:       Draw_Lux(luxValue); break;
+        case SCREEN_JOYSTICK:  Draw_Joystick(js.x(), js.y()); break;
+        case SCREEN_MIC:       Draw_Mic(Mic_Level()); break;
+        case SCREEN_ACCEL:     Draw_Accelerometer(ax, ay); break;
+    }
+    drawTimer = 0;
+}
+```
+
+---
+
+## 4. Header Bar with Active Arrows
+
+The header is common to all screens and shows navigation arrows that highlight when the corresponding button is pressed.
+
+```cpp
+void DrawHeader(const char *title, bool leftActive, bool rightActive)
+{
+    tRectangle header = {0, 0, 127, 20};
+    GrContextForegroundSet(&gContext, ClrDarkBlue);
+    GrRectFill(&gContext, &header);
+
+    GrContextForegroundSet(&gContext, leftActive ? ClrYellow : ClrGray);
+    GrStringDraw(&gContext, "<", -1, 4, 6, false);
+
+    GrContextForegroundSet(&gContext, rightActive ? ClrYellow : ClrGray);
+    GrStringDraw(&gContext, ">", -1, 118, 6, false);
+
+    GrContextForegroundSet(&gContext, ClrWhite);
+    GrStringDrawCentered(&gContext, title, -1, 64, 7, false);
+}
+```
+
+Each `Draw_*()` function calls `DrawHeader()` to provide a consistent look across screens.
+
+---
+
+## 5. Example Screens
+
+### Light Sensor Screen
+
+```cpp
+void Draw_Lux(float lux)
+{
+    const float LUX_MAX = 1000.0f;
+    int barWidth = (int)((lux / LUX_MAX) * 100);
+    if (barWidth > 100) barWidth = 100;
+
+    tRectangle bg = {0, 21, 127, 127};
+    GrContextForegroundSet(&gContext, ClrBlack);
+    GrRectFill(&gContext, &bg);
+    DrawHeader("Ambient Light", btnLeft.isPressed(), btnRight.isPressed());
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.2f lx", lux);
+    GrContextForegroundSet(&gContext, ClrYellow);
+    GrStringDrawCentered(&gContext, buf, -1, 64, 50, false);
+
+    tRectangle fill = {14, 80, 14 + barWidth, 95};
+    GrContextForegroundSet(&gContext, ClrGreen);
+    GrRectFill(&gContext, &fill);
+    GrFlush(&gContext);
+}
+```
+
+### Joystick Screen
+
+```cpp
+void Draw_Joystick(float x, float y)
+{
+    tRectangle bg = {0, 21, 127, 127};
+    GrContextForegroundSet(&gContext, ClrBlack);
+    GrRectFill(&gContext, &bg);
+    DrawHeader("Joystick", btnLeft.isPressed(), btnRight.isPressed());
+
+    int cx = 64, cy = 75, radius = 40;
+    GrContextForegroundSet(&gContext, ClrWhite);
+    GrCircleDraw(&gContext, cx, cy, radius);
+
+    int px = cx + (int)(x * radius);
+    int py = cy - (int)(y * radius);
+    GrContextForegroundSet(&gContext, ClrCyan);
+    GrCircleFill(&gContext, px, py, 3);
+    GrFlush(&gContext);
+}
+```
+
+---
+
+## 6. Adding a New Screen
+
+To add a new screen, follow these steps:
+
+<Steps>
+1. Add a new **enum** entry in `ScreenID` (e.g., `SCREEN_TEMP`).
+2. Create a new `Draw_Temp()` function with the desired layout.
+3. Update the `switch(currentScreen)` block in the main loop to call it.
+4. Optionally, define a sensor read function or data variable.
+</Steps>
+
+This modular approach allows each screen to have its own drawing and sensor logic without affecting others.
+
+---
+
+## 7. Expected Behavior
+
+| Input       | Action                                         |
+| :---------- | :--------------------------------------------- |
+| **S1**      | Moves to the previous screen, plays a low beep |
+| **S2**      | Moves to the next screen, plays a high beep    |
+| **Display** | Updates every 50 ms with live sensor data      |
+
+---
+
+## 8. Summary
+
+This multi-screen architecture provides a foundation for interactive embedded GUIs. You can easily extend it with additional modules, such as temperature sensors, Wi‑Fi info, or system diagnostics, following the same design pattern.
+
+<Badge text="Author: Edwin R." variant="note" /> <Badge text="Version 1.0" variant="success" />

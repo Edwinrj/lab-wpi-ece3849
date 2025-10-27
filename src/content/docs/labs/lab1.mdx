@@ -1,0 +1,320 @@
+---
+title: "Lab 1: Sensor Hub and Multi‑Screen UI"
+description: "Build a multi-screen sensor hub with real-time data visualization and audio feedback."
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
+import { Icon } from '@astrojs/starlight/components';
+import { Card, CardGrid, Badge, LinkCard } from '@astrojs/starlight/components';
+import { FileTree } from '@astrojs/starlight/components';
+
+
+## Prerequisites
+<CardGrid>
+   <LinkCard
+      title="Complete Lab 0"
+      description="Before starting Lab 1, make sure you have completed Lab 0."
+      href="/labs/lab0/"
+      icon="setting"
+   />
+      <LinkCard
+      title="Workspace Setup"
+      description="If you’re using the lab computers, you’ll need to set up your workspace each time you log in."
+      href="/guides/setupguide/"
+      icon="setting"
+   />
+   <LinkCard
+      title="Back to Lab Summary"
+      description="Return to the overview of all labs."
+      href="/guides/labtimeline/"
+      icon="right-arrow"
+   />
+</CardGrid>
+
+## Overview
+
+In **Lab 1**, you will build upon your **Lab 0 Stopwatch** by introducing a multi‑screen system capable of reading multiple sensors and visualizing their data. This lab focuses on combining real‑time input, visual feedback, and sound feedback to create a simple embedded user interface.
+
+By the end of this lab, you will have a fully functional **Sensor Hub** that can:
+
+* Display multiple pages (stopwatch, ambient light, joystick, microphone, accelerometer)
+* Switch between screens using hardware buttons (S1, S2)
+* Produce sound feedback (PWM buzzer) for button actions
+* Display real‑time sensor readings on the LCD
+
+---
+<Aside type="caution" title="Lab Requirements">
+To complete each lab in this course, you must:
+<Steps>
+
+1. **Submit your source code** for the lab
+2. **Demonstrate your project** in operation to one of the course staff (TA or tutor)  
+3. Receive a **sign-off** after successful demonstration
+</Steps>
+</Aside>
+
+You will be graded based on the completion of the required steps and correct functionality.
+Late submissions will receive a **20% penalty** unless otherwise specified by your instructor.
+
+### <span style="display: inline-flex; align-items: center;"><Icon name="document" />  Grading Rubric</span>
+
+| Step | Description                                                                                           | Max Points | Score |
+| :--- | :---------------------------------------------------------------------------------------------------- | :--------: | :---: |
+| 1    | Extend the **Lab 0 Stopwatch** to include **PWM audio feedback** for Start/Pause and Reset actions    |     15     |       |
+| 2    | Implement **double-click detection** with audio feedback                                              |     15     |       |
+| 3    | Create multiple **sensor visualization screens** (Ambient Light, Joystick, Microphone, Accelerometer) |     30     |       |
+| 4    | Display accurate **real-time sensor data** on each screen (bars, graphs, or indicators)               |     25     |       |
+| 5    | Ensure **smooth navigation and feedback** (screen transitions, tones, and button behavior)            |     10     |       |
+| 6    | **Source Code Quality** — Organization, readability, and modular design                               |      5     |       |
+|      | **Total**                                                                                             |   **100**  |       |
+
+
+## Learning Objectives
+
+By completing this lab, you will learn how to:
+
+* Use **PWM** to generate audible tones.
+* Read data from the **OPT3001 light sensor** over I²C.
+* Use the **ADC** to read joystick, microphone, and accelerometer signals.
+* Display sensor data in multiple pages on the LCD.
+* Implement **multi‑screen navigation** using push buttons.
+* Detect **single** and **double clicks** for screen transitions.
+* Structure your code with modular design principles.
+
+---
+
+## Required Materials
+
+* TI EK‑TM4C1294XL LaunchPad
+* BOOSTXL‑EDUMKII BoosterPack
+* Micro USB cable for programming and power
+* Code Composer Studio workspace from Lab 0
+
+---
+
+## Part 1 — Extending the Stopwatch
+
+You will start from your **Lab 0 Stopwatch** project and enhance it with sound and navigation features.
+
+### Step 1 — Add Audio Feedback
+
+* Configure a **PWM output** connected to the buzzer.
+* Create two distinct tones:
+
+  * **Start/Pause (S1)** → Tone A (e.g., 1000 Hz, 40 ms)
+  * **Reset (S2)** → Tone B (e.g., 1600 Hz, 40 ms)
+* When S1 or S2 is pressed, play the corresponding tone.
+
+This introduces peripheral control and gives users audible confirmation for actions.
+<LinkCard
+  title="Generate sound with buzzer"
+  description="Learn how to configure PWM on TM4C1294XL to drive a buzzer tone."
+  href="/reference/tivaware/pwmsignals/"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+### Step 2 — Add Double‑Click Detection
+Button library provides double-click detection functionality.
+* Modify the S1 and S2 button handler to detect a **double-click** event.
+* Generate a distinct tone (e.g., 2000 Hz, 60 ms) when a double-click is detected on S1 and S2
+
+
+<LinkCard
+  title="Button Driver with Double-Click callbacks"
+  description="Learn how to use the Button driver to detect double-click events."
+  href="/libraries/buttonsdriver/#example-callbacks"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+---
+
+## Part 2 — Implementing Multiple Screens
+
+Once the stopwatch supports double‑click navigation, you will add new screens for sensor visualization.
+
+### Screen Layout Convention
+
+Each screen must display:
+
+* A **header bar** with the screen title
+* Dynamic visual elements for each sensor
+* On‑screen text for numerical values
+
+---
+
+### Screen 0 — Stopwatch Screen
+
+This is your original Lab 0 stopwatch, now integrated as Screen 0.
+
+* Continue using S1 to start/pause and S2 to reset.
+* Play the two PWM tones as feedback.
+* Double‑click S1 to switch to the next screen.
+
+---
+
+### Screen 1 — Ambient Light Sensor (OPT3001)
+
+* Read ambient light in **lux** via I²C.
+* Display a **horizontal bar** that fills proportionally with brightness.
+* Show numeric lux value.
+
+Example visual:
+
+```
+Lux:  350.2 lx
+[██████████░░░░░░░░░░░░░░░░░░]
+```
+
+---
+
+### Screen 2 — Joystick
+
+* Read joystick **X** and **Y** axes using ADC.
+* Display a **crosshair marker** that moves as the joystick moves.
+* Show numeric X/Y values.
+* When the joystick is pressed, change marker color or show a symbol.
+
+---
+
+### Screen 3 — Microphone (Audio Level)
+
+* Continuously sample the microphone ADC channel.
+* Compute RMS or average loudness.
+* Display a **VU meter** that grows with sound intensity.
+* Print a relative dB value.
+
+Example visual:
+
+```
+Level:  48 dB
+|
+|
+|███
+|███████████
+|████████████████████
+```
+
+---
+
+### Screen 4 — Accelerometer
+
+* Read accelerometer X/Y/Z using ADC.
+* Compute tilt angle.
+* Simulate a **ball or particle** that moves in the direction of tilt.
+* Draw acceleration values numerically on screen.
+
+---
+
+## Part 3 — Navigation Model
+
+Implement a simple **state machine** to track and change the active screen.
+
+```c
+enum ScreenID {
+  SCREEN_STOPWATCH = 0,
+  SCREEN_LIGHT,
+  SCREEN_JOYSTICK,
+  SCREEN_MIC,
+  SCREEN_ACCEL,
+  SCREEN_COUNT
+};
+
+uint8_t currentScreen = SCREEN_STOPWATCH;
+```
+
+Rules:
+
+* **From Stopwatch:** Double‑click S1 → switch to Ambient Light screen.
+* **From any Sensor Screen:**
+
+  * S1 → Previous screen
+  * S2 → Next screen
+* Each screen change should play a short **navigation tone**.
+
+---
+
+## Part 4 — PWM Audio Feedback
+
+### PWM Configuration
+
+* Choose a PWM module and channel (e.g., PWM0, Generator 1).
+* Configure a 50% duty cycle.
+* Use a helper function:
+
+```c
+void playTone(uint16_t freq, uint16_t duration_ms);
+```
+
+This function:
+
+1. Computes the PWM period from the frequency.
+2. Enables output for the duration.
+3. Turns PWM off after the delay.
+
+---
+
+## Part 5 — Timing Structure
+
+Use a millisecond timer or SysTick to manage periodic tasks:
+
+| Task              | Interval   | Description                      |
+| ----------------- | ---------- | -------------------------------- |
+| Button Polling    | 10 ms      | Debounce and detect double‑click |
+| Display Refresh   | 50 ms      | Redraw screen                    |
+| Light Sensor Read | 1 s        | Sample OPT3001                   |
+| ADC Sampling      | Continuous | Joystick/Mic/Accel readings      |
+
+Avoid using blocking delays — schedule events based on elapsed time.
+
+---
+
+## Expected Results
+
+* Stopwatch functions correctly with sound feedback.
+* Double‑click switches to sensor screens.
+* Each sensor updates its data and visualization.
+* S1/S2 navigate through all screens.
+* PWM tones play for each button action.
+
+---
+
+## Deliverables
+
+Submit the following:
+
+1. **Complete source code** (CCS project folder)
+2. **Short demonstration video** showing:
+
+   * Stopwatch running with sound feedback
+   * Double‑click screen switching
+   * Sensor visualizations reacting to input
+3. **README / report** explaining:
+
+   * Double‑click detection logic
+   * PWM tone generation
+   * ADC scaling and units
+   * Screen refresh intervals
+
+---
+
+## Evaluation Criteria
+
+| Category           | Points | Description                        |
+| ------------------ | ------ | ---------------------------------- |
+| Stopwatch Features | 20     | Start/Pause, Reset, tones, display |
+| Sensor Screens     | 40     | All sensors read and visualized    |
+| Navigation System  | 20     | Buttons control screen changes     |
+| Code Quality       | 10     | Clear structure, modular code      |
+| Documentation      | 10     | README clarity and completeness    |
+
+---
+
+## Summary
+
+This lab transforms your simple stopwatch into a **multi‑sensor dashboard**. You will integrate multiple peripherals, produce real‑time visual feedback, and create a responsive UI with sound cues.
+
+This pattern — **input → processing → visualization → feedback** — forms the foundation for upcoming labs.

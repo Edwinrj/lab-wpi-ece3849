@@ -1,0 +1,143 @@
+---
+title: PWM Buzzer
+description: How to generate sound using PWM on the TM4C1294XL LaunchPad and play tones when pressing or releasing buttons.
+---
+import { Badge, Icon, CardGrid, Card, LinkCard } from '@astrojs/starlight/components';
+
+## Overview
+
+This section explains how to use the **PWM peripheral** to generate tones with the onboard or external buzzer connected to **PF1 (M0PWM1)**. It demonstrates how to create different sounds when a button is **pressed** and **released**, providing simple audio feedback in embedded applications.
+
+<Badge text="PWM0 / PF1" variant="note" /> <Badge text="Audio Feedback" variant="success" />
+
+---
+
+## Hardware Setup
+
+| Component | Pin | Function                 |
+| :-------- | :-- | :----------------------- |
+| Buzzer    | PF1 | PWM output (M0PWM1)      |
+| Button S1 | PN1 | Input with pull-up       |
+| Button S2 | PP0 | Optional secondary input |
+
+Ensure the buzzer is connected to **PF1** (default on BOOSTXL-EDUMKII) and that the PWM module (PWM0) is enabled in your system.
+
+---
+
+## Step 1 — Initialize the Buzzer
+
+The buzzer is driven by **PWM0 Generator 0, Output 1**. The function below sets up the PWM clock and configures the pin:
+
+```cpp
+#define BUZZER_PWM_BASE    PWM0_BASE
+#define BUZZER_GEN         PWM_GEN_0
+#define BUZZER_OUTNUM      PWM_OUT_1
+#define BUZZER_OUTBIT      PWM_OUT_1_BIT
+
+void Buzzer_Init(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_PWM0));
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF));
+
+    GPIOPinConfigure(GPIO_PF1_M0PWM1);
+    GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_1);
+
+    PWMClockSet(PWM0_BASE, PWM_SYSCLK_DIV_64); // 120 MHz / 64 = 1.875 MHz
+}
+```
+
+---
+
+## Step 2 — Create a Function to Play a Tone
+
+```cpp
+void Buzzer_Beep(uint32_t freq_hz, uint32_t duration_ms)
+{
+    if (freq_hz == 0) return;
+
+    uint32_t pwmClock = gSysClk / 64;
+    uint32_t period = pwmClock / freq_hz;
+
+    PWMGenConfigure(BUZZER_PWM_BASE, BUZZER_GEN,
+                    PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
+    PWMGenPeriodSet(BUZZER_PWM_BASE, BUZZER_GEN, period);
+    PWMPulseWidthSet(BUZZER_PWM_BASE, BUZZER_OUTNUM, period / 2); // 50% duty
+
+    PWMOutputState(BUZZER_PWM_BASE, BUZZER_OUTBIT, true);
+    PWMGenEnable(BUZZER_PWM_BASE, BUZZER_GEN);
+
+    SysCtlDelay((gSysClk / 3 / 1000) * duration_ms); // Wait duration
+
+    PWMOutputState(BUZZER_PWM_BASE, BUZZER_OUTBIT, false);
+}
+```
+
+This generates a square wave of a specific frequency for a defined duration. Adjust **duty cycle** or **divider** as needed to control volume and pitch.
+
+---
+
+## Step 3 — Play Sounds on Button Press and Release
+
+Below is a simple program that demonstrates playing two different tones using the **Button** class.
+
+```cpp
+#include "button.h"
+
+Button btnPlay(S1, 2, 50, 25, ButtonPull::PullUp);
+
+void OnButtonPressed() {
+    // Play a higher tone when pressed
+    Buzzer_Beep(1200, 60);
+}
+
+void OnButtonReleased() {
+    // Play a lower tone when released
+    Buzzer_Beep(600, 60);
+}
+
+int main(void)
+{
+    gSysClk = SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
+        SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
+
+    Buzzer_Init();
+    btnPlay.begin();
+    btnPlay.attachPress(&OnButtonPressed);
+    btnPlay.attachRelease(&OnButtonReleased);
+
+    while (1) {
+        btnPlay.tick(); // Polls and triggers events
+        SysCtlDelay((gSysClk / 3000)); // ~1ms delay
+    }
+}
+```
+
+---
+
+## Step 4 — Expected Behavior
+
+| Event               | Tone    | Description                        |
+| :------------------ | :------ | :--------------------------------- |
+| **Button Pressed**  | 1200 Hz | Short beep when button is pressed  |
+| **Button Released** | 600 Hz  | Lower beep when button is released |
+
+You should hear two distinct tones as you interact with the button. The PWM automatically stops after each tone.
+
+---
+
+## Step 5 — Integration Notes
+
+* Keep tones short (40–80 ms) for UI feedback.
+* Use different frequencies to represent events (start, reset, error, etc.).
+* For non-blocking tones, use a timer to schedule PWM stop instead of delay.
+
+---
+
+## Summary
+
+This demonstrates how to generate PWM tones with the buzzer and integrate sound feedback into your projects using button events.
+
+<Badge text="Author: Edwin R." variant="note" /> <Badge text="Version 1.0" variant="success" />

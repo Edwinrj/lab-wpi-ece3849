@@ -1,0 +1,239 @@
+---
+title: elapsedTime
+description: Reference documentation for the elapsedMicros, elapsedMillis, and elapsedSeconds classes.
+---
+
+import { Highlight, Badge, Icon, CardGrid, Card, LinkCard, Steps } from '@astrojs/starlight/components';
+
+## Overview
+
+The **elapsedTime** utilities (`elapsedMicros`, `elapsedMillis`, `elapsedSeconds`) provide convenient wrappers to measure time intervals using the **Timer** class as a backend. They replicate the familiar API from **PJRC’s Arduino elapsedMillis/elapsedMicros**, adapted for TM4C1294XL and TivaWare.
+
+These classes allow precise tracking of microseconds, milliseconds, and seconds without using interrupts or blocking loops.
+
+<Badge text="Header-only library" variant="note" /> <Badge text="Micro / Milli / Second precision" variant="success" />
+
+---
+
+## Features
+
+* Lightweight, header-only implementation.
+* Uses your configured `Timer` instance for accurate hardware timing.
+* Compatible with both 32-bit and 64-bit timers.
+* Implicit conversion to numeric types for easy comparison or arithmetic.
+* Supports addition, subtraction, and assignment operations for intuitive usage.
+
+---
+
+## Basic Usage
+
+<Steps>
+
+1. Create a `Timer` object and call `begin()` **before using the elapsed classes**.
+
+2. For each task you want to time, create a separate `elapsedMicros`, `elapsedMillis`, or `elapsedSeconds` object, depending on the required precision.
+
+3. In your main loop, check if the elapsed time exceeds your threshold  
+   (for example, `if (emillis >= 1000)`).
+
+4. If the condition is met, perform the task and **reset the counter** by assigning zero (`emillis = 0;`).
+
+</Steps>
+
+
+```cpp {8,18,26,27}
+#include "timerLib.h"
+#include "elapsedTime.h"
+
+
+#define LED_PORT GPIO_PORTN_BASE
+#define LED_PIN GPIO_PIN_1
+
+Timer timer;
+
+
+int main(void)
+{
+    uint32_t sysclk = SysCtlClockFreqSet(
+    SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
+    SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
+    
+    
+    timer.begin(sysclk, TIMER0_BASE);
+    
+    
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION));
+    GPIOPinTypeGPIOOutput(LED_PORT, LED_PIN);
+    
+    
+    elapsedMillis blink(timer);
+    elapsedSeconds log(timer);
+    
+    
+    bool led = false;
+    
+    
+    while (1) {
+    if (blink >= 500) { // Toggle LED every 500 ms
+            led = !led;
+            GPIOPinWrite(LED_PORT, LED_PIN, led ? LED_PIN : 0);
+            blink = 0;
+        }
+    
+    if (log >= 2) { // Print every 2 seconds
+        printf("%llu us, %llu ms, %llu s\n",
+        (uint64_t)elapsedMicros(timer),
+        (uint64_t)elapsedMillis(timer),
+        (uint64_t)elapsedSeconds(timer));
+        log = 0;
+        }
+    }
+}
+```
+
+---
+
+## Classes Summary
+
+### elapsedMicros
+
+Tracks elapsed microseconds since creation or last reset.
+
+```cpp
+explicit elapsedMicros(Timer& timer);
+operator uint64_t() const;
+```
+
+**Example:**
+
+```cpp
+elapsedMicros mu(timer);
+if (mu >= 100) { // 100 microseconds
+    mu = 0;
+}
+```
+
+### elapsedMillis
+
+Tracks elapsed milliseconds since creation or last reset.
+
+```cpp
+explicit elapsedMillis(Timer& timer);
+operator uint64_t() const;
+```
+
+**Example:**
+
+```cpp
+elapsedMillis ms(timer);
+if (ms >= 500) { // 0.5 second
+    toggleLED();
+    ms = 0;
+}
+```
+
+### elapsedSeconds
+
+Tracks elapsed seconds since creation or last reset.
+
+```cpp
+explicit elapsedSeconds(Timer& timer);
+operator uint64_t() const;
+```
+
+**Example:**
+
+```cpp
+elapsedSeconds sec(timer);
+if (sec >= 5) {
+    printf("5 seconds passed!\n");
+    sec = 0;
+}
+```
+
+---
+
+## Operator Support
+
+Each class supports these operations:
+
+| Operation                         | Description                                 |
+| :-------------------------------- | :------------------------------------------ |
+| `=`                               | Resets timer offset to specific value.      |
+| `+=`, `-=`                        | Adjusts internal offset (forward/backward). |
+| `+`, `-`                          | Returns a new adjusted copy.                |
+| Implicit conversion to `uint64_t` | Returns elapsed time.                       |
+
+---
+
+## Example: LED Heartbeat + Sensor Update
+
+```cpp
+#include "timerLib.h"
+#include "elapsedTime.h"
+
+#define LED_PORT GPIO_PORTN_BASE
+#define LED_PIN  GPIO_PIN_1
+
+Timer timer;
+
+int main(void)
+{
+    uint32_t sysclk = SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
+        SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480, 120000000);
+
+    timer.begin(sysclk, TIMER0_BASE);
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION));
+    GPIOPinTypeGPIOOutput(LED_PORT, LED_PIN);
+
+    elapsedMillis blink(timer);
+    elapsedSeconds log(timer);
+
+    bool led = false;
+
+    while (1) {
+        if (blink >= 500) { // Toggle LED every 500 ms
+            led = !led;
+            GPIOPinWrite(LED_PORT, LED_PIN, led ? LED_PIN : 0);
+            blink = 0;
+        }
+
+        if (log >= 2) { // Print every 2 seconds
+            printf("%llu us, %llu ms, %llu s\n",
+                   (uint64_t)elapsedMicros(timer),
+                   (uint64_t)elapsedMillis(timer),
+                   (uint64_t)elapsedSeconds(timer));
+            log = 0;
+        }
+    }
+}
+```
+
+---
+
+## Integration Notes
+
+* Always create at least one `Timer` instance and call `begin()` before using elapsed classes.
+* Each elapsed instance internally holds a pointer to a `Timer` backend.
+* Multiple elapsed instances can share the same timer for synchronized measurements.
+* Precision depends on timer resolution (microseconds for 120 MHz clock ≈ 1 µs per tick).
+
+---
+
+## Dependencies
+
+* `timerLib.h`
+* `driverlib/sysctl.h`
+* `driverlib/timer.h`
+
+---
+
+## License and Credits
+
+Developed for **ECE3849 — Real-Time Embedded Systems**. Based on PJRC’s open elapsedMillis API, rewritten for TivaWare.
+
+<Badge text="Author: Edwin R." variant="note" /> <Badge text="Version 1.0" variant="success" />
