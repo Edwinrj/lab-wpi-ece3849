@@ -93,7 +93,7 @@ void Buzzer_Beep(uint32_t freq_hz, uint32_t duration_ms)
 {
     if (freq_hz == 0) return;
 
-    uint32_t pwmClock = gSysClk / 64;
+    uint32_t pwmClock = gSystemClock / 64;
     uint32_t period = pwmClock / freq_hz;
 
     // Configure PWM output (PF1 → M0PWM1)
@@ -111,7 +111,7 @@ void Buzzer_Beep(uint32_t freq_hz, uint32_t duration_ms)
     // Configure Timer1A as one-shot
     TimerDisable(TIMER1_BASE, TIMER_A);
     TimerConfigure(TIMER1_BASE, TIMER_CFG_ONE_SHOT);
-    TimerLoadSet(TIMER1_BASE, TIMER_A, (gSysClk / 1000) * duration_ms);
+    TimerLoadSet(TIMER1_BASE, TIMER_A, (gSystemClock / 1000) * duration_ms);
 
     // Register ISR and enable interrupt
     IntDisable(INT_TIMER1A);

@@ -1,320 +1,294 @@
 ---
-title: "Lab 1: Sensor Hub and Multi‑Screen UI"
-description: "Build a multi-screen sensor hub with real-time data visualization and audio feedback."
+title: "Lab 1 — Multi-Screen UI and Code Organization"
+description: "Learn how to add sound feedback, navigate between screens, and organize modular code."
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 import { Steps } from '@astrojs/starlight/components';
 import { Icon } from '@astrojs/starlight/components';
-import { Card, CardGrid, Badge, LinkCard } from '@astrojs/starlight/components';
-import { FileTree } from '@astrojs/starlight/components';
-
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 ## Prerequisites
+
 <CardGrid>
    <LinkCard
       title="Complete Lab 0"
-      description="Before starting Lab 1, make sure you have completed Lab 0."
+      description="Make sure you finished Lab 0 before starting."
       href="/labs/lab0/"
       icon="setting"
    />
-      <LinkCard
+   <LinkCard
       title="Workspace Setup"
-      description="If you’re using the lab computers, you’ll need to set up your workspace each time you log in."
+      description="If you’re using a lab computer, you must reconfigure Code Composer Studio each session."
       href="/guides/setupguide/"
-      icon="setting"
+      icon="cpu"
    />
    <LinkCard
       title="Back to Lab Summary"
-      description="Return to the overview of all labs."
+      description="Return to the list of all labs."
       href="/guides/labtimeline/"
       icon="right-arrow"
    />
 </CardGrid>
 
+---
+
 ## Overview
 
-In **Lab 1**, you will build upon your **Lab 0 Stopwatch** by introducing a multi‑screen system capable of reading multiple sensors and visualizing their data. This lab focuses on combining real‑time input, visual feedback, and sound feedback to create a simple embedded user interface.
+In **Lab 1**, you will extend your embedded system to support **multiple screens**, **sound feedback**, and **modular organization**.  
+You will begin with a base project that already includes:
 
-By the end of this lab, you will have a fully functional **Sensor Hub** that can:
+* Two empty screens:  
+  – **Screen 1:** Ambient Light (LUX)  
+  – **Screen 2:** Microphone (MIC)
+* Circular navigation between screens using buttons S1 and S2
+* LCD header bar and screen-switching framework
 
-* Display multiple pages (stopwatch, ambient light, joystick, microphone, accelerometer)
-* Switch between screens using hardware buttons (S1, S2)
-* Produce sound feedback (PWM buzzer) for button actions
-* Display real‑time sensor readings on the LCD
+Your goal is to progressively:
+
+1. Add **sound feedback** using PWM.  
+2. Split code into **modular source files**.  
+3. Add **sensor functionality** for the LUX and MIC screens.
+
+This lab emphasizes **organization** and **incremental design**, rather than building everything at once.
 
 ---
-<Aside type="caution" title="Lab Requirements">
-To complete each lab in this course, you must:
-<Steps>
 
-1. **Submit your source code** for the lab
-2. **Demonstrate your project** in operation to one of the course staff (TA or tutor)  
-3. Receive a **sign-off** after successful demonstration
+<Aside type="caution" title="Lab Requirements">
+To complete this lab successfully, you must:
+<Steps>
+1. Demonstrate **sound feedback** working when pressing S1 and S2.  
+2. Organize your code into **separate C/C++ files** (buzzer, lux, microphone).  
+3. Implement the **sensor functionality** for each screen.
 </Steps>
+Each stage will be verified and graded separately.
 </Aside>
 
-You will be graded based on the completion of the required steps and correct functionality.
-Late submissions will receive a **20% penalty** unless otherwise specified by your instructor.
-
-### <span style="display: inline-flex; align-items: center;"><Icon name="document" />  Grading Rubric</span>
-
-| Step | Description                                                                                           | Max Points | Score |
-| :--- | :---------------------------------------------------------------------------------------------------- | :--------: | :---: |
-| 1    | Extend the **Lab 0 Stopwatch** to include **PWM audio feedback** for Start/Pause and Reset actions    |     15     |       |
-| 2    | Implement **double-click detection** with audio feedback                                              |     15     |       |
-| 3    | Create multiple **sensor visualization screens** (Ambient Light, Joystick, Microphone, Accelerometer) |     30     |       |
-| 4    | Display accurate **real-time sensor data** on each screen (bars, graphs, or indicators)               |     25     |       |
-| 5    | Ensure **smooth navigation and feedback** (screen transitions, tones, and button behavior)            |     10     |       |
-| 6    | **Source Code Quality** — Organization, readability, and modular design                               |      5     |       |
-|      | **Total**                                                                                             |   **100**  |       |
-
+---
 
 ## Learning Objectives
 
-By completing this lab, you will learn how to:
+After completing this lab, you will be able to:
 
-* Use **PWM** to generate audible tones.
-* Read data from the **OPT3001 light sensor** over I²C.
-* Use the **ADC** to read joystick, microphone, and accelerometer signals.
-* Display sensor data in multiple pages on the LCD.
-* Implement **multi‑screen navigation** using push buttons.
-* Detect **single** and **double clicks** for screen transitions.
-* Structure your code with modular design principles.
+* Generate audio tones using **PWM** on the buzzer.
+* Implement **multi-screen navigation** with hardware buttons.
+* Organize large embedded projects into multiple source files.
+* Integrate and visualize sensor data (light and microphone) in real time.
+* Understand circular state-machine navigation between screens.
 
 ---
 
-## Required Materials
+## 🧰 Required Materials
 
-* TI EK‑TM4C1294XL LaunchPad
-* BOOSTXL‑EDUMKII BoosterPack
-* Micro USB cable for programming and power
-* Code Composer Studio workspace from Lab 0
+* TI EK-TM4C1294XL LaunchPad  
+* BOOSTXL-EDUMKII BoosterPack  
+* Micro USB cable for programming and power  
+* Code Composer Studio workspace (from Lab 0)
 
 ---
 
-## Part 1 — Extending the Stopwatch
+## ⚙️ Project Starting Point
 
-You will start from your **Lab 0 Stopwatch** project and enhance it with sound and navigation features.
+You will receive a base project containing:
 
-### Step 1 — Add Audio Feedback
+* `main.cpp` — Initializes the LCD, buttons, and navigation logic.  
+* Two placeholder screens:  
+  – `ScreenLux_Draw()` and `ScreenMic_Draw()` (empty)  
+* A functional navigation system that cycles screens in a **circular carousel**.  
+  Pressing S1 goes left, S2 goes right.
 
-* Configure a **PWM output** connected to the buzzer.
-* Create two distinct tones:
+Initially, the screens show only headers and black backgrounds — there is **no sensor functionality** yet.
 
-  * **Start/Pause (S1)** → Tone A (e.g., 1000 Hz, 40 ms)
-  * **Reset (S2)** → Tone B (e.g., 1600 Hz, 40 ms)
-* When S1 or S2 is pressed, play the corresponding tone.
+---
 
-This introduces peripheral control and gives users audible confirmation for actions.
+## 🪗 Part 1 — Add Audio Feedback
+
+Your first task is to add **sound feedback** when changing screens.
+
+* Configure the **PWM module** to generate a square-wave tone.
+* You may use the reference guide **“How to generate sound with PWM”** (already available in the course materials).
+* Play one short tone when S1 is pressed, and a different tone when S2 is pressed.
+
+> 💡 *Hint:* The buzzer on the BOOSTXL-EDUMKII is connected to PF1 → M0PWM1.
+
+**Grading (Step 1 – 5 points):**
+- PWM configured correctly and audible sound generated.
+- Distinct tone for each button.
+- No blocking delays that freeze the UI.
+
 <LinkCard
-  title="Generate sound with buzzer"
-  description="Learn how to configure PWM on TM4C1294XL to drive a buzzer tone."
+  title="PWM Buzzer Configuration Guide"
+  description="Learn how to generate tones using PWM0 on the TM4C1294XL."
   href="/reference/tivaware/pwmsignals/"
   icon="right-arrow"
   target="_blank"
   rel="noopener noreferrer"
 />
-### Step 2 — Add Double‑Click Detection
-Button library provides double-click detection functionality.
-* Modify the S1 and S2 button handler to detect a **double-click** event.
-* Generate a distinct tone (e.g., 2000 Hz, 60 ms) when a double-click is detected on S1 and S2
-
-
-<LinkCard
-  title="Button Driver with Double-Click callbacks"
-  description="Learn how to use the Button driver to detect double-click events."
-  href="/reference/libraries/buttonsdriver/"
-  icon="right-arrow"
-  target="_blank"
-  rel="noopener noreferrer"
-/>
 
 ---
 
-## Part 2 — Implementing Multiple Screens
+## 🧩 Part 2 — Organize the Project into Modules
 
-Once the stopwatch supports double‑click navigation, you will add new screens for sensor visualization.
+Large embedded projects can quickly become hard to maintain.  
+You will now learn how to **split functionality into separate source files**.
 
-### Screen Layout Convention
+### 📁 Step 2.1 — Create `buzzer.cpp`
 
-Each screen must display:
+Move all buzzer-related functions and configuration into a dedicated file:
 
-* A **header bar** with the screen title
-* Dynamic visual elements for each sensor
-* On‑screen text for numerical values
-
----
-
-### Screen 0 — Stopwatch Screen
-
-This is your original Lab 0 stopwatch, now integrated as Screen 0.
-
-* Continue using S1 to start/pause and S2 to reset.
-* Play the two PWM tones as feedback.
-* Double‑click S1 to switch to the next screen.
-
----
-
-### Screen 1 — Ambient Light Sensor (OPT3001)
-
-* Read ambient light in **lux** via I²C.
-* Display a **horizontal bar** that fills proportionally with brightness.
-* Show numeric lux value.
-
-Example visual:
-
-```
-Lux:  350.2 lx
-[██████████░░░░░░░░░░░░░░░░░░]
+```text
+/src
+ ├── main.cpp
+ ├── buzzer.cpp      ← new file
+ ├── screen_lux.cpp  ← to be added next
+ ├── screen_mic.cpp  ← to be added next
 ```
 
+Include:
+
+* `Buzzer_Init()`
+* `Buzzer_Beep(freq, duration_ms)`
+
+Then call these functions from `main.cpp`.  
+Make sure everything compiles and the sound still works.
+
+**Grading (Step 2.1 – 5 points):**
+- Buzzer code moved correctly.
+- Functions still callable from main.
+- No duplicate or missing includes.
+
 ---
 
-### Screen 2 — Joystick
+### 🌞 Step 2.2 — Create `screen_lux.cpp`
 
-* Read joystick **X** and **Y** axes using ADC.
-* Display a **crosshair marker** that moves as the joystick moves.
-* Show numeric X/Y values.
-* When the joystick is pressed, change marker color or show a symbol.
+Add a new file dedicated to the **ambient light** screen.  
+For now, this file only needs:
+
+* `ScreenLux_Init()` — empty  
+* `ScreenLux_Draw()` — clears screen and displays header
+
+Confirm that navigation between screens still works.
 
 ---
 
-### Screen 3 — Microphone (Audio Level)
+### 🎤 Step 2.3 — Create `screen_mic.cpp`
 
-* Continuously sample the microphone ADC channel.
-* Compute RMS or average loudness.
-* Display a **VU meter** that grows with sound intensity.
-* Print a relative dB value.
+Add another file for the **microphone** screen.  
+Include the same placeholder structure:
 
-Example visual:
+* `ScreenMic_Init()` — empty  
+* `ScreenMic_Draw()` — clears screen and displays header
+
+**Grading (Step 2.2 & 2.3 – 5 points):**
+- Code organized into three files (`buzzer`, `lux`, `mic`).
+- All screens switch correctly.
+- Compilation succeeds without warnings.
+
+---
+
+## 📊 Part 3 — Add Screen Functionality
+
+Now that your code is modular, you will give meaning to each screen.
+
+### Screen 1 — Ambient Light (LUX)
+
+* Initialize and read data from the **OPT3001** light sensor.
+* Convert the lux reading to a percentage of a defined maximum (e.g. 1000 lx).
+* Display a **horizontal bar** whose length corresponds to brightness.
+* Show the numeric lux value on screen.
+
+Example:
 
 ```
-Level:  48 dB
-|
+Ambient Light:  542.6 lx
+[████████████░░░░░░░░░░░░░░░░]
+```
+
+---
+
+### Screen 2 — Microphone (MIC)
+
+* Configure the **ADC** to read microphone input (PE5 → AIN8).
+* Calculate a simple average level or RMS amplitude.
+* Draw a **vertical bar** that grows with sound intensity.
+* Optionally, display approximate dB values.
+
+Example:
+
+```
+Microphone Level
 |
 |███
+|██████
 |███████████
-|████████████████████
 ```
 
----
-
-### Screen 4 — Accelerometer
-
-* Read accelerometer X/Y/Z using ADC.
-* Compute tilt angle.
-* Simulate a **ball or particle** that moves in the direction of tilt.
-* Draw acceleration values numerically on screen.
+**Grading (Step 3 – 10 points):**
+- Correct sensor initialization and data reading.  
+- Bars visually respond to sensor input.  
+- Smooth updates without freezing the UI.  
 
 ---
 
-## Part 3 — Navigation Model
+## 🧠 Summary of Graded Steps
 
-Implement a simple **state machine** to track and change the active screen.
-
-```c
-enum ScreenID {
-  SCREEN_STOPWATCH = 0,
-  SCREEN_LIGHT,
-  SCREEN_JOYSTICK,
-  SCREEN_MIC,
-  SCREEN_ACCEL,
-  SCREEN_COUNT
-};
-
-uint8_t currentScreen = SCREEN_STOPWATCH;
-```
-
-Rules:
-
-* **From Stopwatch:** Double‑click S1 → switch to Ambient Light screen.
-* **From any Sensor Screen:**
-
-  * S1 → Previous screen
-  * S2 → Next screen
-* Each screen change should play a short **navigation tone**.
+| Step | Task | Description | Points |
+| :--- | :--- | :----------- | :----: |
+| 1 | Add Sound Feedback | Use PWM buzzer to play tones on S1/S2 press | 5 |
+| 2 | Code Organization | Move each module to its own `.cpp` file | 5 |
+|   2.1 | Buzzer Module | All buzzer logic separated | 5 |
+|   2.2 | Lux Module | Screen 1 structured correctly | 5 |
+|   2.3 | Microphone Module | Screen 2 structured correctly | 5 |
+| 3 | Screen Functionality | Add bars responding to sensors | 10 |
+|    | **Total** |  | **30 points** |
 
 ---
 
-## Part 4 — PWM Audio Feedback
+## 🧭 Navigation Summary
 
-### PWM Configuration
+The navigation logic in `main.cpp` is already implemented:
 
-* Choose a PWM module and channel (e.g., PWM0, Generator 1).
-* Configure a 50% duty cycle.
-* Use a helper function:
+| Button | Action |
+| ------- | ------- |
+| **S1** | Go to previous screen |
+| **S2** | Go to next screen |
+| **Circular Carousel** | After the last screen, loops back to the first |
 
-```c
-void playTone(uint16_t freq, uint16_t duration_ms);
-```
-
-This function:
-
-1. Computes the PWM period from the frequency.
-2. Enables output for the duration.
-3. Turns PWM off after the delay.
+You can later extend this structure with more screens (e.g., joystick, accelerometer) as future exercises.
 
 ---
 
-## Part 5 — Timing Structure
+## ✅ Expected Results
 
-Use a millisecond timer or SysTick to manage periodic tasks:
+By the end of this lab:
 
-| Task              | Interval   | Description                      |
-| ----------------- | ---------- | -------------------------------- |
-| Button Polling    | 10 ms      | Debounce and detect double‑click |
-| Display Refresh   | 50 ms      | Redraw screen                    |
-| Light Sensor Read | 1 s        | Sample OPT3001                   |
-| ADC Sampling      | Continuous | Joystick/Mic/Accel readings      |
-
-Avoid using blocking delays — schedule events based on elapsed time.
+* Pressing S1/S2 plays a tone and changes the screen.  
+* The program compiles and runs cleanly with modular files.  
+* The **LUX** screen shows a horizontal brightness bar.  
+* The **MIC** screen shows a vertical audio-level bar.  
+* Code is cleanly organized and easy to expand.
 
 ---
 
-## Expected Results
+## 📦 Deliverables
 
-* Stopwatch functions correctly with sound feedback.
-* Double‑click switches to sensor screens.
-* Each sensor updates its data and visualization.
-* S1/S2 navigate through all screens.
-* PWM tones play for each button action.
+Submit the following for evaluation:
 
----
-
-## Deliverables
-
-Submit the following:
-
-1. **Complete source code** (CCS project folder)
-2. **Short demonstration video** showing:
-
-   * Stopwatch running with sound feedback
-   * Double‑click screen switching
-   * Sensor visualizations reacting to input
-3. **README / report** explaining:
-
-   * Double‑click detection logic
-   * PWM tone generation
-   * ADC scaling and units
-   * Screen refresh intervals
+1. **CCS project folder** containing all `.cpp` files.  
+2. **Demo video** (≈ 30 s) showing screen navigation and buzzer feedback.  
+3. **README.md** explaining your file structure and sensor logic.
 
 ---
 
-## Evaluation Criteria
+## 💬 Instructor Notes
 
-| Category           | Points | Description                        |
-| ------------------ | ------ | ---------------------------------- |
-| Stopwatch Features | 20     | Start/Pause, Reset, tones, display |
-| Sensor Screens     | 40     | All sensors read and visualized    |
-| Navigation System  | 20     | Buttons control screen changes     |
-| Code Quality       | 10     | Clear structure, modular code      |
-| Documentation      | 10     | README clarity and completeness    |
+This lab transitions students from single-file prototypes to **modular embedded projects**.  
+Emphasize:
+
+* Incremental testing (compile → run → refactor)
+* Avoiding global clutter
+* Using clear filenames and consistent naming (e.g. `ScreenX_Init/Draw`)
+
+Students who finish early can add a **third screen (Joystick)** as an optional challenge.
 
 ---
-
-## Summary
-
-This lab transforms your simple stopwatch into a **multi‑sensor dashboard**. You will integrate multiple peripherals, produce real‑time visual feedback, and create a responsive UI with sound cues.
-
-This pattern — **input → processing → visualization → feedback** — forms the foundation for upcoming labs.
