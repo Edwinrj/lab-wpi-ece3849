@@ -144,10 +144,10 @@ To create new source files in Code Composer Studio:
 <p align="center">
   <img src="/assets/images/new_source_file.png" alt="How to create a new source file in Code Composer Studio" width="500"/>
     <br />
-  <sub><span style="color:#4ec9b0; font-weight:bold;">Drag the <code>libraries</code> folder into Code Composer Studio</span></sub>
+  <sub><span style="color:#4ec9b0; font-weight:bold;"> How to create a new source file in Code Composer Studio</span></sub>
 </p>
 
-### 📁 Step 2.1 — Create `buzzer.cpp`
+### Step 2.1 — Create `buzzer.cpp`
 
 Move all buzzer-related functions and configuration into a dedicated file:
 
@@ -227,6 +227,9 @@ void onS1Press()
 }
 ...
 ```
+<Aside type="tip"> 
+Remember to remove the old buzzer functions definitions from main.cpp after moving them.
+</Aside>
 
 **Grading (Step 2.1 – 5 points):**
 - Buzzer code moved correctly.
@@ -235,7 +238,14 @@ void onS1Press()
 
 ---
 
-### 🌞 Step 2.2 — Create `screen_lux.cpp`
+### Step 2.2 — Create `screen_lux.cpp`
+
+```text
+/src
+ ├── main.cpp
+ ├── buzzer.cpp 
+ ├── screen_lux.cpp  ← to be added next
+```
 
 Add a new file dedicated to the **ambient light** screen.  
 For now, this file only needs:
@@ -315,8 +325,14 @@ Confirm that navigation between screens still works as template with no function
 
 ---
 
-### 🎤 Step 2.3 — Create `screen_mic.cpp`
-
+### Step 2.3 — Create `screen_mic.cpp`
+```text
+/src
+ ├── main.cpp
+ ├── buzzer.cpp 
+ ├── screen_lux.cpp
+ ├── screen_mic.cpp  ← to be added next
+```
 Add another file for the **microphone** screen.  
 Include the same placeholder structure:
 
@@ -397,45 +413,6 @@ void ScreenMic_Init(void)
 // ============================================================================
 void ScreenMic_Draw(void)
 {
-    float level = Mic_Level(); // 0.0  1.0 normalized volume
-
-    // Step 1 � Clear drawing area
-    tRectangle bg = {0, 21, 127, 127};
-    GrContextForegroundSet(&gContext, ClrBlack);
-    GrRectFill(&gContext, &bg);
-
-    // Step 2 � Draw header (title + arrows)
-    DrawHeader("Microphone", btnLeft_isPressed(), btnRight_isPressed());
-
-    // Step 3 � Define meter area
-    const int barX1 = 55, barX2 = 73, barY1 = 25, barY2 = 120;
-    const int barHeight = barY2 - barY1;
-
-    // Step 4 � Clamp level to [0,1]
-    if (level < 0) level = 0;
-    if (level > 1) level = 1;
-
-    // Step 5 � Compute filled portion
-    int filled = (int)(level * barHeight);
-    int yStart = barY2 - filled;
-
-    // Step 6 � Draw color segments (green  yellow  red)
-    for (int y = barY2; y > yStart; y--) {
-        float f = (float)(barY2 - y) / barHeight;
-        uint32_t c = (f < 0.6f ? ClrGreen : f < 0.85f ? ClrYellow : ClrRed);
-        GrContextForegroundSet(&gContext, c);
-        GrLineDrawH(&gContext, barX1, barX2, y);
-    }
-
-    // Step 7 � Print dB value as text
-    char buf[32];
-    float dbVal = (level * 60.0f) - 60.0f;
-    snprintf(buf, sizeof(buf), "%.1f dB", dbVal);
-    GrContextForegroundSet(&gContext, ClrCyan);
-    GrStringDrawCentered(&gContext, buf, -1, 64, 115, false);
-
-    // Step 8 � Send final buffer to LCD
-    GrFlush(&gContext);
 }
 ```
 **Grading (Step 2.2 & 2.3 – 5 points):**
@@ -445,7 +422,7 @@ void ScreenMic_Draw(void)
 - No functionality yet; just placeholders.
 ---
 
-## 📊 Part 3 — Add Screen Functionality
+## Part 3 — Add Screen Functionality
 
 Now that your code is modular, you will give meaning to each screen.
 
@@ -459,10 +436,17 @@ Now that your code is modular, you will give meaning to each screen.
 Example:
 
 ```
-Ambient Light:  542.6 lx
+Ambient Light:  85.6 lx
 [████████████░░░░░░░░░░░░░░░░]
 ```
-
+<LinkCard
+  title="LUX Sensor Integration Guide"
+  description="How to interface with the OPT3001 ambient light sensor using I2C."
+  href="/reference/libraries/otp3001/"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
 ---
 
 ### Screen 2 — Microphone (MIC)
@@ -470,17 +454,25 @@ Ambient Light:  542.6 lx
 * Configure the **ADC** to read microphone input (PE5 → AIN8).
 * Calculate a simple average level or RMS amplitude.
 * Draw a **vertical bar** that grows with sound intensity.
-* Optionally, display approximate dB values.
 
 Example:
 
 ```
 Microphone Level
-|
-|███
-|██████
-|███████████
+| |
+|█|
+|█|
+|█|
 ```
+
+<LinkCard
+  title="MIC Sensor Integration Guide"
+  description="How to interface with the microphone using the ADC on the TM4C1294XL."
+  href="/reference/libraries/mic/"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
 
 **Grading (Step 3 – 10 points):**
 - Correct sensor initialization and data reading.  
