@@ -1,7 +1,114 @@
 ---
-title: "Microphone reading with ADC"
-description: How to configure and read microphone input using the ADC on the TM4C1294XL LaunchPad with TivaWare.
+title: "Reading the Microphone Signal"
+description: "How to configure and read the microphone using ADC0 on TM4C1294XL."
 ---
 
-import { Badge, Icon, CardGrid, Card, LinkCard, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Card, CardGrid, LinkCard, Icon } from '@astrojs/starlight/components';
+
+## Overview
+
+The microphone on the **BOOSTXL-EDUMKII** is connected to **PE5 (AIN8)** on the TM4C1294XL LaunchPad.
+This analog signal represents the **audio amplitude** (AC waveform), which you can sample using the **ADC0** peripheral.
+
+In this section, you will learn how to:
+
+* Configure **ADC0** for single-ended conversion
+* Read the **12-bit** digital value from the microphone
+* Estimate the **sound level (volume)** using a simple RMS (Root Mean Square) method
+
+---
+
+## Hardware Setup
+
+| Signal     | Pin | Function | Peripheral        |
+| :--------- | :-- | :------- | :---------------- |
+| Mic Output | PE5 | AIN8     | ADC0, Sequencer 3 |
+
+---
+
+## Step-by-Step ADC Configuration
+### 1. Enable Peripherals
+Enable both the **ADC0** and **GPIOE** modules before using them:
+
+```c
+SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+```
+
+### 2. Configure the Pin as Analog Input
+PE5 must be configured as an **ADC input** instead of digital GPIO:
+
+```c
+GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_5);
+```
+
+### 3. Configure ADC Sequencer
+We use **Sequencer 3** because it’s designed for single-sample conversions:
+
+```c
+ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0);
+ADCSequenceStepConfigure(ADC0_BASE, 3, 0, ADC_CTL_CH8 | ADC_CTL_IE | ADC_CTL_END);
+ADCSequenceEnable(ADC0_BASE, 3);
+ADCIntClear(ADC0_BASE, 3);
+```
+
+### 4. Read a Single Sample
+Trigger the ADC conversion, wait until it completes, then read the 12-bit value (0–4095):
+
+```c
+uint16_t Mic_Read(void)
+{
+    uint32_t value;
+    ADCProcessorTrigger(ADC0_BASE, 3);
+    while (!ADCIntStatus(ADC0_BASE, 3, false)); // wait until ready
+    ADCIntClear(ADC0_BASE, 3);
+    ADCSequenceDataGet(ADC0_BASE, 3, &value);
+    return (uint16_t)value;
+}
+```
+
+### 5. Compute Signal Level (RMS Method)
+The microphone output fluctuates around a DC midpoint (~0.5 V).  
+To measure **loudness**, we take multiple samples, remove the DC offset, and compute the **RMS value**:
+
+```c
+float Mic_Level(void)
+{
+    const int N = 128;   // number of samples
+    float sum = 0.0f;
+
+    for (int i = 0; i < N; i++) {
+        uint16_t s = Mic_Read();          // raw ADC value
+        float v = (float)s / 4095.0f;     // normalize to 0–1
+        float ac = v - 0.5f;              // remove DC offset
+        sum += ac * ac;                   // accumulate squared amplitude
+    }
+
+    float rms = sqrtf(sum / N);           // root mean square
+    return rms;                           // 0.0 (silent) → ~0.5 (loud)
+}
+```
+
+---
+
+## Tips
+
+<Aside type="tip" title="Practical Notes">
+- **Sample rate:** Reading continuously in a loop gives roughly a few kHz sampling rate — enough for average volume detection.  
+- **Filtering:** The microphone output is already AC-coupled on the BoosterPack, so DC removal in software (subtracting 0.5) works well.  
+- **Performance:** Avoid floating-point math inside interrupts; use it in the main loop or background tasks.
+</Aside>
+
+---
+
+## ✅ Summary
+
+| Function      | Purpose                                                |
+| ------------- | ------------------------------------------------------ |
+| `Mic_Init()`  | Enables ADC and configures PE5 as input                |
+| `Mic_Read()`  | Triggers one ADC conversion and returns a 12-bit value |
+| `Mic_Level()` | Estimates sound level using RMS of 128 samples         |
+
+Once you have the **normalized sound level (0.0–1.0)**,
+you can easily map it to a **bar height**, **LED brightness**, or any other visual feedback in your system.
 
