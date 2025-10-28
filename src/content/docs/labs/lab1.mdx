@@ -18,6 +18,12 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
       icon="setting"
    />
    <LinkCard
+  title="Download Lab 1 Template"
+  description="Download the starter code for Lab 1."
+  href="/assets/lab_files/Lab_1.zip"
+  icon="right-arrow"
+/>
+   <LinkCard
       title="Workspace Setup"
       description="If you’re using a lab computer, you must reconfigure Code Composer Studio each session."
       href="/guides/setupguide/"
@@ -38,7 +44,7 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 In **Lab 1**, you will extend your embedded system to support **multiple screens**, **sound feedback**, and **modular organization**.  
 You will begin with a base project that already includes:
 
-* Two empty screens:  
+* Two template screens:  
   – **Screen 1:** Ambient Light (LUX)  
   – **Screen 2:** Microphone (MIC)
 * Circular navigation between screens using buttons S1 and S2
@@ -78,7 +84,7 @@ After completing this lab, you will be able to:
 
 ---
 
-## 🧰 Required Materials
+## Required Materials
 
 * TI EK-TM4C1294XL LaunchPad  
 * BOOSTXL-EDUMKII BoosterPack  
@@ -87,13 +93,13 @@ After completing this lab, you will be able to:
 
 ---
 
-## ⚙️ Project Starting Point
+## Project Starting Point
 
 You will receive a base project containing:
 
 * `main.cpp` — Initializes the LCD, buttons, and navigation logic.  
-* Two placeholder screens:  
-  – `ScreenLux_Draw()` and `ScreenMic_Draw()` (empty)  
+* Two placeholder screens with basic structure:  
+  – `ScreenLux_Draw()` and `ScreenMic_Draw()` 
 * A functional navigation system that cycles screens in a **circular carousel**.  
   Pressing S1 goes left, S2 goes right.
 
@@ -101,7 +107,7 @@ Initially, the screens show only headers and black backgrounds — there is **no
 
 ---
 
-## 🪗 Part 1 — Add Audio Feedback
+## Part 1 — Add Audio Feedback
 
 Your first task is to add **sound feedback** when changing screens.
 
@@ -109,7 +115,6 @@ Your first task is to add **sound feedback** when changing screens.
 * You may use the reference guide **“How to generate sound with PWM”** (already available in the course materials).
 * Play one short tone when S1 is pressed, and a different tone when S2 is pressed.
 
-> 💡 *Hint:* The buzzer on the BOOSTXL-EDUMKII is connected to PF1 → M0PWM1.
 
 **Grading (Step 1 – 5 points):**
 - PWM configured correctly and audible sound generated.
