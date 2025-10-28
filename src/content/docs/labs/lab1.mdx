@@ -487,7 +487,13 @@ You will now add two more screens to the project:
 
 Both screens will use the same structure as in previous screens, with their own initialization (`_Init`) and drawing (`_Draw`) functions.
 
-## 🕹️ Joystick Screen
+<Aside type="tip">
+On this part of the lab we give you the code snippets for both screens. You just need to create the corresponding source files and copy-paste the code.
+and make sure to include the necessary headers and extern declarations in main.cpp.
+</Aside>
+
+
+## Joystick Screen
 
 The joystick outputs two analog voltages (X and Y axes) that are read using the **ADC**. The goal is to represent the joystick’s position as a moving dot inside a circular zone.
 
@@ -499,6 +505,37 @@ The joystick outputs two analog voltages (X and Y axes) that are read using the 
 ### Implementation Example
 
 ```c
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "grlib/grlib.h"
+#include "Crystalfontz128x128_ST7735.h"
+#include "joystick.h"
+
+// ============================================================================
+// External references (from main.cpp)
+// ============================================================================
+extern tContext gContext;  // global LCD drawing context
+extern bool btnLeft_isPressed();
+extern bool btnRight_isPressed();
+extern void DrawHeader(const char *title, bool leftActive, bool rightActive);
+
+// ============================================================================
+// Local variables and objects
+// ----------------------------------------------------------------------------
+// Joystick object: handles analog reading and optional button input.
+//  - JSX: analog input pin for X-axis
+//  - JSY: analog input pin for Y-axis
+//  - JS1: digital input pin for joystick button
+// ============================================================================
+static Joystick js(JSX, JSY, JS1);
+static float joyX = 0.0f;   // normalized X-axis value (-1.0  +1.0)
+static float joyY = 0.0f;   // normalized Y-axis value (-1.0  +1.0)
+
+
 void ScreenJoystick_Init(void)
 {
     js.begin();             // Initialize joystick ADC inputs
@@ -541,7 +578,7 @@ The joystick values are normalized between **−1.0 and +1.0**. The center of th
 
 ---
 
-## ⚽ Accelerometer Ball Screen
+## Accelerometer Ball Screen
 
 This visualization treats the accelerometer’s X/Y readings as a **gravity vector**. When the board is tilted, the virtual ball accelerates and bounces around the screen.
 
@@ -553,7 +590,87 @@ This visualization treats the accelerometer’s X/Y readings as a **gravity vect
 ### Implementation Example
 
 ```c
-static float posX = 0, posY = 0, velX = 0, velY = 0;
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <math.h>
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/adc.h"
+#include "driverlib/gpio.h"
+#include "grlib/grlib.h"
+#include "Crystalfontz128x128_ST7735.h"
+
+// ============================================================================
+// External references (defined in main.cpp)
+// ============================================================================
+extern tContext gContext;  // Global LCD drawing context
+extern bool btnLeft_isPressed();
+extern bool btnRight_isPressed();
+extern void DrawHeader(const char *title, bool leftActive, bool rightActive);
+
+// ============================================================================
+// Accelerometer ADC configuration
+// ----------------------------------------------------------------------------
+// The accelerometer outputs three analog signals (X, Y, Z).
+// Only X and Y are used for this demo.
+// Channels: PE0  AIN3, PE1  AIN2, PE2  AIN1
+// ============================================================================
+#define ACC_ADC_BASE     ADC0_BASE
+#define ACC_ADC_SEQ      2
+#define ACC_CH_X         ADC_CTL_CH3
+#define ACC_CH_Y         ADC_CTL_CH2
+#define ACC_CH_Z         ADC_CTL_CH1
+
+// ---------------------------------------------------------------------------
+// Accel_Init()
+// ---------------------------------------------------------------------------
+// Configures ADC0 to read the accelerometer inputs.
+// ---------------------------------------------------------------------------
+static void Accel_Init(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+    GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2);
+
+    ADCSequenceConfigure(ACC_ADC_BASE, ACC_ADC_SEQ, ADC_TRIGGER_PROCESSOR, 0);
+    ADCSequenceStepConfigure(ACC_ADC_BASE, ACC_ADC_SEQ, 0, ACC_CH_X);
+    ADCSequenceStepConfigure(ACC_ADC_BASE, ACC_ADC_SEQ, 1, ACC_CH_Y);
+    ADCSequenceStepConfigure(ACC_ADC_BASE, ACC_ADC_SEQ, 2, ACC_CH_Z | ADC_CTL_IE | ADC_CTL_END);
+    ADCSequenceEnable(ACC_ADC_BASE, ACC_ADC_SEQ);
+    ADCIntClear(ACC_ADC_BASE, ACC_ADC_SEQ);
+}
+
+// ---------------------------------------------------------------------------
+// Accel_Read()
+// ---------------------------------------------------------------------------
+// Reads X and Y accelerometer channels using ADC0 and converts them
+// to normalized values in the range [-1.0, +1.0].
+// ---------------------------------------------------------------------------
+static void Accel_Read(float *x, float *y)
+{
+    uint32_t raw[3];
+    ADCProcessorTrigger(ACC_ADC_BASE, ACC_ADC_SEQ);
+    while (!ADCIntStatus(ACC_ADC_BASE, ACC_ADC_SEQ, false));
+    ADCIntClear(ACC_ADC_BASE, ACC_ADC_SEQ);
+    ADCSequenceDataGet(ACC_ADC_BASE, ACC_ADC_SEQ, raw);
+
+    // Convert raw 0-4095 ADC values  normalized -1.0 to +1.0 range
+    *x = ((float)raw[0] - 2048.0f) / 2048.0f;
+    *y = ((float)raw[1] - 2048.0f) / 2048.0f;
+}
+
+// ============================================================================
+// Ball state variables
+// ----------------------------------------------------------------------------
+// posX, posY  position of the ball on the LCD
+// velX, velY  velocity components (pixels per frame)
+// ============================================================================
+static float posX = 0.0f;
+static float posY = 0.0f;
+static float velX = 0.0f;
+static float velY = 0.0f;
+
 
 void ScreenAccel_Init(void)
 {
