@@ -82,13 +82,13 @@ Each stage will be checked and graded individually.
 | 2.1 | Buzzer Module | All buzzer logic separated into `buzzer.cpp` | 8 |
 | 2.2 | Lux Module | `screen_lux.cpp` created and integrated | 6 |
 | 2.3 | Microphone Module | `screen_mic.cpp` created and integrated | 6 |
-| 3 | Screen Functionality | Add sensors and responsive UI for main screens | 45 |
+| 3 | Screen Functionality | Add sensors and responsive UI for main screens | 30 |
 | 3.1 | LUX Functionality | OPT3001 reads, numeric value and horizontal bar | 25 |
 | 3.2 | MIC Functionality | ADC reads, level calculation and vertical bar | 20 |
 | 4 | Additional Screens | Optional visualizations (Joystick & Accel) | 10 |
 | 4.1 | Joystick Screen | Moving dot and coordinate display | 5 |
 | 4.2 | Accelerometer Ball | Bouncing ball affected by tilt | 5 |
-|   | Submission / Code Delivery | Exported project archive and correct project structure | 10 |
+|   | Lab report | Written lab report (See Lab report guidelines on canvas) | 25 |
 |   | **Total** |  | **100 points** |
 
 
@@ -505,16 +505,16 @@ Example:
    rel="noopener noreferrer"
 />
 
-**Grading (Step 3 – 45 points):**
-- Ambient Light (LUX) functionality — 25 points total:
-  - OPT3001 correctly initialized and read (10 pts).
-  - Lux value converted to percentage and numeric lux shown (7 pts).
-  - Horizontal bar visual responds proportionally and updates smoothly (5 pts).
-  - Non-blocking reads and UI remains responsive (3 pts).
-- Microphone (MIC) functionality — 20 points total:
-  - ADC configured and reads microphone channel AIN8 / PE5 (8 pts).
-  - Level computed (average or RMS) and displayed numerically if required (5 pts).
-  - Vertical bar visual responds to sound intensity and updates smoothly (5 pts).
+**Grading (Step 3 – 30 points):**
+- Ambient Light (LUX) functionality — 17 points total:
+  - OPT3001 correctly initialized and read (7 pts).
+  - Lux value converted to percentage and numeric lux shown (5 pts).
+  - Horizontal bar visual responds proportionally and updates smoothly (3 pts).
+  - Non-blocking reads and UI remains responsive (2 pts).
+- Microphone (MIC) functionality — 13 points total:
+  - ADC configured and reads microphone channel AIN8 / PE5 (5 pts).
+  - Level computed (average or RMS) and displayed numerically if required (3 pts).
+  - Vertical bar visual responds to sound intensity and updates smoothly (3 pts).
   - Non-blocking sampling and UI responsiveness (2 pts).
 
 ---
