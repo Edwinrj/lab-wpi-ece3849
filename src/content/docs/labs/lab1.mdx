@@ -2,11 +2,12 @@
 title: "Lab 1 — Multi-Screen UI and Code Organization"
 description: "Learn how to add sound feedback, navigate between screens, and organize modular code."
 ---
-
+import { Picture } from 'astro:assets';
 import { Aside } from '@astrojs/starlight/components';
 import { Steps } from '@astrojs/starlight/components';
 import { Icon } from '@astrojs/starlight/components';
 import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
 
 ## Prerequisites
 
@@ -132,10 +133,19 @@ Your first task is to add **sound feedback** when changing screens.
 
 ---
 
-## 🧩 Part 2 — Organize the Project into Modules
+## Part 2 — Organize the Project into Modules
 
 Large embedded projects can quickly become hard to maintain.  
 You will now learn how to **split functionality into separate source files**.
+To create new source files in Code Composer Studio:
+1. Right-click on the project folder in the **Project Explorer**.
+2. Select **New > Source File**.
+
+<p align="center">
+  <img src="/assets/images/new_source_file.png" alt="How to create a new source file in Code Composer Studio" width="500"/>
+    <br />
+  <sub><span style="color:#4ec9b0; font-weight:bold;">Drag the <code>libraries</code> folder into Code Composer Studio</span></sub>
+</p>
 
 ### 📁 Step 2.1 — Create `buzzer.cpp`
 
@@ -145,8 +155,6 @@ Move all buzzer-related functions and configuration into a dedicated file:
 /src
  ├── main.cpp
  ├── buzzer.cpp      ← new file
- ├── screen_lux.cpp  ← to be added next
- ├── screen_mic.cpp  ← to be added next
 ```
 
 Include:
@@ -156,6 +164,69 @@ Include:
 
 Then call these functions from `main.cpp`.  
 Make sure everything compiles and the sound still works.
+
+Here is an example structure for `buzzer.cpp`:
+
+```cpp
+//All buzzer-dependent includes
+#include <stdint.h>
+#include <stdbool.h>
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+#include "driverlib/pwm.h"
+#include "driverlib/pin_map.h"
+
+// Buzzer configuration and functions
+#define BUZZER_PWM_BASE    PWM0_BASE
+#define BUZZER_GEN         PWM_GEN_0
+#define BUZZER_OUTNUM      PWM_OUT_1
+#define BUZZER_OUTBIT      PWM_OUT_1_BIT
+
+//Variables externally defined
+extern uint32_t gSysClk; // defined in main.cpp
+
+
+void Buzzer_Init(void)
+{
+      //Buzzer initialization code
+}
+
+// ---------------------------------------------------------------------------
+// Generates a beep with frequency and duration
+// ---------------------------------------------------------------------------
+void Buzzer_Beep(uint32_t freq_hz, uint32_t duration_ms)
+{
+      //Buzzer beep code   
+}
+
+```
+
+and in `main.cpp`, include the buzzer header and call the functions:
+
+```cpp
+// include as extern the buzzer functions needed
+extern void Buzzer_Init(void);
+extern void Buzzer_Beep(uint32_t, uint32_t);
+
+// In main(), initialize the buzzer
+int main(void)
+{
+    // Other initializations...  
+    Buzzer_Init();
+      while (1)
+      {
+         ...
+      }
+}
+
+// When S1 or S2 is pressed, call Buzzer_Beep() with appropriate parameters
+void onS1Press()
+{
+    Buzzer_Beep(440, 100); // Example: A4 note for 100 ms
+}
+...
+```
 
 **Grading (Step 2.1 – 5 points):**
 - Buzzer code moved correctly.
@@ -171,8 +242,76 @@ For now, this file only needs:
 
 * `ScreenLux_Init()` — empty  
 * `ScreenLux_Draw()` — clears screen and displays header
+* `DrawBar()` - draws horizontal bar based on lux value
 
-Confirm that navigation between screens still works.
+Your screen_lux.cpp might look like this:
+
+```cpp
+//Include dependencies
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "grlib/grlib.h"
+#include "Crystalfontz128x128_ST7735.h"
+#include "OPT3001.h"
+
+// ============================================================================
+// External references Used for drawing
+// ============================================================================
+// These symbols are defined in main.cpp and shared across all screens.
+extern tContext gContext;  // Global graphics context (LCD drawing object)
+extern bool btnLeft_isPressed();
+extern bool btnRight_isPressed();
+extern void DrawHeader(const char *title, bool leftActive, bool rightActive);
+
+// ============================================================================
+// Global variable (local to this file)
+// ============================================================================
+static float luxValue = 0.0f;  // Stores the most recent lux reading
+
+// ============================================================================
+// ScreenLux_Init()
+// ============================================================================
+// Initializes the OPT3001 ambient light sensor.
+// This function is called once at startup (from main.cpp).
+// ============================================================================
+void ScreenLux_Init(void)
+{
+    // Sensor initialization code here
+}
+
+// ============================================================================
+// ScreenLux_Draw()
+// ============================================================================
+void ScreenLux_Draw(void)
+{
+   // Drawing code here
+}
+```
+
+Your main.cpp should include the new header and call the functions:
+
+
+```cpp
+//Include as extern the lux screen functions needed in main.cpp
+extern void ScreenLux_Init(void);
+extern void ScreenLux_Draw(void);
+
+void main(void)
+{
+    // Other initializations...
+    ScreenLux_Init();
+    while (1)
+    {
+        // Call ScreenLux_Draw() when the lux screen is active every 50 ms
+        ScreenLux_Draw();
+    }
+}
+```
+
+Confirm that navigation between screens still works as template with no functionality yet.
 
 ---
 
@@ -183,12 +322,127 @@ Include the same placeholder structure:
 
 * `ScreenMic_Init()` — empty  
 * `ScreenMic_Draw()` — clears screen and displays header
+* `DrawBar()` - draws vertical bar based on mic level
 
+Your screen_mic.cpp might look like this:
+
+```cpp
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <math.h>
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/adc.h"
+#include "driverlib/gpio.h"
+#include "grlib/grlib.h"
+#include "Crystalfontz128x128_ST7735.h"
+
+// ============================================================================
+// External references (shared from main.cpp)
+// ============================================================================
+extern tContext gContext;
+extern bool btnLeft_isPressed();
+extern bool btnRight_isPressed();
+extern void DrawHeader(const char *title, bool leftActive, bool rightActive);
+
+// ============================================================================
+// Microphone input configuration
+// ----------------------------------------------------------------------------
+// The microphone output on the BoosterPack MKII is connected to PE5  AIN8.
+// We use ADC0, Sample Sequencer 3 (single channel, manual trigger).
+// ============================================================================
+#define MIC_ADC_BASE      ADC0_BASE
+#define MIC_ADC_SEQ       3
+#define MIC_ADC_CHANNEL   ADC_CTL_CH8
+
+
+static void Mic_Init(void)
+{
+   
+}
+
+static uint16_t Mic_Read(void)
+{
+      return 0;
+}
+
+
+static float Mic_Level(void)
+{
+      return 0.0f;
+}
+
+// ============================================================================
+// ScreenMic_Init()
+// ============================================================================
+// Called once at program start. Initializes the ADC channel for the microphone.
+// ============================================================================
+void ScreenMic_Init(void)
+{
+    Mic_Init();
+}
+
+// ============================================================================
+// ScreenMic_Draw()
+// ============================================================================
+// Called periodically from main.cpp (every ~50 ms).
+// Reads microphone level and updates the bar meter on screen.
+//
+// Visualization:
+//   - Green = low volume
+//   - Yellow = medium volume
+//   - Red = high volume
+// ============================================================================
+void ScreenMic_Draw(void)
+{
+    float level = Mic_Level(); // 0.0  1.0 normalized volume
+
+    // Step 1 � Clear drawing area
+    tRectangle bg = {0, 21, 127, 127};
+    GrContextForegroundSet(&gContext, ClrBlack);
+    GrRectFill(&gContext, &bg);
+
+    // Step 2 � Draw header (title + arrows)
+    DrawHeader("Microphone", btnLeft_isPressed(), btnRight_isPressed());
+
+    // Step 3 � Define meter area
+    const int barX1 = 55, barX2 = 73, barY1 = 25, barY2 = 120;
+    const int barHeight = barY2 - barY1;
+
+    // Step 4 � Clamp level to [0,1]
+    if (level < 0) level = 0;
+    if (level > 1) level = 1;
+
+    // Step 5 � Compute filled portion
+    int filled = (int)(level * barHeight);
+    int yStart = barY2 - filled;
+
+    // Step 6 � Draw color segments (green  yellow  red)
+    for (int y = barY2; y > yStart; y--) {
+        float f = (float)(barY2 - y) / barHeight;
+        uint32_t c = (f < 0.6f ? ClrGreen : f < 0.85f ? ClrYellow : ClrRed);
+        GrContextForegroundSet(&gContext, c);
+        GrLineDrawH(&gContext, barX1, barX2, y);
+    }
+
+    // Step 7 � Print dB value as text
+    char buf[32];
+    float dbVal = (level * 60.0f) - 60.0f;
+    snprintf(buf, sizeof(buf), "%.1f dB", dbVal);
+    GrContextForegroundSet(&gContext, ClrCyan);
+    GrStringDrawCentered(&gContext, buf, -1, 64, 115, false);
+
+    // Step 8 � Send final buffer to LCD
+    GrFlush(&gContext);
+}
+```
 **Grading (Step 2.2 & 2.3 – 5 points):**
 - Code organized into three files (`buzzer`, `lux`, `mic`).
 - All screens switch correctly.
 - Compilation succeeds without warnings.
-
+- No functionality yet; just placeholders.
 ---
 
 ## 📊 Part 3 — Add Screen Functionality
