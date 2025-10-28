@@ -470,10 +470,10 @@ Now that your code is modular, you will give meaning to each screen.
 
 Example:
 
-```
-Ambient Light:  85.6 lx
-[████████████░░░░░░░░░░░░░░░░]
-```
+<video autoplay loop muted playsinline width={400}>
+  <source src="/assets/videos/lux.mp4" type="video/mp4"/>
+</video>
+
 <LinkCard
   title="LUX Sensor Integration Guide"
   description="How to interface with the OPT3001 ambient light sensor using I2C."
@@ -492,13 +492,9 @@ Ambient Light:  85.6 lx
 
 Example:
 
-```
-Microphone Level
-| |
-|█|
-|█|
-|█|
-```
+<video autoplay loop muted playsinline width={400}>
+  <source src="/assets/videos/mic.mp4" type="video/mp4"/>
+</video>
 
 <LinkCard
    title="MIC Sensor Integration Guide"
@@ -538,6 +534,10 @@ and make sure to include the necessary headers and extern declarations in main.c
 ## Joystick Screen
 
 The joystick outputs two analog voltages (X and Y axes) that are read using the **ADC**. The goal is to represent the joystick’s position as a moving dot inside a circular zone.
+
+<video autoplay loop muted playsinline width={400}>
+  <source src="/assets/videos/joy.mp4" type="video/mp4"/>
+</video>
 
 ### Features
 - A **white circle** defines the joystick’s movement boundary.
@@ -623,6 +623,10 @@ The joystick values are normalized between **−1.0 and +1.0**. The center of th
 ## Accelerometer Ball Screen
 
 This visualization treats the accelerometer’s X/Y readings as a **gravity vector**. When the board is tilted, the virtual ball accelerates and bounces around the screen.
+
+<video autoplay loop muted playsinline width={400}>
+  <source src="/assets/videos/bouncing.mp4" type="video/mp4"/>
+</video>
 
 ### Features
 - Reads **accelerometer X and Y axes**.
