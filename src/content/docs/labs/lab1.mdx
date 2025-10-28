@@ -480,6 +480,147 @@ Microphone Level
 - Smooth updates without freezing the UI.  
 
 ---
+## Part 4 - Additional Screens 
+You will now add two more screens to the project:
+- **Joystick Screen** — Display the real-time position of the joystick inside a circular region.
+- **Accelerometer Ball Screen** — Simulate a bouncing ball affected by gravity from the accelerometer readings.
+
+Both screens will use the same structure as in previous screens, with their own initialization (`_Init`) and drawing (`_Draw`) functions.
+
+## 🕹️ Joystick Screen
+
+The joystick outputs two analog voltages (X and Y axes) that are read using the **ADC**. The goal is to represent the joystick’s position as a moving dot inside a circular zone.
+
+### Features
+- A **white circle** defines the joystick’s movement boundary.
+- A **cyan dot** shows the current position.
+- **X/Y numeric values** are displayed below.
+
+### Implementation Example
+
+```c
+void ScreenJoystick_Init(void)
+{
+    js.begin();             // Initialize joystick ADC inputs
+    js.calibrateCenter(32); // Calibrate to remove offset
+}
+
+void ScreenJoystick_Draw(void)
+{
+    js.tick();
+    float joyX = js.x();  // −1.0 → +1.0
+    float joyY = js.y();  // −1.0 → +1.0
+
+    tRectangle bg = {0, 21, 127, 127};
+    GrContextForegroundSet(&gContext, ClrBlack);
+    GrRectFill(&gContext, &bg);
+
+    DrawHeader("Joystick", btnLeft_isPressed(), btnRight_isPressed());
+
+    int cx = 64, cy = 75, radius = 40;
+    GrContextForegroundSet(&gContext, ClrWhite);
+    GrCircleDraw(&gContext, cx, cy, radius);
+
+    int px = cx + (int)(joyX * radius);
+    int py = cy - (int)(joyY * radius);
+    GrContextForegroundSet(&gContext, ClrCyan);
+    GrCircleFill(&gContext, px, py, 3);
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "X=%.2f  Y=%.2f", joyX, joyY);
+    GrContextForegroundSet(&gContext, ClrYellow);
+    GrStringDrawCentered(&gContext, buf, -1, 64, 115, false);
+
+    GrFlush(&gContext);
+}
+```
+
+<Aside type="tip" title="Coordinate System">
+The joystick values are normalized between **−1.0 and +1.0**. The center of the circle (0,0) corresponds to the joystick in its neutral position.
+</Aside>
+
+---
+
+## ⚽ Accelerometer Ball Screen
+
+This visualization treats the accelerometer’s X/Y readings as a **gravity vector**. When the board is tilted, the virtual ball accelerates and bounces around the screen.
+
+### Features
+- Reads **accelerometer X and Y axes**.
+- Simulates **gravity, friction, and bounce**.
+- The **yellow ball** moves and rebounds inside the LCD boundaries.
+
+### Implementation Example
+
+```c
+static float posX = 0, posY = 0, velX = 0, velY = 0;
+
+void ScreenAccel_Init(void)
+{
+    Accel_Init();
+    posX = rand() % 128;
+    posY = 25 + rand() % 100;
+    velX = velY = 0.0f;
+}
+
+void ScreenAccel_Draw(void)
+{
+    float ax, ay;
+    Accel_Read(&ax, &ay);
+
+    velX += ax * 0.9f;
+    velY += -ay * 0.9f;
+
+    posX += velX;
+    posY += velY;
+
+    if (posX < 5)   { posX = 5;   velX *= -0.8f; }
+    if (posX > 122) { posX = 122; velX *= -0.8f; }
+    if (posY < 25)  { posY = 25;  velY *= -0.8f; }
+    if (posY > 122) { posY = 122; velY *= -0.8f; }
+
+    velX *= 0.99f;
+    velY *= 0.99f;
+
+    tRectangle bg = {0, 21, 127, 127};
+    GrContextForegroundSet(&gContext, ClrBlack);
+    GrRectFill(&gContext, &bg);
+
+    DrawHeader("Accelerometer Ball", btnLeft_isPressed(), btnRight_isPressed());
+
+    GrContextForegroundSet(&gContext, ClrYellow);
+    GrCircleFill(&gContext, (int)posX, (int)posY, 5);
+    GrFlush(&gContext);
+}
+```
+
+<Aside type="note" title="Physics Parameters">
+- **Gravity strength:** 0.9f multiplier controls how sensitive the motion is to tilt.  
+- **Friction:** 0.99f reduces velocity slightly each frame.  
+- **Bounce factor:** −0.8f simulates energy loss on collisions.
+</Aside>
+
+---
+
+## 🧩 Integration Tip
+
+To integrate these screens into your main program:
+
+```c
+switch (currentScreen) {
+  case SCREEN_JOYSTICK:
+    ScreenJoystick_Draw();
+    break;
+  case SCREEN_ACCEL:
+    ScreenAccel_Draw();
+    break;
+}
+```
+
+Each screen should be updated approximately **20–50 times per second** (every 20–50 ms) for smooth animation.
+
+---
+
 
 ## 🧠 Summary of Graded Steps
 
