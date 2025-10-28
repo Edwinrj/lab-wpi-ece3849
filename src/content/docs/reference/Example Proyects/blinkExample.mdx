@@ -1,0 +1,158 @@
+---
+title: "Buttons Callback Example"
+description: "Guide explaining how the button callbacks example works: registering callbacks, configuring timing, and integrating the tick loop."
+---
+import { Badge, Icon, CardGrid, Card, LinkCard } from '@astrojs/starlight/components';
+
+
+# Get Example project
+
+<CardGrid>
+
+<LinkCard
+    title="Download Example"
+    description="Complete project for Code Composer Studio with button callback implementation."
+    href="/assets/example_projects/button_example.zip"
+    icon="right-arrow"
+    rel="noopener noreferrer"
+/>
+
+<LinkCard
+    title="How to Open the Workspace in CCS"
+    description="Instructions to set up and open the project in Code Composer Studio."
+    href="/guides/openworkspace/"
+    icon="right-arrow"
+    target="_blank"
+    rel="noopener noreferrer"
+/>
+
+</CardGrid>
+
+## Overview
+
+This guide explains how the button callbacks example works. The goal is to show how to register functions that run on different button events (press, click, double click, long press), how to configure timing parameters (debounce, click window, long-press threshold), and how to integrate the `tick()` call into the main loop.
+
+We use the included example (see download) which demonstrates a OneButton-like API with methods such as `attachPress`, `attachClick`, `attachDoubleClick`, `attachLongPressStart`, and `attachLongPressStop`.
+
+---
+
+## Hardware Requirements
+
+- **EK-TM4C1294XL LaunchPad** or equivalent
+- LEDs on defined pins (in the example: PN0 and PN1)
+- User button connected to the pin defined by the macro `USR_SW1`
+
+---
+
+## Learning Objectives
+
+1. Understand the button callback API and when each callback is triggered.
+2. Learn to tune timing parameters: debounce, tick interval, click window, and long-press threshold.
+3. Integrate `btn.tick()` into the main loop efficiently.
+
+---
+
+## Example code and explanation
+
+Below is the example file (with inline comments translated to English) that demonstrates callbacks and uses LEDs to reflect user actions.
+
+```c
+#include <stdint.h>
+#include <stdbool.h>
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+#include "button.h"
+#include "pins.h"
+
+// LEDs on PN0 and PN1
+#define LED_PORT_BASE GPIO_PORTN_BASE
+#define LED1_PIN      GPIO_PIN_0
+#define LED2_PIN      GPIO_PIN_1
+
+static inline void ledOn(uint8_t pin) { GPIOPinWrite(LED_PORT_BASE, pin, pin); }
+static inline void ledOff(uint8_t pin){ GPIOPinWrite(LED_PORT_BASE, pin, 0); }
+static inline void ledToggle(uint8_t pin){
+  uint32_t v = GPIOPinRead(LED_PORT_BASE, pin);
+  GPIOPinWrite(LED_PORT_BASE, pin, (v & pin) ? 0 : pin);
+}
+
+// Button using a OneButton-like API
+static Button btn(USR_SW1);
+
+// Callbacks: functions executed on button events
+static void onPress() { ledOn(LED1_PIN); }
+static void onClick() {
+  // Single click: turn off LED1 and LED2
+  ledOff(LED1_PIN);
+  ledOff(LED2_PIN);
+}
+static void onDoubleClick() {
+  // Double click: turn on LED2
+  ledOn(LED2_PIN);
+}
+static void onLongPressStart() { ledOn(LED1_PIN); ledOn(LED2_PIN); }
+static void onLongPressStop()  { ledOff(LED1_PIN); ledOff(LED2_PIN); }
+
+int main(void) {
+  uint32_t gSystemClock = SysCtlClockFreqSet(
+    SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
+    120000000);
+
+  // Initialize LED GPIO
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+  while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION));
+  GPIOPinTypeGPIOOutput(LED_PORT_BASE, LED1_PIN | LED2_PIN);
+
+  // Initialize the button (enables port clock and configures pad) after MCU clock
+  btn.begin();
+
+  // Timing settings (optional): tick ~20 ms
+  btn.setTickIntervalMs(20);
+  btn.setDebounceMs(50);
+  btn.setClickMs(400);  // window for click/double click
+  btn.setPressMs(800);  // long-press threshold
+
+  // Register OneButton-style callbacks
+  btn.attachPress(onPress);
+  btn.attachClick(onClick);
+  btn.attachDoubleClick(onDoubleClick);
+  btn.attachLongPressStart(onLongPressStart);
+  btn.attachLongPressStop(onLongPressStop);
+
+  while(1){
+    btn.tick();
+    SysCtlDelay(gSystemClock / 3 / 50); // ~20 ms
+  }
+}
+```
+
+### Explanation by section
+
+- Hardware initialization: enables the GPIO port clock for the LEDs and configures the pins as outputs.
+- `btn.begin()`: initializes the button driver (configures GPIO and internal pull-up/pull-down if applicable).
+- Timing settings:
+  - `setTickIntervalMs(20)`: how often `tick()` is expected to be called (20 ms in this example).
+  - `setDebounceMs(50)`: debounce time to ignore switch bounce.
+  - `setClickMs(400)`: window used to distinguish single vs double click.
+  - `setPressMs(800)`: minimum duration to consider a long-press.
+- Registering callbacks: `attachXxx(func)` associates the function `func` with the corresponding event. When the driver detects the event it calls your function.
+
+### Common events and when they trigger
+
+- `attachPress`: called when the start of a press is detected (button pressed).
+- `attachClick`: called when a single click is detected (press and release within the `clickMs` window).
+- `attachDoubleClick`: called when a double click is detected (two clicks within the configured window).
+- `attachLongPressStart`: called when a press exceeds `pressMs` (start of long press).
+- `attachLongPressStop`: called when the long press ends (release after long press).
+
+---
+
+## Best practices and edge cases
+
+- Make sure `tick()` is called at the frequency configured with `setTickIntervalMs`. Calling it too slowly will degrade event detection; calling it too fast is unnecessary and wastes CPU.
+- Tune `debounceMs` according to your mechanical switch quality (cheap switches usually need longer debounce).
+- Be aware that `attachClick` and `attachDoubleClick` share the same `clickMs` window; adjusting that value changes double-click sensitivity.
+- If your callbacks perform long or blocking operations (I/O, heavy computation), consider deferring work (e.g., set a flag and process it outside the callback) so you don't interfere with event detection.
+
+---

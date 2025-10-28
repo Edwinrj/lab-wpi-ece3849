@@ -29,112 +29,89 @@ This driver simplifies working with input switches by abstracting GPIO configura
 * **Lightweight FSM-based implementation** for polling or interrupt-driven systems
 
 ---
+## How to use the Library
+You can use the Button driver in two main ways: basic polling or advanced callback registration.
 
-## Basic Usage
-
-### Include and Initialize
-
+### Basic Polling 
+This example shows how to create a Button object for the user button (S1) on the TM4C1294XL LaunchPad and check its state in the main loop.
+##### How it works
+When the button is pressed, the `wasPressed()` method returns true once, allowing you to execute code in response to the event.
 ```cpp
 #include "button.h"
 
-Button btn(USR_SW1); // Initialize with default debounce and pull-up
+Button btn(S1); // Initialize with default debounce and pull-up
 
 int main(void) {
+    uint32_t gSystemClock = SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
+        120000000);
+    
     btn.begin();
+    btn.setDebounceMs(50); // Optional: set debounce time to 50 ms
+    btn.setClickMs(100);  // Optional: set click window to 100 ms
+
     while (1) {
-        btn.tick(); // Call periodically (~20ms)
+        btn.tick(); // Call periodically
         if (btn.wasPressed()) {
             // Do something when pressed
         }
     }
 }
 ```
-
----
-
-## Example: Callbacks
+### Advanced Callbacks Registration 
+The Button class allows you to register callback functions for various button events. Below is an example demonstrating how to set up callbacks for press, click, double-click, long press start, and long press stop events.
+#### How it works
+When the button state changes, the corresponding callback function is invoked automatically. This allows you to separate event handling logic from the main loop.
 
 ```cpp
-#include <stdint.h>
-#include <stdbool.h>
-#include "inc/hw_memmap.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/gpio.h"
 #include "button.h"
-#include "pins.h"
 
-// LEDs en PN0 y PN1
-#define LED_PORT_BASE GPIO_PORTN_BASE
-#define LED1_PIN      GPIO_PIN_0
-#define LED2_PIN      GPIO_PIN_1
+Button btn(S1); // Initialize with default debounce and pull-up
 
-static inline void ledOn(uint8_t pin) { GPIOPinWrite(LED_PORT_BASE, pin, pin); }
-static inline void ledOff(uint8_t pin){ GPIOPinWrite(LED_PORT_BASE, pin, 0); }
-static inline void ledToggle(uint8_t pin){
-    uint32_t v = GPIOPinRead(LED_PORT_BASE, pin);
-    GPIOPinWrite(LED_PORT_BASE, pin, (v & pin) ? 0 : pin);
-}
+// Callback functions
 
-// BotÃ³n con API estilo OneButton
-static Button btn(USR_SW1);
-
-static void onPress() { ledOn(LED1_PIN); }
 static void onClick() {
-    // Click simple: apaga LED1 y LED2
-    ledOff(LED1_PIN);
-    ledOff(LED2_PIN);
+    // Code to execute on single click
 }
+
 static void onDoubleClick() {
-    // Doble click: enciende LED2
-    ledOn(LED2_PIN);
+    // Code to execute on double click
 }
-static void onLongPressStart() { ledOn(LED1_PIN); ledOn(LED2_PIN); }
-static void onLongPressStop()  { ledOff(LED1_PIN); ledOff(LED2_PIN); }
+
+static void onLongPressStart() {
+    // Code to execute when long press starts
+}
+
+static void onLongPressStop() {
+    // Code to execute when long press stops
+}
 
 int main(void) {
     uint32_t gSystemClock = SysCtlClockFreqSet(
         SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
         120000000);
-
-    // Inicializa GPIO de LEDs
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION));
-    GPIOPinTypeGPIOOutput(LED_PORT_BASE, LED1_PIN | LED2_PIN);
-
-    // Inicializa el botÃ³n (habilita clock del puerto y configura pad) despuÃ©s del clock del MCU
+    
     btn.begin();
+    btn.setDebounceMs(50); // Optional: set debounce time to 50 ms
+    btn.setClickMs(100);  // Optional: set click window to 100 ms
 
-    // Ajustes de tiempos (opcionales): tick ~20 ms
-    btn.setTickIntervalMs(20);
-    btn.setDebounceMs(50);
-    btn.setClickMs(400);  // ventana para click/doble click
-    btn.setPressMs(800);  // umbral long-press
+    // Register callbacks
+    btn.attachClick(&onClick);
+    btn.attachDoubleClick(&onDoubleClick);
+    btn.attachPress(&onLongPressStart);
+    btn.attachRelease(&onLongPressStop);
 
-    // Registrar callbacks tipo OneButton
-    btn.attachPress(onPress);
-    btn.attachClick(onClick);
-    btn.attachDoubleClick(onDoubleClick);
-    btn.attachLongPressStart(onLongPressStart);
-    btn.attachLongPressStop(onLongPressStop);
-
-    while(1){
-        btn.tick();
-        SysCtlDelay(gSystemClock / 3 / 50); // ~20 ms
+    while (1) {
+        btn.tick(); // Call periodically
     }
 }
-
 ```
-
----
-
 ## API Summary
 
 ### Constructors
 
 ```cpp
-Button(uint8_t pin, uint32_t debounceTicks = 3,
-       uint32_t longPressTicks = 50, uint32_t doubleClickTicks = 25,
-       ButtonPull pull = ButtonPull::PullUp);
+Button(uint8_t pin);
 ```
 
 Creates a button object and sets up timing thresholds in logical ticks (~20 ms each).
@@ -164,8 +141,6 @@ Creates a button object and sets up timing thresholds in logical ticks (~20 ms e
 
 | Event             | Methods                     |
 | :---------------- | :-------------------------- |
-| Press             | `attachPress(fn)`           |
-| Release           | `attachRelease(fn)`         |
 | Click             | `attachClick(fn)`           |
 | Double Click      | `attachDoubleClick(fn)`     |
 | Long Press Start  | `attachLongPressStart(fn)`  |
@@ -180,16 +155,23 @@ Creates a button object and sets up timing thresholds in logical ticks (~20 ms e
 * Always call `begin()` after system clock initialization.
 * Adjust debounce and click thresholds to match hardware bounce characteristics.
 * The driver can be used with **polling**, **GPIO interrupts**, or **timer ISRs**.
-
 ---
 
 ## Dependencies
 
 * `driverlib/gpio.h`
 * `driverlib/sysctl.h`
-* `pins.h` (for Energia-style pin mapping)
 
 ---
+
+## Example projects
+You can find a complete example project implementing this functionality
+<CardGrid>
+  <LinkCard href="/reference/example-proyects/buzzerexample/" title="Button with audio feedback" description="Example code for generating tones with PWM on the TM4C1294XL LaunchPad when pressing and releasing buttons." /> 
+  <LinkCard href="/reference/example-proyects/blinkexample/" title="Button Blink Machine" description="Example code for blinking an LED in response to button presses." /> 
+</CardGrid>
+## Summary
+
 
 ## License and Credits
 
