@@ -41,8 +41,8 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 ---
 
 ## Overview
-
-In **Lab 1**, you will extend your embedded system to support **multiple screens**, **sound feedback**, and **modular organization**.  
+ 
+In Lab 1, you’ll expand your previous project to include multiple screens, sound feedback, and a modular code structure.  
 You will begin with a base project that already includes:
 
 * Two template screens:  
@@ -57,7 +57,7 @@ Your goal is to progressively:
 2. Split code into **modular source files**.  
 3. Add **sensor functionality** for the LUX and MIC screens.
 
-This lab emphasizes **organization** and **incremental design**, rather than building everything at once.
+This lab focuses on organizing your code and building it step by step, instead of trying to finish everything at once.
 
 ---
 
@@ -68,7 +68,7 @@ To complete this lab successfully, you must:
 2. Organize your code into **separate C/C++ files** (buzzer, lux, microphone).  
 3. Implement the **sensor functionality** for each screen.
 </Steps>
-Each stage will be verified and graded separately.
+Each stage will be checked and graded individually.
 </Aside>
 
 ---
@@ -136,7 +136,7 @@ You will receive a base project containing:
 * A functional navigation system that cycles screens in a **circular carousel**.  
   Pressing S1 goes left, S2 goes right.
 
-Initially, the screens show only headers and black backgrounds — there is **no sensor functionality** yet.
+At first, the screens only show headers and black backgrounds — they don’t display any sensor data yet.
 
 ---
 
@@ -145,7 +145,7 @@ Initially, the screens show only headers and black backgrounds — there is **no
 Your first task is to add **sound feedback** when changing screens.
 
 * Configure the **PWM module** to generate a square-wave tone.
-* You may use the reference guide **“How to generate sound with PWM”** (already available in the course materials).
+* Use the PWM Sound Generation Guide (available in the course materials) for step-by-step help.
 * Play one short tone when S1 is pressed, and a different tone when S2 is pressed.
 
 
@@ -167,8 +167,7 @@ Your first task is to add **sound feedback** when changing screens.
 
 ## Part 2 — Organize the Project into Modules
 
-Large embedded projects can quickly become hard to maintain.  
-You will now learn how to **split functionality into separate source files**.
+As projects grow, keeping all your code in one file becomes confusing. In this part, you’ll learn how to organize your program into separate source files.
 To create new source files in Code Composer Studio:
 1. Right-click on the project folder in the **Project Explorer**.
 2. Select **New > Source File**.
@@ -181,7 +180,7 @@ To create new source files in Code Composer Studio:
 
 ### Step 2.1 — Create `buzzer.cpp`
 
-Move all buzzer-related functions and configuration into a dedicated file:
+Move all buzzer-related code (setup and functions) into its own file:
 
 ```text
 /src
@@ -353,7 +352,7 @@ void main(void)
 }
 ```
 
-Confirm that navigation between screens still works as template with no functionality yet.
+After adding the new files, make sure screen navigation still works, even if the screens are still empty.
 
 ---
 
@@ -528,10 +527,10 @@ You will now add two more screens to the project:
 - **Joystick Screen** — Display the real-time position of the joystick inside a circular region.
 - **Accelerometer Ball Screen** — Simulate a bouncing ball affected by gravity from the accelerometer readings.
 
-Both screens will use the same structure as in previous screens, with their own initialization (`_Init`) and drawing (`_Draw`) functions.
+Both screens should follow the same pattern as before, each having an _Init() and _Draw() function.
 
 <Aside type="tip">
-On this part of the lab we give you the code snippets for both screens. You just need to create the corresponding source files and copy-paste the code.
+In this section, the code snippets are provided for you. Simply create the source files and paste the code.
 and make sure to include the necessary headers and extern declarations in main.cpp.
 </Aside>
 
@@ -808,7 +807,7 @@ switch (currentScreen) {
 }
 ```
 
-Each screen should be updated approximately **20–50 times per second** (every 20–50 ms) for smooth animation.
+Update each screen about 20–50 times per second (every 20–50 ms) to keep animations smooth.
 
 ---
 
@@ -816,7 +815,7 @@ Each screen should be updated approximately **20–50 times per second** (every 
 
 **Exporting project:**
 
-1. Ensure project named `ece3849_lab1_<username>`.
+1. Make sure your project is named `ece3849_lab1_<username>`.
 2. Right‑click the project → `Export...` → `General` → `Archive File`.
 3. Choose the output path and filename equal to the project name (`ece3849_lab1_<username>.zip`).
 4. Upload `.zip` to Canvas.
