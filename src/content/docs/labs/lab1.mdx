@@ -1,5 +1,5 @@
 ---
-title: "Lab 1 — Multi-Screen UI and Code Organization"
+title: "Lab 1 — Sensor Hub"
 description: "Learn how to add sound feedback, navigate between screens, and organize modular code."
 ---
 import { Picture } from 'astro:assets';
@@ -73,6 +73,38 @@ Each stage will be verified and graded separately.
 
 ---
 
+## Grading Rubric
+
+| Step | Task | Description | Points |
+| :--- | :--- | :----------- | :----: |
+| 1 | Add Sound Feedback | Use PWM buzzer to play tones on S1/S2 press | 15 |
+| 2 | Code Organization | Move each module to its own `.cpp` file (overall) | 20 |
+| 2.1 | Buzzer Module | All buzzer logic separated into `buzzer.cpp` | 8 |
+| 2.2 | Lux Module | `screen_lux.cpp` created and integrated | 6 |
+| 2.3 | Microphone Module | `screen_mic.cpp` created and integrated | 6 |
+| 3 | Screen Functionality | Add sensors and responsive UI for main screens | 45 |
+| 3.1 | LUX Functionality | OPT3001 reads, numeric value and horizontal bar | 25 |
+| 3.2 | MIC Functionality | ADC reads, level calculation and vertical bar | 20 |
+| 4 | Additional Screens | Optional visualizations (Joystick & Accel) | 10 |
+| 4.1 | Joystick Screen | Moving dot and coordinate display | 5 |
+| 4.2 | Accelerometer Ball | Bouncing ball affected by tilt | 5 |
+|   | Submission / Code Delivery | Exported project archive and correct project structure | 10 |
+|   | **Total** |  | **100 points** |
+
+
+## Expected Results
+
+By the end of this lab:
+
+* Pressing S1/S2 plays a tone and changes the screen.  
+* The program compiles and runs cleanly with modular files.  
+* The **LUX** screen shows a horizontal brightness bar.  
+* The **MIC** screen shows a vertical audio-level bar.  
+* The **Joystick** screen shows a dot moving inside a circle.  
+* The **Accelerometer Ball** screen shows a bouncing ball affected by tilt.
+* Code is cleanly organized and easy to expand.
+---
+
 ## Learning Objectives
 
 After completing this lab, you will be able to:
@@ -90,7 +122,7 @@ After completing this lab, you will be able to:
 * TI EK-TM4C1294XL LaunchPad  
 * BOOSTXL-EDUMKII BoosterPack  
 * Micro USB cable for programming and power  
-* Code Composer Studio workspace (from Lab 0)
+* Code Composer Studio workspace (from Lab 1)
 
 ---
 
@@ -117,10 +149,10 @@ Your first task is to add **sound feedback** when changing screens.
 * Play one short tone when S1 is pressed, and a different tone when S2 is pressed.
 
 
-**Grading (Step 1 – 5 points):**
-- PWM configured correctly and audible sound generated.
-- Distinct tone for each button.
-- No blocking delays that freeze the UI.
+**Grading (Step 1 – 15 points):**
+- PWM configured correctly and audible sound generated (8 pts).
+- Distinct tone for each button S1 / S2 (4 pts).
+- Non-blocking implementation and UI remains responsive (3 pts).
 
 <LinkCard
   title="PWM Buzzer Configuration Guide"
@@ -231,10 +263,10 @@ void onS1Press()
 Remember to remove the old buzzer functions definitions from main.cpp after moving them.
 </Aside>
 
-**Grading (Step 2.1 – 5 points):**
-- Buzzer code moved correctly.
-- Functions still callable from main.
-- No duplicate or missing includes.
+**Grading (Step 2.1 – 8 points):**
+- All buzzer logic moved to `buzzer.cpp` and exposed via header (4 pts).
+- `Buzzer_Init()` and `Buzzer_Beep()` compile and link with `main.cpp` (3 pts).
+- No duplicate includes or unresolved symbols (1 pt).
 
 ---
 
@@ -415,11 +447,15 @@ void ScreenMic_Draw(void)
 {
 }
 ```
-**Grading (Step 2.2 & 2.3 – 5 points):**
-- Code organized into three files (`buzzer`, `lux`, `mic`).
-- All screens switch correctly.
-- Compilation succeeds without warnings.
-- No functionality yet; just placeholders.
+**Grading (Step 2.2 – 6 points):**
+- `screen_lux.cpp` created and contains `ScreenLux_Init()` and `ScreenLux_Draw()` (3 pts).
+- Drawing helpers (e.g., `DrawBar()`) present and callable from `main.cpp` (2 pts).
+- Project compiles and navigation remains functional (1 pt).
+
+**Grading (Step 2.3 – 6 points):**
+- `screen_mic.cpp` created and contains `ScreenMic_Init()` and `ScreenMic_Draw()` (3 pts).
+- ADC placeholders / ADC init stubs are present and compile (2 pts).
+- Project compiles and navigation remains functional (1 pt).
 ---
 
 ## Part 3 — Add Screen Functionality
@@ -474,10 +510,17 @@ Microphone Level
    rel="noopener noreferrer"
 />
 
-**Grading (Step 3 – 10 points):**
-- Correct sensor initialization and data reading.  
-- Bars visually respond to sensor input.  
-- Smooth updates without freezing the UI.  
+**Grading (Step 3 – 45 points):**
+- Ambient Light (LUX) functionality — 25 points total:
+  - OPT3001 correctly initialized and read (10 pts).
+  - Lux value converted to percentage and numeric lux shown (7 pts).
+  - Horizontal bar visual responds proportionally and updates smoothly (5 pts).
+  - Non-blocking reads and UI remains responsive (3 pts).
+- Microphone (MIC) functionality — 20 points total:
+  - ADC configured and reads microphone channel AIN8 / PE5 (8 pts).
+  - Level computed (average or RMS) and displayed numerically if required (5 pts).
+  - Vertical bar visual responds to sound intensity and updates smoothly (5 pts).
+  - Non-blocking sampling and UI responsiveness (2 pts).
 
 ---
 ## Part 4 - Additional Screens 
@@ -719,10 +762,41 @@ void ScreenAccel_Draw(void)
 
 ---
 
-## 🧩 Integration Tip
+**Grading (Part 4 – 10 points):**
+- Joystick Screen: 5 points — visual dot and numeric X/Y, draws inside boundary and updates smoothly.
+- Accelerometer Ball Screen: 5 points — ball responds to accelerometer, bounces correctly and remains stable.
 
-To integrate these screens into your main program:
+## Integration Tip
 
+To integrate these screens into your main program remember to include their headers and extern declarations in `main.cpp`:
+```c
+extern void ScreenJoystick_Init(void);
+extern void ScreenJoystick_Draw(void);
+extern void ScreenAccel_Init(void);
+extern void ScreenAccel_Draw(void);
+
+// Helper wrappers so other modules can easily check button state
+bool btnLeft_isPressed()  { return btnLeft.isPressed(); }
+bool btnRight_isPressed() { return btnRight.isPressed(); }
+```
+And add to the `ScreenID` enum and the main screen switch statement:
+
+```c
+
+// ============================================================================
+// Screen management and navigation
+// ============================================================================
+// Each screen is identified by an enum ID. The system cycles through them.
+enum ScreenID {
+    SCREEN_LUX = 0,
+    SCREEN_MIC,
+    SCREEN_JOYSTICK,
+    SCREEN_ACCEL,   // New accelerometer screen
+    SCREEN_COUNT
+};
+```
+
+and finally in the main loop's screen drawing section:
 ```c
 switch (currentScreen) {
   case SCREEN_JOYSTICK:
@@ -738,66 +812,12 @@ Each screen should be updated approximately **20–50 times per second** (every 
 
 ---
 
+### Submitting Source Code
 
-## 🧠 Summary of Graded Steps
+**Exporting project:**
 
-| Step | Task | Description | Points |
-| :--- | :--- | :----------- | :----: |
-| 1 | Add Sound Feedback | Use PWM buzzer to play tones on S1/S2 press | 5 |
-| 2 | Code Organization | Move each module to its own `.cpp` file | 5 |
-|   2.1 | Buzzer Module | All buzzer logic separated | 5 |
-|   2.2 | Lux Module | Screen 1 structured correctly | 5 |
-|   2.3 | Microphone Module | Screen 2 structured correctly | 5 |
-| 3 | Screen Functionality | Add bars responding to sensors | 10 |
-|    | **Total** |  | **30 points** |
-
----
-
-## 🧭 Navigation Summary
-
-The navigation logic in `main.cpp` is already implemented:
-
-| Button | Action |
-| ------- | ------- |
-| **S1** | Go to previous screen |
-| **S2** | Go to next screen |
-| **Circular Carousel** | After the last screen, loops back to the first |
-
-You can later extend this structure with more screens (e.g., joystick, accelerometer) as future exercises.
-
----
-
-## ✅ Expected Results
-
-By the end of this lab:
-
-* Pressing S1/S2 plays a tone and changes the screen.  
-* The program compiles and runs cleanly with modular files.  
-* The **LUX** screen shows a horizontal brightness bar.  
-* The **MIC** screen shows a vertical audio-level bar.  
-* Code is cleanly organized and easy to expand.
-
----
-
-## 📦 Deliverables
-
-Submit the following for evaluation:
-
-1. **CCS project folder** containing all `.cpp` files.  
-2. **Demo video** (≈ 30 s) showing screen navigation and buzzer feedback.  
-3. **README.md** explaining your file structure and sensor logic.
-
----
-
-## 💬 Instructor Notes
-
-This lab transitions students from single-file prototypes to **modular embedded projects**.  
-Emphasize:
-
-* Incremental testing (compile → run → refactor)
-* Avoiding global clutter
-* Using clear filenames and consistent naming (e.g. `ScreenX_Init/Draw`)
-
-Students who finish early can add a **third screen (Joystick)** as an optional challenge.
-
+1. Ensure project named `ece3849_lab1_<username>`.
+2. Right‑click the project → `Export...` → `General` → `Archive File`.
+3. Choose the output path and filename equal to the project name (`ece3849_lab1_<username>.zip`).
+4. Upload `.zip` to Canvas.
 ---
