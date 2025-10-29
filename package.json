@@ -37,7 +37,8 @@
     "starlight-site-graph": "^0.5.0"
   },
   "overrides": {
-    "path-to-regexp": "6.3.0"
+    "path-to-regexp": "6.3.0",
+    "picomatch": "^4.0.3"
   },
   "devDependencies": {
     "zip-lib": "^1.1.2"
