@@ -88,6 +88,11 @@ export default defineConfig({
 			],
 		}),
 	],
+	vite: {
+		define: {
+			'process.env': {},
+		},
+	},
 	adapter: vercel({
 		webAnalytics: {
 			enabled: true,
