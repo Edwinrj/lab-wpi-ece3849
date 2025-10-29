@@ -13,6 +13,9 @@ import starlightSiteGraph from 'starlight-site-graph'
 
 // https://astro.build/config
 export default defineConfig({
+    site: 'https://ece3849.wpiembedded.com',
+    // Ensure paths match sitemap keys with trailing slashes
+    trailingSlash: 'always',
 	integrations: [
 		decapCmsOauth(),
 		mermaid({
