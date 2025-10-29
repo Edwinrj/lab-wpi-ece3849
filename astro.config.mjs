@@ -77,17 +77,21 @@ export default defineConfig({
 					reactions: true,
 					lazy: true,
 				}),
-				starlightSiteGraph({
-					sitemapConfig: {
-						contentRoot: "./src/content/docs",
-					},
-					graphConfig: {
-						depth: 2,
-						repelForce: 350,
-						linkDistance: 75,
-						colliderPadding: 50
-					}
-				}),
+					starlightSiteGraph({
+						sitemapConfig: {
+							contentRoot: "./src/content/docs",
+						},
+						graphConfig: {
+							depth: 2,
+							repelForce: 350,
+							linkDistance: 75,
+							colliderPadding: 50
+						},
+						backlinks: true,
+						backlinksConfig: {
+							visibilityRules: ["**/*"],
+						}
+					}),
 			],
 		}),
 	],
