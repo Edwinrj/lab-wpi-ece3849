@@ -82,13 +82,15 @@ export default defineConfig({
 							contentRoot: "./src/content/docs",
 							includeExternalLinks: true,
 							linkInclusionRules: ["**/*", "https://**"],
+							ignoreLinksInSelectors: [],
+							ignoreStarlightLinks: false,
 						},
 						graphConfig: {
 							depth: 3,
 							depthDirection: "outgoing",
-							repelForce: 350,
-							linkDistance: 75,
-							colliderPadding: 50
+							repelForce: 200,
+							linkDistance: 20,
+							colliderPadding: 10
 						},
 						backlinks: true,
 						backlinksConfig: {
