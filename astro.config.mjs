@@ -76,7 +76,7 @@ export default defineConfig({
 				}),
 				starlightSiteGraph({
 					sitemapConfig: {
-						contentRoot: "./src",
+						contentRoot: "src/content/docs",
 					},
 					graphConfig: {
 						depth: 2,
