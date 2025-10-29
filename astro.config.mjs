@@ -8,6 +8,7 @@ import starlightScrollToTop from 'starlight-scroll-to-top';
 import starlightGiscus from 'starlight-giscus';
 import starlightGitHubAlerts from 'starlight-github-alerts'
 import starlightImageZoom from 'starlight-image-zoom'
+import starlightSiteGraph from 'starlight-site-graph'
 
 // https://astro.build/config
 export default defineConfig({
@@ -71,6 +72,12 @@ export default defineConfig({
 					categoryId: 'DIC_kwDOPKCuO84Cswiv',
 					reactions: true,
 					lazy: true,
+				}),
+				starlightSiteGraph({
+					debug: false,       // See "General Settings"
+					sitemapCongig: {},    // See "Sitemap Settings"
+					graphConfig: {},      // See "Graph Settings"
+					backlinksConfig: {},    // See "Backlinks Settings"
 				}),
 			],
 		}),
