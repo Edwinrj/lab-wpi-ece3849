@@ -78,6 +78,7 @@ export default defineConfig({
 					lazy: true,
 				}),
 					starlightSiteGraph({
+						trackVisitedPages: 'local',
 						sitemapConfig: {
 							contentRoot: "./src/content/docs",
 							includeExternalLinks: true,
@@ -86,11 +87,12 @@ export default defineConfig({
 							ignoreStarlightLinks: false,
 						},
 						graphConfig: {
-							depth: 3,
+							tagRenderMode: "node",
+							depth: 1,
 							depthDirection: "outgoing",
 							repelForce: 200,
 							linkDistance: 20,
-							colliderPadding: 10
+							colliderPadding: 25
 						},
 						backlinks: true,
 						backlinksConfig: {
