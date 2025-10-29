@@ -75,11 +75,15 @@ export default defineConfig({
 					lazy: true,
 				}),
 				starlightSiteGraph({
-					debug: false,
-					overridePageSidebar: false,
-					graph: true,
-					backlinks: true,
-					trackVisitedPages:  'local',
+					sitemapConfig: {
+						contentRoot: "./src",
+					},
+					graphConfig: {
+						depth: 2,
+						repelForce: 350,
+						linkDistance: 75,
+						colliderPadding: 50
+					}
 				}),
 			],
 		}),
