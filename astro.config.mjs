@@ -80,9 +80,12 @@ export default defineConfig({
 					starlightSiteGraph({
 						sitemapConfig: {
 							contentRoot: "./src/content/docs",
+							includeExternalLinks: true,
+							linkInclusionRules: ["**/*", "https://**"],
 						},
 						graphConfig: {
-							depth: 2,
+							depth: 3,
+							depthDirection: "outgoing",
 							repelForce: 350,
 							linkDistance: 75,
 							colliderPadding: 50
