@@ -72,13 +72,9 @@ The microphone output fluctuates around a DC midpoint (~0.5 V).
 To measure **loudness**, we take multiple samples, remove the DC offset, and compute the **RMS value**:
 
 ```c
-#include <math.h>
-#include <stdint.h>
-
-float Mic_Level_dB(void)
+float Mic_Level(void)
 {
-    const int N = 128;        // number of samples
-    const float REF = 0.5f;   // reference RMS (max amplitude)
+    const int N = 128;   // number of samples
     float sum = 0.0f;
 
     for (int i = 0; i < N; i++) {
@@ -88,16 +84,11 @@ float Mic_Level_dB(void)
         sum += ac * ac;                   // accumulate squared amplitude
     }
 
-    float rms = sqrtf(sum / N);
-    float db = 20.0f * log10f(rms / REF);
-
-    // Avoid -inf for silence
-    if (rms < 1e-6f)
-        db = -80.0f;  // minimum floor
-
-    return db;  // dB value: roughly -80 (silence) to 0 (max)
+    float rms = sqrtf(sum / N);           // root mean square
+    return rms;                           // 0.0 (silent) → ~0.5 (loud)
 }
 ```
+
 ---
 
 ## Tips
