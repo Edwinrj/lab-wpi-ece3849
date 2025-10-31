@@ -1,0 +1,212 @@
+---
+title: "FreeRTOS Project Setup"
+description: "Skeleton checklist to prepare a CCS project to use FreeRTOS on EK‑TM4C1294XL."
+tags:
+  - freertos
+links:
+  - "/guides/freertos/"
+  - "/guides/labtimeline/"
+---
+import { Picture } from 'astro:assets';
+import { Aside } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
+import { Icon } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { FileTree } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+<CardGrid>
+   <LinkCard
+  title="Download FreeRTOS"
+  description="Download the FreeRTOS kernel source code."
+  href="/assets/libraries/FreeRTOS.zip"
+  icon="right-arrow"
+/>
+   <LinkCard
+      title="FreeRTOS Guide"
+      description="Learn the basics of FreeRTOS in our comprehensive guide."
+      href="/guides/freertos/"
+      icon="cpu"
+   />
+   <LinkCard
+      title="Back to Lab Summary"
+      description="Return to the list of all labs."
+      href="/guides/labtimeline/"
+      icon="right-arrow"
+   />
+</CardGrid>
+
+
+## Library structure
+The folder structure of FreeRTOS kernel source (after unzipping):
+
+<FileTree>
+- FreeRTOS.h        # FreeRTOS kernel header
+- FreeRTOSConfig.h  # User configuration for your project 
+- startup_ccs.c     # TivaWare startup file (vector table)
+- FreeRTOS          # Kernel source
+      - include
+        - FreeRTOS.h
+        - task.h
+        - queue.h
+        - semphr.h
+        - ... (other headers)
+      - portable
+        - CCS
+          - ARM_CM4F
+            - port.c
+            - portasm.asm
+          - MemMang
+            - heap_4.c
+      - tasks.c
+      - queue.c
+      - list.c
+      - ... (other source files)
+</FileTree>
+
+## Create a bare CCS project for EK‑TM4C1294XL
+Follow these steps to set up a minimal project in Code Composer Studio (CCS):
+<Steps>
+<ol>
+  <li>
+    Open CCS and select folder for new workspace. (we recommend a dedicated workspace)
+    <img src="/assets/images/new_workspace.png" alt="CCS workspace selection"  width={400}/>
+  </li>
+
+  <li>
+    Create a new CCS project in `file → New → CCS Project`.
+  </li>
+
+  <li>
+  Configure project settings:
+    - Target: `Tiva C Series` `TM4C1294NCPDT`   
+    - Connection: `Stellaris in-circuit debug interface`
+    - project name: e.g., `Lab2_FreeRTOS`
+    - Compiler version: `TI v20.2.7LTS` or later
+    - Project templates and examples: select `Empty Project`
+  </li>
+</ol>
+</Steps>
+
+## Add FreeRTOS source files
+To add FreeRTOS to your project, follow these steps:
+<Steps>
+<ol>
+<li>
+    Copy the files provided on the zip into workspace folder
+    <img src="/assets/images/workspace_structure.png" alt="CCS project folder structure"  width={200}/>
+</li>
+    <li>
+    Move the following files into your project folder (on the image above, into `Lab2_FreeRTOS` folder):
+    - FreeRTOS.h
+    - FreeRTOSConfig.h
+    - startup_ccs.c
+    <img src="/assets/images/freertos_structure.png" alt="CCS project files"  width={150}/>
+    </li>
+    <li>
+    Remove the file `tm4c1294ncpdt_startup_ccs.c` that CCS created by default. You will use the provided `startup_ccs.c` instead.
+    </li>
+    <li>
+    Add FreeRTOS folder to your project in CCS, the easy way is drag -and-drop from your file explorer into the CCS Project Explorer and into the pop up windows select link to files an recreate folder structure with virtual folders relative to `PROJECT_LOC`.
+    **Never copy those file into the project**
+    <img src="/assets/images/link_freertos.png" alt="Adding FreeRTOS files to CCS project"  width={300}/>
+    </li>
+    <li>
+    Say yes to the pop up window to adjust include paths automatically and check `do this for all headers files ... `.
+    <img src="/assets/images/compiler_path.png" alt="Adjusting include paths in CCS"  width={400}/>
+    </li>
+    <li>
+    Right click on the `project-> Properties -> Arm Linker -> Basic option` and set C system stack size to 2048
+    <img src="/assets/images/stack.png" alt="Setting stack size in CCS"  width={400}/>
+    </li>
+    <li>
+    Check the include patths on `project-> Properties -> Build -> Compiler -> Include Options` to verify that the FreeRTOS include paths where added correctly.
+    <img src="/assets/images/freertos_includes.png" alt="Include paths in CCS"  width={400}/>
+    </li>   
+</ol>
+</Steps>
+
+Add these to your project (keep folder structure or group logically):
+- `FreeRTOS-Kernel\Source\*.c`
+- `FreeRTOS-Kernel\Source\portable\CCS\ARM_CM4F\port.c`
+- `FreeRTOS-Kernel\Source\portable\CCS\ARM_CM4F\portasm.asm`
+- Exactly one heap scheme from `FreeRTOS-Kernel\Source\portable\MemMang\heap_4.c` (or `heap_5.c`)
+
+## First test project
+Create a simple `main.cpp` with rigth click on the project -> New -> Source File and name it `main.cpp`. Add the following code:
+
+```c
+#include <stdint.h>
+#include <stdbool.h>
+#include "FreeRTOS.h"
+#include "task.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+#include "driverlib/pin_map.h"
+#include "inc/hw_memmap.h"
+
+// LED1: PN0 (D1 Verde) - LED2: PN1 (D2 Azul)
+#define LED1_PORT GPIO_PORTN_BASE
+#define LED1_PIN  GPIO_PIN_0
+
+#define LED2_PORT GPIO_PORTN_BASE
+#define LED2_PIN  GPIO_PIN_1
+
+void LED1_Task(void *pvParameters) {
+    while (1) {
+        GPIOPinWrite(LED1_PORT, LED1_PIN, LED1_PIN);  // Encender
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        GPIOPinWrite(LED1_PORT, LED1_PIN, 0);         // Apagar
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
+
+void LED2_Task(void *pvParameters) {
+    while (1) {
+        GPIOPinWrite(LED2_PORT, LED2_PIN, LED2_PIN);  // Encender
+        vTaskDelay(pdMS_TO_TICKS(200));
+        GPIOPinWrite(LED2_PORT, LED2_PIN, 0);         // Apagar
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
+
+int main(void) {
+    // Configurar reloj a 120 MHz
+    uint32_t sysClock = SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
+        120000000
+    );
+
+    // Habilitar periféricos GPIO
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION));
+
+    // Configurar pines como salida
+    GPIOPinTypeGPIOOutput(LED1_PORT, LED1_PIN | LED2_PIN);
+
+    // Crear tareas
+    xTaskCreate(LED1_Task, "LED1", 128, NULL, 1, NULL);
+    xTaskCreate(LED2_Task, "LED2", 128, NULL, 1, NULL);
+
+    // Iniciar scheduler
+    vTaskStartScheduler();
+
+    // Nunca debe llegar aquí
+    while (1);
+}
+
+
+void vApplicationIdleHook(void) {
+    // Puedes poner bajo consumo aquí si quieres
+}
+
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
+    // Aquí podrías encender un LED de error o hacer un loop infinito
+    while (1);
+}
+
+```
+
+
+When you’re ready, expand this skeleton with your exact paths, clock configuration code, and the tasks you need for your lab.
