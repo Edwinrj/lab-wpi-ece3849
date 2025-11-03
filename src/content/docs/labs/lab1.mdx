@@ -87,7 +87,7 @@ Each stage will be checked and graded individually.
 | 1 | Add Sound Feedback | Use PWM buzzer to play tones on S1/S2 press | 15 |
 | 2.1 | Buzzer Module | All buzzer logic separated into `buzzer.cpp` | 10 |
 | 2.3 | Microphone Module | `screen_mic.cpp` created and integrated | 10 |
-| 3 | MIC Functionality | ADC reads, level calculation and vertical bar | 30 |
+| 3 | MIC Functionality | ADC reads, level calculation and vertical bar with color display | 30 |
 | 4 | Joystick Screen | Moving dot and coordinate display | 5 |
 | 4.2 | Accelerometer Ball | Bouncing ball affected by tilt | 5 |
 |   | Lab report | Written lab report (See Lab report guidelines on canvas) | 25 |
@@ -496,7 +496,7 @@ Example:
 
 * Configure the **ADC** to read microphone input (PE5 → AIN8).
 * Calculate a simple average level or RMS amplitude.
-* Draw a **vertical bar** that grows with sound intensity.
+* Draw a **vertical bar** that grows and changes in color with sound intensity.
 
 Example:
 
@@ -514,16 +514,11 @@ Example:
 />
 
 **Grading (Step 3 – 30 points):**
-- Ambient Light (LUX) functionality — 17 points total:
-  - OPT3001 correctly initialized and read (7 pts).
-  - Lux value converted to percentage and numeric lux shown (5 pts).
-  - Horizontal bar visual responds proportionally and updates smoothly (3 pts).
-  - Non-blocking reads and UI remains responsive (2 pts).
 - Microphone (MIC) functionality — 13 points total:
-  - ADC configured and reads microphone channel AIN8 / PE5 (5 pts).
-  - Level computed (average or RMS) and displayed numerically if required (3 pts).
-  - Vertical bar visual responds to sound intensity and updates smoothly (3 pts).
-  - Non-blocking sampling and UI responsiveness (2 pts).
+  - ADC configured and reads microphone channel AIN8 / PE5 (12 pts).
+  - Level computed (average or RMS) and displayed numerically if required (7 pts).
+  - Vertical bar visual responds to sound intensity and updates smoothly (7 pts).
+  - Non-blocking sampling and UI responsiveness (4 pts).
 
 ---
 ## Part 4 - Additional Screens 
