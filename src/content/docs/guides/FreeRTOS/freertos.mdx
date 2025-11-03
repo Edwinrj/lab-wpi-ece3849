@@ -248,7 +248,68 @@ After `vTaskStartScheduler()`, you normally never return to `main()`. The OS is 
 
 ---
 
-## 6. Minimal Example (2 Tasks)
+## 6. Additional Notes on Tasks and Stack Size
+
+This lab uses FreeRTOS tasks extensively. The following notes clarify how to create tasks and choose an appropriate stack size.
+
+### `xTaskCreate` parameters
+
+```c
+BaseType_t xTaskCreate(
+    TaskFunction_t pvTaskCode,       // Task entry: void (*)(void *)
+    const char * const pcName,       // Debug/trace-friendly name
+    configSTACK_DEPTH_TYPE usStackDepth, // Stack size (in words)
+    void * const pvParameters,       // Argument passed to the task
+    UBaseType_t uxPriority,          // Priority (relative to idle)
+    TaskHandle_t * const pxCreatedTask // Optional handle out
+);
+```
+Prototype (simplified for reference):
+
+```c
+BaseType_t xTaskCreate(
+    TaskFunction_t pvTaskCode,       // Task entry: void (*)(void *)
+    const char * const pcName,       // Debug/trace-friendly name
+    configSTACK_DEPTH_TYPE usStackDepth, // Stack size (in words)
+    void * const pvParameters,       // Argument passed to the task
+    UBaseType_t uxPriority,          // Priority (relative to idle)
+    TaskHandle_t * const pxCreatedTask // Optional handle out
+);
+```
+
+Example:
+
+```c
+xTaskCreate(TimeTask, "Time", 512, NULL, tskIDLE_PRIORITY + 3, NULL);
+```
+
+<Aside type="tip" title="Stack units">
+On ARM Cortex‑M ports, `usStackDepth` is specified in words (4 bytes), not bytes. For example, `512` equals 2048 bytes of stack.
+</Aside>
+
+### Choosing a stack size
+
+- Start with 512 words (≈2 KB) for medium tasks like timekeeping and display.
+- Lightweight tasks (e.g., button scanning) can often start at 256 words.
+- Avoid large local arrays and recursion inside tasks; move buffers to static storage if needed.
+- Measure and trim: call `uxTaskGetStackHighWaterMark(NULL)` in the task to log the minimum free stack observed, then reduce conservatively.
+- Enable overflow checks: set `configCHECK_FOR_STACK_OVERFLOW` to `2` and implement `vApplicationStackOverflowHook()` for safety.
+- Use `configMINIMAL_STACK_SIZE` as a baseline for very simple tasks; do not go below it.
+
+<Aside type="note" title="Static allocation option">
+If dynamic allocation is restricted, use `xTaskCreateStatic` with a user‑provided stack array and TCB:
+
+```c
+static StackType_t timeStack[512];
+static StaticTask_t timeTCB;
+(void)xTaskCreateStatic(TimeTask, "Time",
+                        512, NULL, tskIDLE_PRIORITY + 3,
+                        timeStack, &timeTCB);
+```
+</Aside>
+
+---
+## 7. Minimal Example (2 Tasks)
 This example shows two tasks on a TM4C1294XL.
 - Task 1: blink LED1 (PN0) every 2000 ms
 - Task 2: blink LED2 (PN1) every 200 ms
@@ -306,7 +367,7 @@ int main(void) {
 
 ---
 
-## 7. Task States (important for debugging)
+## 8. Task States (important for debugging)
 A task in FreeRTOS can be:
 - **Running** – it's currently using the CPU.
 - **Ready** – it could run, but something else with higher or equal priority is running.
@@ -317,7 +378,7 @@ Why you care: if a task is *Blocked* most of the time, that's actually good. It 
 
 ---
 
-## 8. Golden Rules for Writing Good FreeRTOS Tasks
+## 9. Golden Rules for Writing Good FreeRTOS Tasks
 1. **Do not busy-wait**. Use `vTaskDelay()` instead of `for(;;){}` loops that burn cycles.
 2. **Keep tasks focused.** One task = one job.
 3. **Give critical tasks higher priority.** Example: safety shutdown logic.
@@ -329,7 +390,7 @@ Why you care: if a task is *Blocked* most of the time, that's actually good. It 
 
 ---
 
-## 9. Where we're going next in lab
+## 10. Where we're going next in lab
 After you understand tasks and `vTaskDelay()`, the next steps are:
 1. **Queues** – pass sensor data from an ISR / producer task to a consumer task.
 2. **Semaphores / Mutexes** – protect shared peripherals like I2C or SPI.
@@ -340,7 +401,7 @@ That is basically 80% of practical FreeRTOS in real embedded products.
 
 ---
 
-## 10. Vocabulary Recap
+## 11. Vocabulary Recap
 - What is a task?
 - What does the scheduler do?
 - What is the tick rate?

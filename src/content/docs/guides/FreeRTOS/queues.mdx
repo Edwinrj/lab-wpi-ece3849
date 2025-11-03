@@ -1,0 +1,116 @@
+---
+title: "Queues: Task-to-Task and ISR Communication"
+description: "Send values or structs between tasks and from ISRs using FreeRTOS queues."
+tags:
+  - freertos
+links:
+  - "/guides/freertos/"
+---
+import { Aside } from '@astrojs/starlight/components';
+
+## Overview
+Queues are thread-safe FIFO buffers managed by the kernel. Use them to:
+- Pass sensor samples from an ISR to a processing task
+- Decouple producers and consumers with buffering
+- Send typed data (e.g., structs) safely
+
+Key APIs:
+- `xQueueCreate(length, item_size)`
+- `xQueueSend()` / `xQueueReceive()`
+- `xQueueSendFromISR()` for interrupts
+- `xQueuePeek()` to inspect without removing
+- `uxQueueMessagesWaiting()` to see backlog size
+
+## Create a Queue
+```c
+#include "FreeRTOS.h"
+#include "queue.h"
+
+typedef struct {
+  uint32_t timestamp;
+  int16_t value;
+} Sample;
+
+QueueHandle_t qSamples;
+
+void app_init(void){
+  qSamples = xQueueCreate(16, sizeof(Sample));
+}
+```
+
+## Producer (Task)
+```c
+static void Producer(void *arg){
+  (void)arg; Sample s; TickType_t t0;
+  for(;;){
+    t0 = xTaskGetTickCount();
+    s.timestamp = t0; s.value = read_adc();
+    xQueueSend(qSamples, &s, pdMS_TO_TICKS(5)); // short wait if full
+    vTaskDelay(pdMS_TO_TICKS(2));
+  }
+}
+```
+
+## Consumer (Task)
+```c
+static void Consumer(void *arg){
+  (void)arg; Sample s;
+  for(;;){
+    if (xQueueReceive(qSamples, &s, portMAX_DELAY) == pdTRUE){
+      process(s);
+    }
+  }
+}
+```
+
+## Producer (ISR)
+```c
+void ADC_IRQHandler(void){
+  BaseType_t higher = pdFALSE;
+  Sample s = { .timestamp = xTaskGetTickCountFromISR(), .value = HW_ADC_RESULT() };
+  xQueueSendFromISR(qSamples, &s, &higher);
+  portYIELD_FROM_ISR(higher);
+}
+```
+
+<Aside type="caution">
+Inside ISRs use `xQueueSendFromISR()` and `xTaskGetTickCountFromISR()`.
+</Aside>
+
+## Peek Without Removing
+```c
+Sample head;
+if (xQueuePeek(qSamples, &head, 0) == pdTRUE) {
+  // inspect earliest item but keep it in the queue
+}
+```
+
+## Backpressure and Sizing
+- Use `uxQueueMessagesWaiting(q)` to monitor backlog and tune length.
+- If producers outpace consumers, increase queue length or reduce production rate.
+- Prefer bounded waits (short timeouts) instead of `portMAX_DELAY` for robustness.
+
+## Pattern: Command Queue
+```c
+typedef enum { CMD_LED_ON, CMD_LED_OFF, CMD_SET_PWM } CmdId;
+typedef struct { CmdId id; uint16_t arg; } Cmd;
+QueueHandle_t qCmd;
+
+void LedTask(void *p){
+  Cmd c;
+  for(;;){
+    if (xQueueReceive(qCmd, &c, portMAX_DELAY)){
+      switch(c.id){
+        case CMD_LED_ON:  led_on();  break;
+        case CMD_LED_OFF: led_off(); break;
+        case CMD_SET_PWM: set_pwm(c.arg); break;
+      }
+    }
+  }
+}
+
+// elsewhere
+Cmd c = { .id = CMD_SET_PWM, .arg = 50 };
+xQueueSend(qCmd, &c, pdMS_TO_TICKS(10));
+```
+

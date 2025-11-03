@@ -1,0 +1,71 @@
+---
+title: "System Utilities"
+description: "Inspect tasks and queues at runtime and fetch task handles for diagnostics."
+tags:
+  - freertos
+links:
+  - "/guides/freertos/"
+---
+import { Aside } from '@astrojs/starlight/components';
+
+## Overview
+Helpful utilities when debugging and tuning a system:
+- `vTaskList()` — table of all tasks and states
+- `vTaskGetInfo()` — details for a specific task
+- `uxQueueMessagesWaiting()` — items currently in a queue
+- `xTaskGetCurrentTaskHandle()` — handle of the running task
+
+Enable stats formatting in `FreeRTOSConfig.h`:
+```c
+#define configUSE_TRACE_FACILITY              1
+#define configUSE_STATS_FORMATTING_FUNCTIONS  1
+```
+
+## List All Tasks
+```c
+#include "FreeRTOS.h"
+#include "task.h"
+
+void print_task_table(void){
+  char buf[512];
+  vTaskList(buf); // Name     State  Prio Stack Num
+  uart_puts("Task           State Prio  Watermark\n");
+  uart_puts(buf);
+}
+```
+
+<Aside type="tip">
+"Watermark" shows minimum remaining stack (higher is safer). If very low, increase that task's stack.
+</Aside>
+
+## Get Info for One Task
+```c
+void dump_task(TaskHandle_t h){
+  TaskStatus_t s;
+  vTaskGetInfo(h, &s, pdTRUE /*include stack high watermark*/, eInvalid);
+  // now s contains name, state, priority, watermark, etc.
+}
+```
+
+## Queue Backlog
+```c
+#include "queue.h"
+extern QueueHandle_t qSamples;
+
+void monitor(void){
+  UBaseType_t n = uxQueueMessagesWaiting(qSamples);
+  if (n > 12) { uart_puts("Consumer falling behind!\n"); }
+}
+```
+
+## Current Task Handle
+```c
+TaskHandle_t me = xTaskGetCurrentTaskHandle();
+// e.g., self-suspend:
+vTaskSuspend(me);
+```
+
+## Notes
+- `vTaskList()` and stats require enough buffer space and enabled config macros.
+- Avoid calling these utilities in time-critical paths; use them for debugging and telemetry.
+

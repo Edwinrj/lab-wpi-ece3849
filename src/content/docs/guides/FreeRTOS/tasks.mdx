@@ -1,0 +1,166 @@
+---
+title: "Tasks: Creation and Control"
+description: "How to create, run, suspend, resume, delay, and delete FreeRTOS tasks with precise timing."
+tags:
+  - freertos
+links:
+  - "/guides/freertos/"
+---
+import { Aside } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
+
+## Overview
+Tasks are lightweight threads scheduled by FreeRTOS. This guide covers:
+- `xTaskCreate()` to make tasks
+- `vTaskStartScheduler()` to start the kernel
+- `vTaskDelay()` and `vTaskDelayUntil()` for timing
+- `vTaskSuspend()` and `vTaskResume()` for pausing/resuming
+- `vTaskDelete()` to finish a task
+- `xTaskGetTickCount()` for time base
+- `uxTaskGetStackHighWaterMark()` to check stack usage
+
+<Aside type="tip">
+Use `pdMS_TO_TICKS(ms)` for readable delays. Never busy-wait.
+</Aside>
+
+## Minimal Pattern
+```c
+#include "FreeRTOS.h"
+#include "task.h"
+
+static void BlinkTask(void *arg) {
+  const TickType_t period = pdMS_TO_TICKS(500);
+  TickType_t next = xTaskGetTickCount();
+  (void)arg;
+
+  for (;;) {
+    // TODO: toggle LED here
+    // Periodic execution with low jitter:
+    vTaskDelayUntil(&next, period);
+  }
+}
+
+int main(void) {
+  // hw init ...
+  xTaskCreate(BlinkTask, "blink", 256, NULL, 1, NULL);
+  vTaskStartScheduler();
+  for(;;){} // should never reach
+}
+```
+
+## Creating Tasks: `xTaskCreate()`
+```c
+BaseType_t xTaskCreate(
+  TaskFunction_t pxTaskCode,
+  const char * const pcName,
+  const configSTACK_DEPTH_TYPE usStackDepth,
+  void *pvParameters,
+  UBaseType_t uxPriority,
+  TaskHandle_t *pxCreatedTask);
+```
+- `usStackDepth` is in words (not bytes) for most ports.
+- Use a handle if you plan to suspend/resume/delete the task later.
+
+Example with handles and parameters:
+```c
+typedef struct { int id; uint32_t period_ms; } TaskCfg;
+
+static void Worker(void *arg) {
+  TaskCfg cfg = *(TaskCfg*)arg;
+  TickType_t next = xTaskGetTickCount();
+  for (;;) {
+    // do work specific to cfg.id
+    vTaskDelayUntil(&next, pdMS_TO_TICKS(cfg.period_ms));
+  }
+}
+
+TaskHandle_t hA, hB;
+TaskCfg a={.id=0,.period_ms=100}, b={.id=1,.period_ms=20};
+xTaskCreate(Worker, "A", 256, &a, 2, &hA);
+xTaskCreate(Worker, "B", 256, &b, 3, &hB);
+```
+
+## Delays and Periodic Timing
+- `vTaskDelay(ticks)` blocks the task for a relative time.
+- `vTaskDelayUntil(&last, period)` runs jobs periodically with minimal drift.
+
+Template for precise periodic tasks:
+```c
+TickType_t last = xTaskGetTickCount();
+const TickType_t period = pdMS_TO_TICKS(10);
+for (;;) {
+  // work
+  vTaskDelayUntil(&last, period);
+}
+```
+
+## Suspend and Resume
+```c
+// from any task context
+vTaskSuspend(hA);   // pause task A
+// ... later
+vTaskResume(hA);    // resume task A
+```
+Common pattern: suspend a sensor task while reconfiguring the bus, then resume.
+
+## Deleting Tasks
+```c
+vTaskDelete(NULL);  // delete self
+// or
+vTaskDelete(hB);    // delete another task
+```
+Use deletion when a task has a finite job (e.g., one-shot calibration) to free its stack.
+
+## Tick Count and Time
+```c
+TickType_t now = xTaskGetTickCount();          // ticks since boot
+uint32_t ms = (now * 1000) / configTICK_RATE_HZ; // convert to ms
+```
+Prefer `pdMS_TO_TICKS(ms)` instead of manual math for delays.
+
+## Measuring Stack Usage
+```c
+UBaseType_t water = uxTaskGetStackHighWaterMark(NULL); // own task
+// Smaller value => less headroom; log during debug
+```
+Enable stack overflow detection in `FreeRTOSConfig.h` for safety.
+
+## Complete Example: Two Tasks + Suspend/Resume
+```c
+#include "FreeRTOS.h"
+#include "task.h"
+
+static TaskHandle_t hBlink = NULL;
+
+static void Blink(void *arg) {
+  (void)arg;
+  TickType_t next = xTaskGetTickCount();
+  for (;;) {
+    // toggle LED
+    vTaskDelayUntil(&next, pdMS_TO_TICKS(200));
+  }
+}
+
+static void Controller(void *arg) {
+  (void)arg;
+  for (;;) {
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    vTaskSuspend(hBlink);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    vTaskResume(hBlink);
+  }
+}
+
+int main(void) {
+  // hw init ...
+  xTaskCreate(Blink, "blink", 256, NULL, 1, &hBlink);
+  xTaskCreate(Controller, "ctl", 256, NULL, 1, NULL);
+  vTaskStartScheduler();
+  for(;;){}
+}
+```
+
+<Aside type="caution">
+Do not call blocking APIs from ISRs. Use `...FromISR` variants in interrupts.
+</Aside>
+

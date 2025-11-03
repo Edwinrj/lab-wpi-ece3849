@@ -1,0 +1,77 @@
+---
+title: "System Hooks"
+description: "Implement optional application hooks for idle, tick, malloc failure, and stack overflow."
+tags:
+  - freertos
+links:
+  - "/guides/freertos/"
+---
+import { Aside } from '@astrojs/starlight/components';
+
+## Overview
+FreeRTOS can call user functions at specific kernel events:
+- `vApplicationIdleHook()` — CPU has no runnable tasks
+- `vApplicationTickHook()` — every system tick interrupt
+- `vApplicationMallocFailedHook()` — heap allocation failed
+- `vApplicationStackOverflowHook()` — a task overflowed its stack
+
+Enable hooks in `FreeRTOSConfig.h`:
+```c
+#define configUSE_IDLE_HOOK            1
+#define configUSE_TICK_HOOK            1
+#define configUSE_MALLOC_FAILED_HOOK   1
+#define configCHECK_FOR_STACK_OVERFLOW 2
+#define configUSE_TRACE_FACILITY       1  // useful for diagnostics
+```
+
+## Idle Hook
+Runs when no task is ready to run. Keep it short and non-blocking.
+```c
+void vApplicationIdleHook(void){
+  // Optionally enter low power, blink a LED slowly, or run background checks
+  // Never block here. Do minimal work.
+}
+```
+
+## Tick Hook
+Called on each tick interrupt. Keep it extremely short; use only `...FromISR` APIs.
+```c
+void vApplicationTickHook(void){
+  // DO: increment counters; very small work
+  // DO NOT: call blocking APIs or heavy code
+}
+```
+
+<Aside type="caution">
+Tick hook runs in interrupt context. Use `FromISR` variants only.
+</Aside>
+
+## Malloc Failed Hook
+Called if a `pvPortMalloc()` fails (e.g., not enough heap for creating tasks/queues).
+```c
+void vApplicationMallocFailedHook(void){
+  // Stop safely and aid debugging
+  taskDISABLE_INTERRUPTS();
+  for(;;){}
+}
+```
+
+Checklist when this triggers:
+- Increase `configTOTAL_HEAP_SIZE` or reduce allocations
+- Check task stack sizes (don’t over-allocate)
+- Ensure the chosen heap implementation (e.g., `heap_4.c`) is linked
+
+## Stack Overflow Hook
+Detects task stack overflow (method depends on `configCHECK_FOR_STACK_OVERFLOW`).
+```c
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName){
+  (void)xTask; (void)pcTaskName;
+  taskDISABLE_INTERRUPTS();
+  for(;;){}
+}
+```
+
+How to avoid overflows:
+- Use `uxTaskGetStackHighWaterMark()` during development
+- Avoid large stack arrays; use static/global or heap when appropriate
+- Keep ISRs short; do heavy work in tasks

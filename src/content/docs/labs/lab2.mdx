@@ -1,11 +1,14 @@
 ---
-title: "Lab 2 — FreeRTOS Basics"
-description: "Learn the basics of FreeRTOS by creating simple multitasking applications on the TM4C1294XL LaunchPad."
+title: "Lab 2: FreeRTOS Stopwatch"
+description: "Read the FreeRTOS guide, set up the project, verify multitasking, and implement a stopwatch using FreeRTOS tasks."
 links:
-  - "/labs/lab1/"
-  - "/guides/ccs/setupguide/"
-  - "/guides/labtimeline/"
-  - "/guides/freertos/"
+- /labs/lab1/
+- /guides/labtimeline/
+- /guides/ccs/setupguide/
+- /guides/freertos/
+- /guides/freertos/freertosproyects/
+tags:
+  - freertos
 ---
 import { Picture } from 'astro:assets';
 import { Aside } from '@astrojs/starlight/components';
@@ -24,22 +27,353 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
       icon="setting"
    />
    <LinkCard
-  title="Download Lab 2 Template"
-  description="Download the starter code for Lab 2."
-  href="/assets/lab_files/Lab_2.zip"
-  icon="right-arrow"
-/>
-   <LinkCard
-      title="FreeRTOS Guide"
-      description="Learn the basics of FreeRTOS in our comprehensive guide."
-      href="/guides/FreeRTOS/freertos/"
-      icon="cpu"
-   />
-   <LinkCard
       title="Back to Lab Summary"
       description="Return to the list of all labs."
       href="/guides/labtimeline/"
       icon="right-arrow"
-   />
+   /> 
 </CardGrid>
+---
+## Overview
+In Lab 2, you will transition your single-threaded application to run on **FreeRTOS**. First, read the FreeRTOS guide, then complete the project setup and verify that the scheduler runs with multiple tasks. Finally, you will implement a full **Stopwatch** using FreeRTOS tasks, delays, and inter-task communication.
+
+For this lab, you will not be provided with a starter template. You must create your own workspace and project in Code Composer Studio (CCS) by following the FreeRTOS setup guide.
+
+---
+
+<Aside type="caution" title="Lab Requirements">
+To complete this lab successfully, you must:
+<Steps>
+1. Set up your CCS project and demonstrate the FreeRTOS scheduler running with the provided example.
+2. Implement a FreeRTOS-based stopwatch that updates time and UI responsively, without blocking delays.
+3. Use proper task structure and inter-task communication for handling buzzer feedback on button events.
+</Steps>
+Each stage is graded separately; partial progress earns partial credit.
+</Aside>
+
+---
+
+## Grading Rubric
+
+| Step | Task | Description | Points |
+| :--- | :--- | :----------- | :----: |
+| 1 | FreeRTOS Setup + Example | Integrate FreeRTOS and run a simple two-task periodic example | 15 |
+| 2 | Stopwatch Time Task | Stable 10 ms or less base | 15 |
+| 3 | Button Handling | Debounced S1 Start/Pause and S2 Reset | 15 |
+| 4 | UI Task | Non-blocking UI rendering HH:MM:SS:MS and state | 15 |
+| 5 | Buzzer via Queue | Dedicated buzzer task consuming a queue; audible feedback on button events | 15 |
+|   | Lab report | Written lab report (see Canvas guidelines) | 25 |
+|   | **Total** |  | **100 points** |
+
+
+## Expected Results
+
+By the end of this lab:
+
+- The project builds and launches the FreeRTOS scheduler without faults.
+- Run testing example with two LEDs toggling at different rates to verify multitasking.
+- Stopwatch displays time in HH:MM:SS:MS with smooth updates.
+- S1 toggles Start/Pause; S2 performs Reset; UI reflects state text.
+- Button events produce short audible feedback via a dedicated buzzer task using a queue.
+- No blocking delays in the UI task; timing is driven by tasks or timers.
+- Code is modular and organized around FreeRTOS tasks and drivers.
+
+---
+
+## Learning Objectives
+
+After completing this lab, you will be able to:
+
+- Integrate and configure **FreeRTOS** in a TM4C1294XL project.
+- Create tasks with proper **priorities**, **stack sizes**, and **periodic scheduling**.
+- Use **vTaskDelay/vTaskDelayUntil** for non-blocking timing.
+- Communicate across tasks using **queues**, **direct-to-task notifications**.
+- Convert a bare-metal loop into a **task-based** architecture.
+
+---
+
+## Required Materials
+
+- TI EK-TM4C1294XL LaunchPad  
+- BOOSTXL-EDUMKII BoosterPack  
+- Micro USB cable for programming and power  
+- FreeRTOS kernel sources and config (from guide)
+
+---
+## Part 1 - Read Guide and Set Up FreeRTOS
+
+Start by carefully reading the FreeRTOS guide and performing the project setup steps.
+
+- Study the concepts in the FreeRTOS Guide: tasks, priorities, delays, queues.
+- Follow the FreeRTOS Project Setup checklist to integrate the kernel in CCS.
+- Confirm that the project compiles, links, and reaches `vTaskStartScheduler()`.
+
+<LinkCard
+  title="FreeRTOS Guide"
+  description="Concepts: tasks, scheduling, timing, communication."
+  href="/guides/freertos/freertos/"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+<LinkCard
+  title="FreeRTOS Project Setup"
+  description="Checklist to add FreeRTOS to your CCS project."
+  href="/guides/freertos/freertosproyects/"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+---
+## Part 2 - Implement Stopwatch in FreeRTOS
+
+<Aside type="caution" title="Important">
+For this lab, you need to include the timing, button, joystick, and display libraries yourself. Remember to download them and follow the guide to add them to your project.
+</Aside>
+
+<LinkCard
+   title="Download Libraries"
+   description="Download libraries needed for the lab."
+   href="/assets/libraries/libraries.zip"
+   icon="right-arrow"
+/>
+<LinkCard
+   title="Importing External Libraries"
+   description="Instructions for importing external libraries into your project."
+   href="/guides/ccs/external_libraries/"
+   icon="right-arrow"
+/>
+
+<Aside type="tip" title="Overflow Issues">
+If your previous stopwatch implementation had overflow issues (for example, only counting up to 35), check out this guide for an easy solution. It explains how to fix overflow problems by using hierarchical accumulators and appropriate data types.
+</Aside>
+
+<LinkCard
+   title="Fixing the Stopwatch Overflow"
+   description="Using hierarchical accumulators to prevent overflow in stopwatch timing."
+   href="/reference/example-projects/stopwatchoverflow/"
+   icon="right-arrow"
+/>
+
+### 2.1 Procedure
+
+Implement the stopwatch as four focused tasks: timekeeping, display, buttons, and a dedicated buzzer for audible feedback.
+
+<Steps>
+1. In `main`, initialize peripherals (system clock, display, buttons, etc.) as usual.
+2. Create four FreeRTOS tasks: buttons, display, timekeeping, and buzzer.
+3. Use a 512-word stack per task; assign higher priority to timekeeping, then display; buttons and buzzer can be lower.
+4. Start the scheduler and verify periodic execution without blocking delays.
+5. Structure each task as an infinite loop: one-time setup, then periodic work using RTOS delays.
+</Steps>
+for more details you can refer to freertos API reference web page or the task creation and management guide.
+<LinkCard
+  title="FreeRTOS API Reference"
+  description="Official index of RTOS API functions."
+  href="https://www.freertos.org/a00106.html"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+<LinkCard
+  title="Task Creation and Management"
+  description="How to create and manage tasks in FreeRTOS."
+  href="/guides/freertos/tasks/"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+<Aside type="tip" title="Priority Plan">
+Assign priorities to respect timing: timekeeping should not slip, display should remain responsive, and input/audio can be lower. Suggested baseline:
+
+- Time: `tskIDLE_PRIORITY + 3`
+- Display: `tskIDLE_PRIORITY + 2`
+- Buttons: `tskIDLE_PRIORITY + 1`
+- Buzzer: `tskIDLE_PRIORITY + 1`
+</Aside>
+
+Here’s a minimal task creation example (rename and tune as needed):
+
+```c
+xTaskCreate(ButtonsTask,
+            "Buttons",
+            512,        // stack in words
+            NULL,
+            tskIDLE_PRIORITY + 1,
+            NULL);
+```
+
+<Aside type="note" title="Include FreeRTOS headers">
+If you compile as C++, include FreeRTOS headers inside an `extern "C"` block to avoid name mangling. In C files, include the headers normally.
+
+```c++
+// ===================== FreeRTOS =====================
+extern "C" {
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+}
+```
+</Aside>
+
+Start FreeRTOS after creating all tasks:
+
+```c
+/* Start scheduler (never returns) */
+vTaskStartScheduler();
+
+/* If we get here, scheduler failed */
+while (1) { }
+```
+
+Every task should look like this at a high level:
+
+```c
+void DisplayTask(void *arg) {
+    // one-time setup
+    // ... init local buffers, precompute layouts, etc.
+
+    const TickType_t period = pdMS_TO_TICKS(DISPLAY_REFRESH_MS);
+    for (;;) {
+        // periodic work
+        // ... render current time/state ...
+        vTaskDelay(period);   // non-blocking, gives time to other tasks
+    }
+}
+```
+
+<Aside type="tip" title="Ticks 101">
+FreeRTOS schedules work on a system “tick” defined by `configTICK_RATE_HZ` (in `FreeRTOSConfig.h`). Convert milliseconds to ticks using `pdMS_TO_TICKS(...)`. Example for display refresh:
+
+```c
+const TickType_t period = pdMS_TO_TICKS(DISPLAY_REFRESH_MS);
+```
+
+Prefer `vTaskDelay(period)` for simple periodic loops. For tighter, exact cadence, consider `vTaskDelayUntil(&lastWakeTime, period)`.
+</Aside>
+
+<Aside type="caution" title="No Blocking Delays">
+Avoid busy waits and vendor/HAL delay calls inside tasks. Only use the RTOS delay primitives (e.g., `vTaskDelay(period)` or `vTaskDelayUntil`) so other tasks can run.
+</Aside>
+
+<Aside type="note" title="Shared State: use volatile">
+Globals read/written by tasks or ISRs should be declared `volatile`. Because FreeRTOS runs with interrupts, the compiler may optimize away reads/writes unless told otherwise. Soon you’ll learn to protect access using semaphores, queues, and mutexes.
+
+```c
+/* Hierarchical accumulators (stopwatch time) */
+volatile bool     gRunning = false;
+volatile uint16_t g_ms  = 0;
+volatile uint8_t  g_sec = 0;
+volatile uint8_t  g_min = 0;
+volatile uint8_t  g_hr  = 0;
+```
+</Aside>
+
+<Aside type="tip" title="Keep ISRs tiny">
+Do the bare minimum in button ISRs and notify tasks to do the real work. Use `xTaskNotifyFromISR` or a queue to send events like PLAY_PAUSE or RESET to the timekeeping task.
+</Aside>
+
+### Buzzer Task with Queue (Audible Feedback)
+
+To add clear, non-blocking audio feedback on button events, implement a dedicated buzzer task and a queue. This pattern ensures ISRs remain short, the UI stays responsive, and multiple beeps are handled in order.
+
+<Aside type="tip" title="Why a queue?">
+- ISRs must be brief: enqueue a small command and return immediately.
+- Tasks can block cooperatively: the buzzer task starts PWM, delays for the duration, and stops—without stalling other tasks.
+- Queues add ordering and buffering: concurrent requests are serialized safely.
+</Aside>
+
+<LinkCard
+  title="FreeRTOS Queues"
+  description="How queues work and when to use them."
+  href="/guides/freertos/queues/"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+<Aside type="note" title="More Reading">
+Refer to the official FreeRTOS documentation for detailed guidance on tasks, delays, notifications, and queues.
+</Aside>
+
+<LinkCard
+  title="FreeRTOS Queues API Reference"
+  description="Official index of RTOS API functions."
+  href="https://www.freertos.org/Documentation/02-Kernel/04-API-references/06-Queues/01-xQueueCreate"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+Prefer sending a compact structure by value (the queue copies it). If you instead send pointers, carefully manage the object's lifetime and immutability.
+
+```c
+// ----------------------------------------------------
+// Buzzer via PWM using task + queue (non-blocking)
+// ----------------------------------------------------
+typedef struct {
+    uint32_t freq_hz;
+    uint32_t duration_ms;
+} BuzzerCmd;
+
+static QueueHandle_t gBuzzerQ;
+```
+
+Post commands from button callbacks or tasks without blocking:
+
+```c
+// ----------------------------------------------------
+// Button callbacks (update UI and request beep)
+// ----------------------------------------------------
+static inline void buzzer_post(uint32_t f, uint32_t ms)
+{
+    if (!gBuzzerQ) return;
+    BuzzerCmd cmd = { f, ms };
+    (void)xQueueSend(gBuzzerQ, &cmd, 0); // do not block
+}
+```
+
+Create the queue and implement the buzzer task to consume commands and drive PWM for the requested duration:
+
+```c
+// Create the buzzer queue (e.g., before vTaskStartScheduler)
+gBuzzerQ = xQueueCreate(4, sizeof(BuzzerCmd));
+
+// Buzzer task: consumes queue and generates PWM for requested time
+static void vBuzzerTask(void *arg)
+{
+    (void)arg;
+    Buzzer_HWInit();
+
+    BuzzerCmd cmd;
+    for (;;)
+    {
+        if (xQueueReceive(gBuzzerQ, &cmd, portMAX_DELAY) == pdTRUE)
+        {
+            if (cmd.freq_hz > 0 && cmd.duration_ms > 0)
+            {
+                Buzzer_Start(cmd.freq_hz);
+                vTaskDelay(pdMS_TO_TICKS(cmd.duration_ms));
+                Buzzer_Stop();
+            }
+        }
+    }
+}
+```
+
+Call `buzzer_post(...)` when handling S1/S2 (e.g., after debouncing or within the task that processes button events). Use short durations (e.g., 20–50 ms) and moderate frequencies (e.g., 2–5 kHz) for crisp feedback.
+
+
+## Submitting Source Code
+
+**Exporting project:**
+
+1. Make sure your project is named `ece3849_lab2_<username>`.
+2. Right‑click the project → `Export...` → `General` → `Archive File`.
+3. Choose the output path and filename equal to the project name (`ece3849_lab2_<username>.zip`).
+4. Upload `.zip` to Canvas.
 ---

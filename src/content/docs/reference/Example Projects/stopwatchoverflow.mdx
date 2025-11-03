@@ -1,0 +1,175 @@
+---
+title: Fixing the Stopwatch Overflow and Drift Bug 
+description: Understanding and fixing both the long‑term overflow (~49 days) and short‑term 35‑second drift bug when using elapsedMillis with a shared timer backend.
+links:
+- /labs/lab0/
+- /labs/lab2/
+---
+import { Aside } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+When implementing a stopwatch using `elapsedMillis` or raw `millis()` counters, two separate timing issues can appear:
+
+1. **Long‑term overflow (~49 days)** due to a 32‑bit counter wraparound.
+2. **Short‑term drift (~35 seconds)** caused by resolution loss and resynchronization conflicts between multiple `elapsedMillis` instances sharing the same timer backend.
+
+This guide explains both problems, their causes, and how to fix them using hierarchical accumulators and isolated timing logic.
+
+---
+## Update timeLib Library
+First ensure you are using the latest version of the `timeLib` library, which includes fixes for shared timer backends. Download the updated library. This can solve some timing issues automatically. Update and compile your stopwatch project with the new library before proceeding.
+
+<LinkCard
+   title="Download Updated timeLib"
+   description="Get the latest version of the timeLib library with fixes."
+   href="/assets/libraries/libraries.zip"
+   icon="right-arrow"
+/>
+
+## 49‑Day Overflow
+
+The classic bug occurs when accumulating time directly into a 32‑bit variable:
+
+```cpp
+if (gRunning) {
+    uint32_t delta = stopwatchTick;
+    if (delta > 0U) {
+        gStopwatchMs += delta; // overflow after ~49 days
+        stopwatchTick = 0;
+    }
+}
+```
+
+Since `gStopwatchMs` is 32‑bit, it will wrap around every 4,294,967,295 milliseconds (≈49.7 days). Once that happens, your stopwatch suddenly resets.
+
+---
+
+## Fix for Overflow: Hierarchical Accumulators
+
+Instead of a single large counter, use four smaller ones:
+
+```cpp
+uint16_t ms = 0;  // 0–999
+uint8_t  sec = 0; // 0–59
+uint8_t  min = 0; // 0–59
+uint8_t  hr  = 0; // 0–99
+```
+
+Then propagate overflow naturally:
+
+```cpp
+if (gRunning) {
+    uint32_t delta = stopwatchTick;  // ms since last tick
+    if (delta > 0U) {
+        stopwatchTick = 0;           // reset elapsedMillis
+        ms += delta;
+        while (ms >= 1000) {
+            ms -= 1000;
+            sec++;
+            if (sec >= 60) {
+                sec = 0;
+                min++;
+                if (min >= 60) {
+                    min = 0;
+                    hr++;
+                    if (hr > 99) hr = 99;
+                }
+            }
+        }
+    }
+} else stopwatchTick = 0;
+```
+
+Now each unit rolls over smoothly—no overflow, no wraparound.
+
+---
+
+## 35‑Second Drift
+
+A more subtle bug occurs much earlier (~30–35 seconds). It’s **not** an overflow, but a **drift** or sudden jump in the displayed time.
+
+### Root Cause
+
+- Multiple `elapsedMillis` objects (e.g., `displayTick`, `buttonTick`, `stopwatchTick`) share the **same hardware `Timer` backend**.
+- Each object tracks time since its last reset. When one is set to zero, it reads from the same timer reference as the others.
+- Inside the main loop, you had code that repeatedly did `stopwatchTick = 0;` after every delta calculation.
+- Because the LCD drawing and button polling also took variable time, the resets occasionally aligned in such a way that **stopwatchTick and displayTick drifted apart**, causing missing or repeated milliseconds.
+
+This drift accumulates tiny errors that become visible as a timing glitch around 30–40 seconds.
+
+### Simplified Diagram
+
+```
+Hardware Timer (shared)
+│──────────────────────────────────────────────▶ time
+│    ↑ reset A   ↑ reset B   ↑ reset A
+│    │           │           │
+│  stopwatchTick resets too often → misalignment with displayTick
+```
+
+Over time, rounding differences cause the stopwatch to run slightly slower or faster—or jump.
+
+---
+
+## Fix for 35‑Second Drift
+
+1. **Use one dedicated `elapsedMillis` for delta measurement only** (no shared resets).
+2. **Reset it immediately after reading**, without touching any other timers.
+3. **Base display refresh** purely on a separate `displayTick` interval.
+4. **Use hierarchical accumulators** to store stable, human‑readable time.
+
+This isolates timing functions so each one has a distinct purpose and avoids interference.
+
+---
+
+## Display Logic Update
+
+The display no longer depends on `gStopwatchMs`. It simply refreshes at a fixed interval or when the stopwatch’s running state changes:
+
+```cpp
+if ((displayTick >= DISPLAY_REFRESH_MS) || (lastRunning != gRunning)) {
+    drawStopwatchScreen(sContext, gRunning);
+    drawButton(sContext, btnStart);
+    drawButton(sContext, btnReset);
+
+    #ifdef GrFlush
+    GrFlush(&sContext);
+    #endif
+
+    lastRunning = gRunning;
+    displayTick = 0;
+}
+```
+
+---
+
+## Drawing Function
+
+```cpp
+static void drawStopwatchScreen(tContext &context, bool running)
+{
+    char str[20];
+    snprintf(str, sizeof(str), "%02u:%02u:%02u:%03u", hr, min, sec, ms);
+
+    GrContextForegroundSet(&context, running ? ClrYellow : ClrOlive);
+    GrStringDrawCentered(&context, str, -1, 64, 54, false);
+
+    GrContextForegroundSet(&context, running ? ClrGreen : ClrRed);
+    GrStringDrawCentered(&context, running ? "RUNNING" : "STOPPED", -1, 64, 74, false);
+}
+```
+
+---
+
+## Advantages
+
+| Issue | Fix | Result |
+|-------|-----|---------|
+| 49‑Day Overflow | Hierarchical accumulators | Infinite runtime without wraparound |
+| 35‑Second Drift | Dedicated `elapsedMillis` + decoupled display timer | Stable timekeeping, no visible drift |
+
+---
+
+<Aside type="note" title="Best Practices">
+Never use a single global millisecond counter for both timing and display. Use **independent accumulators** and **dedicated elapsed timers** for each function. This ensures perfect accuracy—both short‑term and long‑term.
+</Aside>
