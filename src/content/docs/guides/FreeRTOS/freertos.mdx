@@ -252,6 +252,22 @@ After `vTaskStartScheduler()`, you normally never return to `main()`. The OS is 
 
 This lab uses FreeRTOS tasks extensively. The following notes clarify how to create tasks and choose an appropriate stack size.
 
+### FreeRTOS API prefixes
+
+FreeRTOS uses short, consistent prefixes that hint return types and intent. This helps you read signatures at a glance:
+
+| Prefix | Meaning | Typical type/use | Examples |
+| --- | --- | --- | --- |
+| `v` | returns void | Procedures with side effects | `vTaskDelay`, `vTaskStartScheduler` |
+| `x` | returns a value/status | Often `BaseType_t` (e.g., `pdPASS`/`pdFAIL`) or other value | `xTaskCreate`, `xQueueSend`, `xTaskGetTickCount` |
+| `pv` | pointer to void | Generic pointer parameter or return | `pvParameters`, `pvPortMalloc` |
+| `pc` | pointer to char | C string | `pcName`, `pcTaskGetName` |
+| `px` | pointer to typed object/handle | Out-params or pointer variables | `pxCreatedTask`, `pxQueue` |
+| `ux` | unsigned BaseType_t | Sizes, counts, priorities | `uxPriority`, `uxQueueMessagesWaiting` |
+| `pd` | portable-defined macro/constant | Macros/constants from the portable layer | `pdTRUE`, `pdFALSE`, `pdMS_TO_TICKS` |
+
+These conventions appear in function names and parameter/variable names throughout the API.
+
 ### `xTaskCreate` parameters
 
 ```c
