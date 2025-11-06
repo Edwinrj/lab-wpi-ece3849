@@ -1,6 +1,6 @@
 ---
-title: "Lab 3: Advanced Multitasking with FreeRTOS"
-description: "In this lab, you will explore advanced multitasking concepts using FreeRTOS. You will create multiple tasks, manage inter-task communication, and implement synchronization mechanisms to ensure efficient operation of your embedded system."
+title: "Lab 3: Snake Game Part 1"
+description: "In this lab, you will design a simple Snake game using FreeRTOS on the TM4C1294XL LaunchPad. The focus is on modular task design and correct mutex usage for shared resources."
 links:
 - /labs/lab2/
 - /guides/labtimeline/
@@ -32,3 +32,325 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
    /> 
 </CardGrid>
 ---
+
+## Objective
+In this lab, you will extend your FreeRTOS skills by designing a simple **Snake game** on the TM4C1294XL LaunchPad. The focus is on **modularity**, **task design**, and correct **mutex usage** for shared resources.
+
+---
+
+## Learning Goals
+
+- Organize a real-time application into modular tasks.
+- Use a **mutex** to protect shared resources (LCD and game state).
+- Understand task synchronization and timing under FreeRTOS.
+- Practice modular programming with separate source files.
+
+---
+
+## System Overview
+
+Your project will follow the same modular architecture used in previous labs. The `main.cpp` file will handle **initialization** and **task creation**, while other modules will encapsulate specific functionalities.
+
+## First Steps
+
+<Steps>
+1. Create a new CCS project with FreeRTOS support, similar to Lab 2.
+2. Set up the project structure as described below.
+</Steps>
+
+<LinkCard
+  title="FreeRTOS Project Setup"
+  description="Checklist to add FreeRTOS to your CCS project."
+  href="/guides/freertos/freertosproyects/"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+
+## Mutex — What and Why
+
+A **mutex (mutual exclusion)** is a synchronization primitive used to prevent multiple tasks from accessing a shared resource simultaneously.
+
+In this lab, the **LCD display** is a shared resource. To prevent concurrent access (which may corrupt the screen or SPI communication), you must wrap drawing operations with a **mutex lock**.
+
+### Example Concept
+
+```c
+xSemaphoreTake(xMutexLCD, portMAX_DELAY);
+// Critical section: LCD drawing
+DrawGrid();
+xSemaphoreGive(xMutexLCD);
+```
+
+<Aside type="tip">
+   Only one task should draw on the display at a time. Other tasks must wait until the mutex is released.
+</Aside>
+
+### Guidelines
+- Keep the mutex **locked only while drawing**.
+- Never use `vTaskDelay()` while holding the mutex.
+- Avoid using mutexes in interrupt context.
+
+---
+
+## FreeRTOS Components Used
+
+| Primitive | Purpose |
+|------------|----------|
+| **Task** | Separate functionality (input, snake update, render). |
+| **Queue** | Used in `buzzer.cpp` to send tone events to the buzzer task. |
+| **Mutex** | Protects LCD operations from concurrent access. |
+
+---
+
+## Implementation Steps
+### 1. Create the following files:
+We recommend the following file structure for your Snake game project. You can organize it differently, but this is a solid starting point:
+
+| File | Purpose |
+|------|----------|
+| **buzzer.h / buzzer.cpp** | PWM buzzer driver with background task and queue for sound events. |
+| **display.h / display.cpp** | LCD initialization and drawing (snake, fruit, score). |
+| **game.h / game.cpp** | Core game logic: snake position, fruit, collision detection. |
+| **app_objects.h** | Shared handles and global objects (LCD context, clock, mutex). |
+| **main.cpp** | System setup, creation of mutex and tasks, and scheduler start. |
+
+
+For every `.cpp` file except `main.cpp`, create and include its corresponding header file (`.h`). The header file should declare the functions and any shared types or constants that the module provides. This allows other source files to use those functions by including the header, without needing to know their implementation details.
+
+For example, for `buzzer.cpp`, declare the buzzer functions in `buzzer.h`:
+
+```c
+#pragma once
+
+#include <stdint.h>
+
+void Buzzer_Init(void);
+void buzzer_post(uint32_t freq, uint32_t ms);
+//other buzzer-related declarations
+//...
+//...
+//..
+//.
+```
+<Aside type="note">
+   Add <code>#pragma once</code> to every header file to prevent redefinitions.
+</Aside>
+
+and implement the functions in `buzzer.cpp`:
+
+```c
+#include "buzzer.h"
+void Buzzer_Init(void) {
+    // Buzzer initialization code
+}
+void buzzer_post(uint32_t freq, uint32_t ms) {
+    // Code to post a tone to the buzzer task
+}
+// Other buzzer-related implementations
+// ...
+// ...
+```
+Finally, include `buzzer.h` in any other source file that needs to use the buzzer functions:
+
+```c
+#include "buzzer.h"
+void example() {
+    Buzzer_Init();
+    buzzer_post(440, 500); // Play A4 for 500 ms
+}
+```   
+
+For `app_objects.h` we recommend the following content:
+
+<Aside type="tip"  title='Why?'>
+This header declares shared global objects like the LCD context and mutex. Some of these objects are used across multiple modules, so declaring them here avoids tight coupling and circular dependencies.
+</Aside>
+
+```c
+// Shared application-level objects used across modules.
+// Keep this header minimal to avoid tight coupling.
+
+#pragma once
+
+extern "C" {
+#include "FreeRTOS.h"
+#include "semphr.h"
+#include "grlib/grlib.h"
+}
+
+// Global graphics context for the LCD driver
+extern tContext gContext;
+
+// System clock frequency (Hz) set during startup
+// Use stdint types to match TivaWare APIs
+#include <stdint.h>
+extern uint32_t gSysClk;
+
+// Synchronization primitives shared by tasks
+extern SemaphoreHandle_t xMutexLCD;   // Guards LCD access
+```
+
+
+### 2. Setup `main.cpp`
+#### Include headers
+Include the necessary headers for FreeRTOS, TivaWare, and your modules at the top of `main.cpp`:
+
+```c
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
+extern "C" {
+   //FreeRTOS headers
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+
+   //TivaWare headers
+#include "driverlib/sysctl.h"
+#include "driverlib/fpu.h"
+#include "grlib/grlib.h"
+}
+   // For random fruit placement
+#include <math.h> 
+   // Application modules
+#include "app_objects.h"
+#include "buzzer.h"
+#include "game.h"
+#include "display.h"
+
+// Custom board drivers
+#include "joystick.h"
+#include "button.h"
+```
+#### Mutex Creation
+
+Define the mutex as a global variable, include `semphr.h` in `main.cpp`, and create the mutex before starting tasks:
+```c
+extern "C" {
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h" // Include for semaphore functions
+}
+
+SemaphoreHandle_t xMutexLCD = nullptr;
+
+void main(void) {
+   // System initialization code...
+
+   // Create the mutex before starting tasks
+   xMutexLCD = xSemaphoreCreateMutex();
+
+
+   // Create tasks...
+   // Start the scheduler...
+}
+```
+
+
+#### Create tasks in `main.cpp`
+We recommend the following tasks as a starting point for your Snake game; feel free to adjust as needed:
+
+| Task | Role | Period (ms) |
+|------|------|-------------|
+| `vInputTask` | Reads joystick and buttons. | 10 |
+| `vSnakeTask` | Updates game logic and snake movement. | 150 |
+| `vRenderTask` | Draws the game frame on the LCD. | 33 |
+| `vBuzzerTask` | Handles sound playback using a queue. | Event-driven |
+
+### Suggested Priorities
+The input task is critical because it must respond quickly to user actions. The snake task should also be responsive but can be slightly lower priority than input. The render and buzzer tasks can run at lower priorities since they are less time-critical. Balance priorities to ensure smooth gameplay without starving any task.
+
+For task priorities, consider the following scheme:
+| Task    | Priority |
+|---------|----------|
+| Input   | 2        |
+| Snake   | 2        |
+| Render  | 1        |
+| Buzzer  | 1        |
+
+
+### Suggested Stack Sizes
+The most demanding tasks are typically the render task (due to graphics operations) and the snake task (due to game logic). Input and buzzer tasks are usually lighter weight.
+Start with these stack sizes; you'll optimize them in later labs.
+
+| Task         | Suggested Stack Size (words) |
+|--------------|-----------------------------|
+| Input        | 512                         |
+| Snake        | 512                         |
+| Render       | 768                         |
+| Buzzer       | 512                         |
+---
+
+### 3. Setup `buzzer.cpp` and `buzzer.h`
+<Aside type="tip">
+Here you can implement the buzzer functionality similar to previous labs, using a queue to send tone requests to the buzzer task.
+</Aside>
+
+Create a PWM buzzer driver with a background task that plays tones based on events received from a queue. The buzzer task should wait for tone requests and play them using PWM.
+
+Hints for implementation:
+- Include `app_objects.h` in `buzzer.cpp` to access shared objects specifically `extern uint32_t gSysClk` required for PWM configuration.
+---
+### 4. Setup `display.cpp` and `display.h`
+Similar to previous labs, implement LCD initialization and drawing functions. The mutex is not used directly in this module; instead, tasks that call these functions must acquire the mutex first.
+Implement functions to draw the snake, fruit, and score on the LCD.
+We recomment the following structure for `display.h`:
+
+<Aside type="note">
+Don't implement the logict yet 
+</Aside>
+
+```c
+#pragma once
+
+// Initialize LCD controller and the grlib drawing context.
+void LCD_Init(void);
+
+// Functions to Draw the complete game grid (background, snake, fruit, bulges, score).
+void DrawGame(const SnakeGameState* state);
+//... other display-related declarations
+```
+
+## Game Logic Overview
+
+- **Snake movement:** Represent the snake as an array of positions updated every tick.
+- **Fruit placement:** Randomly place fruit on empty grid cells.
+- **Collision detection:** The game ends when the snake hits itself or a wall.
+- **Growth:** When the snake eats a fruit, increase its length.
+
+> Students must design the logic; no implementation is provided.
+
+---
+
+## Tips
+
+- Do not draw or access LCD without acquiring the mutex.
+- Use consistent update rates (e.g., `vTaskDelayUntil()` for predictable timing).
+- Keep code modular and readable — do not mix hardware and game logic.
+
+---
+
+## Deliverables
+
+- Modular source code (`buzzer`, `display`, `game`, `tasks`, `app_objects`, `main`).
+- Proper mutex protection around LCD access.
+- Working Snake game with moving fruit, collision detection, and score tracking.
+- A short **report or README** explaining mutex usage.
+
+---
+
+## Challenge Ideas
+
+- Add a game-over blink animation or tone sequence.
+- Gradually increase snake speed as score increases.
+- Add a short sound cue when the fruit is eaten.
+
+---
+
+> **End of Lab 3 — Snake (FreeRTOS)**  
+> Continue following the modular structure introduced in Labs 1 and 2. Emphasize concurrency, mutex use, and task organization over full gameplay polish.
+
