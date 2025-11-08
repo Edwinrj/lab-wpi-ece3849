@@ -261,7 +261,7 @@ We recommend the following tasks as a starting point for your Snake game; feel f
 | `vRenderTask` | Draws the game frame on the LCD. | 33 |
 | `vBuzzerTask` | Handles sound playback using a queue. | Event-driven |
 
-### Suggested Priorities
+#### Suggested Priorities
 The input task is critical because it must respond quickly to user actions. The snake task should also be responsive but can be slightly lower priority than input. The render and buzzer tasks can run at lower priorities since they are less time-critical. Balance priorities to ensure smooth gameplay without starving any task.
 
 For task priorities, consider the following scheme:
@@ -273,7 +273,7 @@ For task priorities, consider the following scheme:
 | Buzzer  | 1        |
 
 
-### Suggested Stack Sizes
+#### Suggested Stack Sizes
 The most demanding tasks are typically the render task (due to graphics operations) and the snake task (due to game logic). Input and buzzer tasks are usually lighter weight.
 Start with these stack sizes; you'll optimize them in later labs.
 
@@ -314,43 +314,3 @@ void LCD_Init(void);
 void DrawGame(const SnakeGameState* state);
 //... other display-related declarations
 ```
-
-## Game Logic Overview
-
-- **Snake movement:** Represent the snake as an array of positions updated every tick.
-- **Fruit placement:** Randomly place fruit on empty grid cells.
-- **Collision detection:** The game ends when the snake hits itself or a wall.
-- **Growth:** When the snake eats a fruit, increase its length.
-
-> Students must design the logic; no implementation is provided.
-
----
-
-## Tips
-
-- Do not draw or access LCD without acquiring the mutex.
-- Use consistent update rates (e.g., `vTaskDelayUntil()` for predictable timing).
-- Keep code modular and readable — do not mix hardware and game logic.
-
----
-
-## Deliverables
-
-- Modular source code (`buzzer`, `display`, `game`, `tasks`, `app_objects`, `main`).
-- Proper mutex protection around LCD access.
-- Working Snake game with moving fruit, collision detection, and score tracking.
-- A short **report or README** explaining mutex usage.
-
----
-
-## Challenge Ideas
-
-- Add a game-over blink animation or tone sequence.
-- Gradually increase snake speed as score increases.
-- Add a short sound cue when the fruit is eaten.
-
----
-
-> **End of Lab 3 — Snake (FreeRTOS)**  
-> Continue following the modular structure introduced in Labs 1 and 2. Emphasize concurrency, mutex use, and task organization over full gameplay polish.
-
