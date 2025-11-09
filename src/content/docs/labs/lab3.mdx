@@ -4,7 +4,7 @@ description: "In this lab, you will design a simple Snake game using FreeRTOS on
 links:
 - /labs/lab2/
 - /guides/labtimeline/
-- /guides/freertos/
+- /guides/FreeRTOS/freertos/
 tags:
   - freertos
 ---
@@ -61,7 +61,7 @@ Your project will follow the same modular architecture used in previous labs. Th
 <LinkCard
   title="FreeRTOS Project Setup"
   description="Checklist to add FreeRTOS to your CCS project."
-  href="/guides/freertos/freertosproyects/"
+  href="/guides/FreeRTOS/freertosproyects/"
   icon="right-arrow"
   target="_blank"
   rel="noopener noreferrer"
@@ -213,8 +213,7 @@ extern "C" {
 #include "driverlib/fpu.h"
 #include "grlib/grlib.h"
 }
-   // For random fruit placement
-#include <math.h> 
+   // For random fruit placement (use rand/srand from <stdlib.h>)
    // Application modules
 #include "app_objects.h"
 #include "buzzer.h"
@@ -298,19 +297,160 @@ Hints for implementation:
 ### 4. Setup `display.cpp` and `display.h`
 Similar to previous labs, implement LCD initialization and drawing functions. The mutex is not used directly in this module; instead, tasks that call these functions must acquire the mutex first.
 Implement functions to draw the snake, fruit, and score on the LCD.
-We recomment the following structure for `display.h`:
+We recommend the following structure for `display.h`:
 
 <Aside type="note">
-Don't implement the logict yet 
+Don’t implement the logic yet.
 </Aside>
 
 ```c
 #pragma once
 
+// Forward declaration for game state (defined in game.h).
+struct SnakeGameState;
+
 // Initialize LCD controller and the grlib drawing context.
 void LCD_Init(void);
 
-// Functions to Draw the complete game grid (background, snake, fruit, bulges, score).
-void DrawGame(const SnakeGameState* state);
+// Draw the full game frame: background, snake, fruit, score.
+void DrawGame(const struct SnakeGameState* state);
 //... other display-related declarations
+```
+
+## Snake Game Logic Overview
+
+The Snake game is a classic arcade game where the player controls a snake that moves around a grid, trying to eat fruit to grow longer. The main rules and mechanics are:
+
+- The snake moves in discrete steps (up, down, left, right) on a grid.
+- When the snake eats a fruit, it grows longer by one segment.
+- The game ends if the snake collides with itself or the wall.
+- The player controls the snake's direction using a joystick.
+- The goal is to eat as much fruit as possible without crashing.
+
+In your implementation, the game logic will:
+- Track the snake's position and direction.
+- Detect collisions with walls or itself.
+- Randomly place fruit on the grid.
+- Update the score when fruit is eaten.
+- Respond to user input to change direction.
+
+## Game Logic
+### Implementing Input Handling
+
+The input task (`vInputTask`) reads the joystick and buttons to determine the snake’s direction. It updates the snake’s direction based on user input and also toggles pause/resume or requests a reset.
+Create variables to hold the snake’s current direction and the game state (running, paused, reset request).
+
+On `game.h` define the following enum and struct:
+
+<Aside type="note">
+Declare the struct type in `game.h` and export an `extern` variable so other modules can access the current state.
+</Aside>
+
+```c
+// game.h
+#pragma once
+#include <stdbool.h>
+
+typedef enum { UP, DOWN, LEFT, RIGHT } Direction;
+
+typedef struct {
+    Direction currentDirection;
+    bool isRunning;
+    bool needsReset;
+} SnakeGameState;
+
+extern SnakeGameState gameState;
+```
+Then on `game.cpp` define the SnakeGameState variable:
+
+```c
+#include "game.h"
+SnakeGameState gameState = { RIGHT, true, false };
+```
+Now in `main.cpp`, in `vInputTask`, read the joystick and buttons and update the `gameState` fields accordingly.
+
+```c
+void vInputTask(void* pvParameters) {
+    while (1) {
+        // Read joystick and buttons
+        // Update gameState.currentDirection based on joystick input
+        // Update gameState.isRunning and gameState.needsReset based on button input
+        //Pseudo-code example:
+         if (joystick_up()) {
+               gameState.currentDirection = UP;
+         } else if (joystick_down()) {
+               gameState.currentDirection = DOWN;
+         } else if (joystick_left()) {
+               gameState.currentDirection = LEFT;
+         } else if (joystick_right()) {
+               gameState.currentDirection = RIGHT;
+         }
+         if (button_pause()) {
+               gameState.isRunning = !gameState.isRunning;
+         }
+         if (button_reset()) {
+               gameState.needsReset = true;
+               // Reset other game state variables as needed
+         }
+         vTaskDelay(pdMS_TO_TICKS(10)); // Polling interval
+    }
+}
+```
+### Snake Movement
+
+The snake's position will be represented as an array of grid coordinates. The snake task (`vSnakeTask`) will update the snake's position based on its current direction at regular intervals. If the snake eats a fruit, it will grow longer.
+
+Our screen size is 128×128 pixels, and we’ll use 16×16 pixels per cell. This gives us an 8×8 grid for the snake to move around. 
+Each segment of the snake will occupy one cell in this grid. The snake's head will be at the front of the array, and its body will follow. When the snake moves, we will update the position of the head based on the current direction and shift the rest of the body accordingly.
+
+<div style={{ display: "flex", justifyContent: "center" }}>
+   <img src="/assets/images/snakeGrid.png" alt="Snake Game Grid" width="300" />
+</div>
+
+### Set the grid properties in `game.h`
+Define the grid and cell sizes in `game.h`, plus the maximum length of the snake. With a 128×128 screen and 16×16 cells, there are 8×8 = 64 cells total, so the snake can be at most 64 segments long.
+
+```c
+#define GRID_SIZE 16
+#define CELL_SIZE 8
+#define MAX_LEN   256  // Maximum snake length (16x16 grid)
+```
+Now to represent the snake and fruit positions we can define the following in `game.h`:
+
+```c
+struct Position { uint8_t x, y; };
+extern Position snake[MAX_LEN]; // Array to hold snake segments
+extern Position fruit;          // Current fruit position
+extern uint8_t snakeLength;     // Current length of the snake
+```
+Then in `game.cpp` define the variables:
+
+```c
+#include "game.h"
+
+Position snake[MAX_LEN];
+Position fruit;
+uint8_t snakeLength = 4; // Start with a snake length of 4
+```
+On `game.cpp`, implement the basic movement in a function called `moveSnake()`. All movement-related logic will live here.
+
+### Implementing Snake Movement Logic
+
+At a minimum, track the head and shift the body to follow. More advanced logic (collisions, fruit, growth) builds on this foundation.
+
+```c
+void moveSnake() {
+    // Shift body first so each segment follows the previous one
+    for (uint8_t i = snakeLength; i > 0; i--) {
+        snake[i] = snake[i - 1];
+    }
+
+    // Now update the head position based on direction
+    switch (gameState.currentDirection) {
+        case UP:    snake[0].y -= 1; break;
+        case DOWN:  snake[0].y += 1; break;
+        case LEFT:  snake[0].x -= 1; break;
+        case RIGHT: snake[0].x += 1; break;
+    }
+}
 ```
