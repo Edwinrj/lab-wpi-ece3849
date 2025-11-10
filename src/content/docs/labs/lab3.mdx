@@ -400,7 +400,7 @@ void vInputTask(void* pvParameters) {
 
 The snake's position will be represented as an array of grid coordinates. The snake task (`vSnakeTask`) will update the snake's position based on its current direction at regular intervals. If the snake eats a fruit, it will grow longer.
 
-Our screen size is 128×128 pixels, and we’ll use 16×16 pixels per cell. This gives us an 8×8 grid for the snake to move around. 
+Our screen size is 128×128 pixels, and we’ll use 8×8 pixels per cell. This gives us an 16×16 grid for the snake to move around. 
 Each segment of the snake will occupy one cell in this grid. The snake's head will be at the front of the array, and its body will follow. When the snake moves, we will update the position of the head based on the current direction and shift the rest of the body accordingly.
 
 <div style={{ display: "flex", justifyContent: "center" }}>
@@ -408,7 +408,7 @@ Each segment of the snake will occupy one cell in this grid. The snake's head wi
 </div>
 
 ### Set the grid properties in `game.h`
-Define the grid and cell sizes in `game.h`, plus the maximum length of the snake. With a 128×128 screen and 16×16 cells, there are 8×8 = 64 cells total, so the snake can be at most 64 segments long.
+Define the grid and cell sizes in `game.h`, plus the maximum length of the snake. With a 128×128 screen and 8×8 cells, there are 16×16 = 256 cells total, so the snake can be at most 256 segments long.
 
 ```c
 #define GRID_SIZE 16
@@ -454,3 +454,41 @@ void moveSnake() {
     }
 }
 ```
+
+### First Integration Test
+At this point, the basic logic lets you move the snake on the screen using the joystick. Make sure `vInputTask` updates the direction correctly. Next, make the snake advance over time in `vSnakeTask` and draw the current frame in `vRenderTask`.
+
+Use the following code to advance the snake in `vSnakeTask` in `main.cpp`. The task updates the game every 150 ms; this value controls the snake’s speed. Decrease it to go faster, increase it to slow down.
+
+```c
+// Advances the game periodically
+void vSnakeTask(void*)
+{
+    ResetGame();
+    for(;;){
+        if (gameState.isRunning) moveSnake();
+        vTaskDelay(pdMS_TO_TICKS(150));
+    }
+}
+```
+
+Then draw the game in `vRenderTask`. The render task runs every 33 ms and protects LCD access with the mutex.
+```c
+void vRenderTask(void*)
+{
+    LCD_Init();
+    TickType_t last = xTaskGetTickCount();
+
+    for(;;)
+    {
+        // Normal render
+        xSemaphoreTake(xMutexLCD, portMAX_DELAY);
+        DrawGame(&gameState); // Draw background, snake, fruit, score
+        xSemaphoreGive(xMutexLCD);
+
+        vTaskDelayUntil(&last, pdMS_TO_TICKS(33));
+    }
+}
+```
+
+By now, you should be able to steer the snake around the grid with the joystick and see it animating smoothly on the display.
