@@ -57,15 +57,18 @@ import {
     <LinkButton href="/labs/lab2/" target="_blank">View Lab 2 →</LinkButton>
   </Card>
 
-  <Card title="Lab 3 – Migration to FreeRTOS" icon="document">
+  <Card title="Lab 3 – Snake Game Part 1 " icon="document">
     <Badge text="Due Nov 19" variant="note" size="medium" />
-    <p><strong>Objective:</strong> Migrate your application to FreeRTOS and explore multitasking concepts.</p>
-    <p><strong>Highlights:</strong> Task creation, semaphores, message queues, priority tuning,
+    <p><strong>Objective:</strong> Implement the core architecture for the Snake game: create FreeRTOS
+    tasks for game logic, input handling, and display updates; protect shared LCD access with a mutex;
+    use message queues for inter-task communication; and apply priority tuning plus runtime profiling
+    to observe and optimize real-time behavior.</p>
+    <p><strong>Highlights:</strong> Task creation, mutexes, message queues, priority tuning,
     and runtime profiling.</p>
-  {/*<LinkButton href="/labs/lab3/" target="_blank">View Lab 3 →</LinkButton> */}
+    <LinkButton href="/labs/lab3/" target="_blank">View Lab 3 →</LinkButton> 
   </Card>
 
-  <Card title="Lab 4 – RTOS Snake Game" icon="rocket">
+  <Card title="Lab 4 – Snake Game Part 2" icon="rocket">
     <Badge text="Due Dec 1" variant="caution" size="medium" />
     <small>Due to Thanksgiving break, there is no rush on Nov 25.</small>
     <p><strong>Objective:</strong> Create an interactive Snake game using FreeRTOS multitasking.</p>
