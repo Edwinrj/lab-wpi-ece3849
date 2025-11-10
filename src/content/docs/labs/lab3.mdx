@@ -27,7 +27,7 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
    <LinkCard
        title="Download Lab 3 Starter Code"
        description="Just the suggested files not the project."
-       href="/assets/lab_files/Lab_3.zip"
+       href="/assets/lab_files/snake_base_lab3.zip"
        icon="right-arrow"
     />
    <LinkCard
@@ -57,21 +57,93 @@ In this lab, you will extend your FreeRTOS skills by designing a simple **Snake 
 
 Your project will follow the same modular architecture used in previous labs. The `main.cpp` file will handle **initialization** and **task creation**, while other modules will encapsulate specific functionalities.
 
+## Grading Rubric
+
+| Step | Task | Description | Points |
+| :--- | :--- | :----------- | :----: |
+| 1 | Run Snake Base | Build and run the provided Snake starter project; verify tasks run and basic frame displays | 8 |
+| 2 | LCD Mutex Protection | Guard all LCD drawing with a FreeRTOS mutex; avoid blocking while the mutex is held | 12 |
+| 3 | Buzzer via Queue + Buttons | Implement a buzzer task with a queue in `buzzer.h/.cpp`; Play/Pause button events trigger a short tone | 12 |
+| 4 | Random Fruit Spawn | Place fruit at random grid locations; avoid spawning on the snake body | 8 |
+| 5 | Score + Fruit Respawn | When head reaches fruit: increment score, remove fruit, spawn a new one; update UI | 12 |
+| 6 | Eat Feedback Sound | Play an audible feedback tone when the fruit is eaten | 8 |
+| 7 | Movement Rules + Self-Collision | Disallow instant reverse direction; detect self-collision and handle game over/pause/reset | 15 |
+|   | Lab report | Written lab report (see Canvas guidelines) | 25 |
+|   | **Total** |  | **100 points** |
+
+## Expected Results
+
+By the end of this lab:
+
+- The Snake base project builds and runs without faults, showing the basic game frame.
+- All LCD drawing is protected with a FreeRTOS mutex; no blocking delays occur while holding the mutex.
+- A buzzer task consumes a queue; Play/Pause button events produce an audible click/beep.
+- Fruit appears at random grid positions and never overlaps the snake body.
+- Score increases by 1 when the snake's head reaches the fruit; the fruit despawns and a new one appears; the UI reflects the score.
+- Eating a fruit triggers a short feedback sound.
+- The snake cannot reverse direction immediately; self-collisions are detected and handled appropriately (game over/pause/reset).
+- The render task updates periodically without blocking; timing is driven by tasks/timers.
+- The codebase is modular with `buzzer.{h,cpp}`, `display.*`, `game.*`, `main.cpp`, and a shared objects header.
+
+
 ## First Steps
 
 <Steps>
-1. Create a new CCS project with FreeRTOS support, similar to Lab 2.
-2. Set up the project structure as described below.
+<ol>
+    <li>
+        Create a new CCS project with FreeRTOS support, similar to Lab 2.
+
+        <LinkCard
+            title="FreeRTOS Project Setup"
+            description="Checklist to add FreeRTOS to your CCS project."
+            href="/guides/freertos/freertosproyects/"
+            icon="right-arrow"
+            target="_blank"
+            rel="noopener noreferrer"
+        />
+    </li>
+
+    <li>
+        Add the required library files and import any external libraries required by the starter.
+
+        <LinkCard
+             title="Download Libraries"
+             description="Download libraries needed for the lab."
+             href="/assets/libraries/libraries.zip"
+             icon="right-arrow"
+        />
+        <LinkCard
+             title="Importing External Libraries"
+             description="Instructions for importing external libraries into your project."
+             href="/guides/ccs/external_libraries/"
+             icon="right-arrow"
+        />
+    </li>
+
+    <li>
+        Copy the provided starter code into your project. (Drag and drop the files from the unzipped folder into your CCS project.)
+
+        Starter structure after copying (this is the starter's file list, not the full CCS project tree):
+
+        ```
+        <starter>/
+        ├─ app_objects.h
+        ├─ display.cpp
+        ├─ display.h
+        ├─ game.cpp
+        ├─ game.h
+        └─ main.cpp
+        ```
+    </li>
+
+    <li>
+        Build and run the project to verify that it compiles correctly and the FreeRTOS scheduler starts. You should see the snake with a green head and yellow body moving on the screen, and you can control it with the joystick.
+        This example does not yet implement the full game features, only the basic snake movement.
+    </li>
+</ol>
 </Steps>
 
-<LinkCard
-  title="FreeRTOS Project Setup"
-  description="Checklist to add FreeRTOS to your CCS project."
-  href="/guides/FreeRTOS/freertosproyects/"
-  icon="right-arrow"
-  target="_blank"
-  rel="noopener noreferrer"
-/>
+---
 
 
 ## Mutex — What and Why
