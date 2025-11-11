@@ -291,6 +291,13 @@ void TaskB() {
     xSemaphoreGive(xMutexLCD);
 }
 ```
+For more details, see:
+<LinkCard
+     title="FreeRTOS Mutex Guide"
+     description="Learn how to use mutexes in FreeRTOS."
+     href="/guides/freertos/semaphores-mutexes/"
+     icon="right-arrow">
+</LinkCard>
 
 ### What is a Queue?
 
@@ -310,7 +317,13 @@ BuzzerEvent receivedEvent;
 xQueueReceive(xBuzzerQueue, &receivedEvent, portMAX_DELAY);
 PlayTone(receivedEvent.frequency, receivedEvent.duration);
 ```
-
+For more details, see:
+<LinkCard
+     title="FreeRTOS Queue Guide"
+     description="Learn how to use queues in FreeRTOS."
+     href="/guides/freertos/queues/"
+     icon="right-arrow">
+</LinkCard>
 ---
 
 ## Implementation Steps
@@ -394,7 +407,7 @@ Always pair `xSemaphoreTake()` with `xSemaphoreGive()`! Think of it as opening a
 
 **Goal:** Design and implement a buzzer subsystem that plays sounds based on queue events.
 
-#### 🔊 Design Questions (Think First!)
+#### 🔊 Design Questions
 
 Before implementing, consider these architectural questions:
 
@@ -416,7 +429,7 @@ Before implementing, consider these architectural questions:
    - Which task priority should the buzzer task have? Why?
 
 <Aside type="tip">
-You've used the buzzer in previous labs! This is about **integrating it with FreeRTOS** design patterns, not learning PWM from scratch.
+You've used the buzzer in previous labs!
 </Aside>
 
 #### Provided Files
@@ -577,12 +590,6 @@ void Buzzer_Post(uint32_t freq, uint32_t durationMs)
 - Check task priorities
 - Ensure `Buzzer_Post()` is non-blocking
 - Verify Input task isn't waiting for buzzer
-
-**Queue problems:**
-- Print queue status to debug console
-- Check queue creation was successful
-- Verify event struct size matches queue item size
-
 ---
 
 ### Step 4: Random Fruit Spawn (5 points)
@@ -767,7 +774,7 @@ This step builds the foundation for the scoring system. Once fruit spawning work
 
 **Goal:** Think through and implement the scoring mechanics when snake eats fruit.
 
-#### 🤔 Design Questions (Think Before Coding!)
+#### 🤔 Design Questions
 
 Before implementing, consider these questions:
 
@@ -1060,50 +1067,6 @@ Keep your code modular:
 - **display.h/cpp** - Only LCD/drawing functions  
 - **game.h/cpp** - Only game rules and state
 - **main.cpp** - Only system setup and task coordination
-
-### Debugging Tips
-
-**Visual debugging:**
-- Flash LED patterns for different game states
-- Use different colors to identify issues
-
-**Serial debugging:**
-- Print score/snake length to UART
-- Log collision events
-
-**Common issues:**
-- Snake disappears: Check array bounds
-- Fruit won't spawn: Verify hasFruit flag logic
-- Beeps don't work: Check queue size and PWM initialization
-- Display flickers: Ensure mutex is released after drawing
-
----
-
-## Lab Report Requirements
-
-Your lab report (25 points) should include:
-
-1. **Introduction** - Brief description of Snake game goals
-
-2. **Design Process** - For steps 5-7:
-   - What questions did you ask yourself before coding?
-   - What alternative approaches did you consider?
-   - How did you break down complex problems?
-
-3. **Implementation Details:**
-   - Task architecture diagram showing data flow
-   - Mutex usage for LCD protection
-   - Queue-based buzzer communication  
-   - Your collision detection algorithm with explanation
-
-4. **Challenges and Solutions** - Problems encountered and how you solved them
-
-5. **Testing Results** - Screenshots/videos of each feature working
-
-6. **Reflection** - Answer the reflection questions above
-
-7. **Conclusion** - What you learned about FreeRTOS task design and problem decomposition
-
 ---
 
 ## Additional Resources
@@ -1133,28 +1096,4 @@ Your lab report (25 points) should include:
 
 ---
 
-## Common Questions
-
-### What happens if the buzzer queue fills up?
-
-If the queue is full and you call Buzzer_Post(), the function returns immediately without blocking (because we use xQueueSend with 0 timeout). The sound event is dropped. This is acceptable for non-critical feedback sounds.
-
-### Why does my snake flicker?
-
-Make sure you're only calling GrFlush() once per frame, at the end of DrawGame(). Also verify the mutex is properly released.
-
-### Can the snake grow indefinitely?
-
-The maximum length is 256 segments (entire grid). The GrowSnake() function should check this limit. In practice, the player will hit themselves before reaching this limit!
-
-### Should I use vTaskDelay or vTaskDelayUntil?
-
-Use vTaskDelayUntil for periodic tasks (like render) to maintain consistent timing. Use vTaskDelay for simple delays or non-periodic tasks.
-
-### How do I know if my design is good?
-
-Good designs are easy to explain, easy to test, and easy to change. If you can explain your collision detection to a classmate in 2-3 sentences, it's probably well-designed!
-
----
-
-Good luck building your Snake game! Remember: **Think first, code second.** 🐍
+Good luck building your Snake game! 🐍
