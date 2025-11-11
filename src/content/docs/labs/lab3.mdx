@@ -947,6 +947,8 @@ static bool IsPositionOnSnake(uint8_t x, uint8_t y)
 **Implement the fruit spawning algorithm in game.cpp:**
 
 ```c
+#include <stdlib.h>  // For rand()
+
 // Global fruit state (add near top of file with other globals)
 Position fruit;
 bool hasFruit = false;
