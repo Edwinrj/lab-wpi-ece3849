@@ -420,12 +420,12 @@ In FreeRTOS, **higher priority numbers mean higher priority**. The scheduler alw
 | Input | 3 | **Highest** - User input must be responsive |
 | Snake | 2 | **Medium** - Game logic is important but can wait for input |
 | Render | 2 | **Medium** - Visual updates happen at fixed rate |
-| Buzzer | 1 | **Lowest** – Audio feedback is non-critical (if the buzzer is not playing sounds reliably, try increasing its priority to 2) |
+| Buzzer | 2 | **Medium** – Audio feedback is non-critical |
 
 **Why this works:**
 - **Input task** (priority 3) runs every 10ms, processes joystick/buttons quickly, then blocks
 - **Snake and Render** (priority 2) share CPU time in round-robin
-- **Buzzer task** (priority 1) plays sounds when nothing else needs CPU
+- **Buzzer task** (priority 2) plays sounds when nothing else needs CPU
 
 **Alternative configuration:** All tasks at priority 2 (pure round-robin)
 - Simpler to reason about
@@ -518,6 +518,10 @@ Always pair `xSemaphoreTake()` with `xSemaphoreGive()`! Think of it as opening a
 ### Step 3: Buzzer via Queue + Buttons (12 points)
 
 **Goal:** Design and implement a buzzer subsystem that plays sounds based on queue events.
+
+<Aside type="caution">
+Note: Be careful with task priorities. Set the Buzzer task to priority 2. Try running it with priority 1 to observe the effects, then restore it to priority 2. Record your observations in your lab report.
+</Aside>
 
 #### 🔊 Design Questions
 
