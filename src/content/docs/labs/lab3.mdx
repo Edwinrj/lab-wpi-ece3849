@@ -420,7 +420,7 @@ In FreeRTOS, **higher priority numbers mean higher priority**. The scheduler alw
 | Input | 3 | **Highest** - User input must be responsive |
 | Snake | 2 | **Medium** - Game logic is important but can wait for input |
 | Render | 2 | **Medium** - Visual updates happen at fixed rate |
-| Buzzer | 1 | **Lowest** - Audio feedback is non-critical |
+| Buzzer | 1 | **Lowest** – Audio feedback is non-critical (if the buzzer is not playing sounds reliably, try increasing its priority to 2) |
 
 **Why this works:**
 - **Input task** (priority 3) runs every 10ms, processes joystick/buttons quickly, then blocks
