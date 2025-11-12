@@ -1,0 +1,130 @@
+---
+title: "Lab 4: Advanced FreeRTOS Techniques with Snake Game"
+description: "Enhance your Snake game using advanced FreeRTOS timing and synchronization methods."
+links:
+- /labs/lab3/
+- /guides/labtimeline/
+- /guides/FreeRTOS/freertos/
+tags:
+  - freertos
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+<CardGrid>
+   <LinkCard
+      title="Complete Lab 3"
+      description="Make sure you finished Lab 3 before starting."
+      href="/labs/lab3/"
+      icon="setting"
+   />
+   <LinkCard
+      title="Back to Lab Summary"
+      description="Return to the list of all labs."
+      href="/guides/labtimeline/"
+      icon="right-arrow"
+   /> 
+</CardGrid>
+
+---
+## Objective
+In this lab, you will learn how to apply advanced timing and synchronization techniques in FreeRTOS while enhancing your Snake game. You’ll learn to measure and analyze timing jitter using a hardware timer, comparing delay methods like vTaskDelay, vTaskDelayUntil, and software timers to understand real-time scheduling. You’ll learn to replace polling with interrupt-driven inputs using binary semaphores for faster response, and to use counting semaphores to queue joystick commands without losing inputs. You’ll also learn to implement software timers for a game chronometer, add new gameplay features such as wall collisions and animations, and analyze stack usage and overflow detection.
+
+---
+## Learning Goals
+
+- Measure and analyze task timing and jitter using hardware timers in FreeRTOS
+- Compare delay mechanisms (vTaskDelay, vTaskDelayUntil, and software timers) and understand their scheduling effects
+- Implement interrupt-driven input handling with binary semaphores for fast and deterministic response
+- Use counting semaphores to buffer joystick events and avoid missed inputs
+- Create and manage software timers to implement a game chronometer
+- Detect and handle stack overflows while analyzing per-task stack usage
+- Display real-time performance metrics (CPU usage, timing, stack) on the LCD
+---
+## Grading Rubric
+---
+## Getting Started
+
+### Step 1: Set Up Your Lab Environment
+
+This lab uses the same project workspace as Lab 3. Make sure your Lab 3 project builds and runs correctly before proceeding.
+
+To create a Lab 4 copy of your project:
+1. In the project explorer, right-click the Lab 3 folder and choose "Copy".
+<p align="center">
+  <img src="\assets\images\copy.png" alt="Copy folder" width="300" />
+    <br />
+  <sub><span>Copy the folder</span></sub>
+</p>
+2. Right-click an empty area in the project explorer and choose "Paste".
+<p align="center">
+  <img src="\assets\images\paste.png" alt="Paste folder" width="250" />
+    <br />
+  <sub><span>Paste the folder</span></sub>
+</p>
+3. Rename the pasted folder to "lab4".
+<p align="center">
+  <img src="\assets\images\lab4.png" alt="Copy folder" width="250" />
+    <br />
+  <sub><span>Copy the folder</span></sub>
+</p>
+4. Double-click on lab4 to set it as the active workspace.
+<p align="center">
+  <img src="\assets\images\lab4_structure.png" alt="Copy folder" width="200" />
+    <br />
+  <sub><span>Copy the folder</span></sub>
+</p>
+
+
+<Aside type="caution">
+Make sure to close all open Lab 3 files before you start modifying Lab 4 to avoid confusion and losing your original code.
+</Aside>
+
+### Step 2: UART Setup
+En este laboratorio vamos a utilizar la UART para imprimir información de depuración y métricas de rendimiento en tiempo real. Asegúrate de que la configuración de la UART esté correcta y funcionando antes de continuar.
+
+Para que puedas usar el UART desde cualquier archivo de tu proyecto vamos a crear un UART.cpp y un UART.h en la carpeta utilities de tu proyecto con el siguiente código:
+ConfigureUART(void)
+{
+    //
+    // Enable the GPIO Peripheral used by the UART.
+    //
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+
+    //
+    // Enable UART0
+    //
+    MAP_SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+
+    //
+    // Configure GPIO Pins for UART mode.
+    //
+    MAP_GPIOPinConfigure(GPIO_PA0_U0RX);
+    MAP_GPIOPinConfigure(GPIO_PA1_U0TX);
+    MAP_GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+    //
+    // Initialize the UART for console I/O.
+    //
+    UARTStdioConfig(0, 115200, gSysClk);
+}
+```
+
+Para ver la salida del UART, abre un terminal serial en code composer studio:
+crea una tarea en freertos que imprima periodicamente (cada 1 segundo) el mensaje "Lab 4 Running" a través de la UART.
+
+
+Parte 0: Setup - Hardware Timer para medición (10 pts)
+Parte 1: Baseline Jitter Measurement (10 pts)
+Parte 2: Button ISR + Binary Semaphores (15 pts)
+Parte 3: Joystick Buffering + Counting Semaphore (15 pts)
+Parte 4: Snake Task → vTaskDelayUntil (10 pts)
+Parte 5: Cronómetro con Software Timer (15 pts)
+Parte 6: Nuevas Game Features (10 pts)
+Parte 7: Stack Monitoring & Optimization (15 pts)
+Parte 8: Stack Overflow Hook + LED (5 pts)
+Reporte: Análisis completo (20 pts)
+TOTAL: 125 pts (ajustable a 100)
