@@ -1,0 +1,1154 @@
+---
+title: "Lab 4: Advanced Timing, Synchronization & Performance Analysis"
+description: "Master advanced FreeRTOS timing techniques, interrupt-driven synchronization, and system performance optimization through comprehensive analysis of your Snake game."
+links:
+- /labs/lab3/
+- /guides/labtimeline/
+- /guides/FreeRTOS/freertos/
+tags:
+  - freertos
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+<CardGrid>
+   <LinkCard
+      title="Complete Lab 3"
+      description="Make sure you finished Lab 3 before starting."
+      href="/labs/lab3/"
+      icon="setting"
+   />
+   <LinkCard
+      title="Back to Lab Summary"
+      description="Return to the list of all labs."
+      href="/guides/labtimeline/"
+      icon="right-arrow"
+   /> 
+</CardGrid>
+
+## Objective
+
+In this lab, you will enhance your Snake game by mastering advanced timing and synchronization techniques in FreeRTOS. You'll start by measuring timing jitter using a hardware timer to compare different delay methods (vTaskDelay vs vTaskDelayUntil) by instrumenting one task at a time and analyzing the results. You'll implement counting semaphores to buffer joystick inputs and prevent missed commands, and add a game chronometer using software timers that updates every 10ms. You'll also add new game features including wall collisions and game-over animations. Finally, you'll analyze and optimize stack usage across all tasks, display real-time performance metrics on the LCD, and implement stack overflow detection with LED alerts—ensuring your system runs efficiently within the microcontroller's memory constraints while maintaining responsive gameplay.
+
+---
+
+## Learning Goals
+
+- Measure and analyze **timing jitter** using hardware timers to evaluate scheduling accuracy
+- Compare **delay mechanisms** (vTaskDelay vs vTaskDelayUntil) and understand their impact on real-time behavior
+- Use **counting semaphores** to buffer joystick events and prevent data loss from rapid inputs
+- Create and manage **software timers** for periodic callbacks and time-keeping
+- Analyze **stack usage** per task and optimize memory allocation to minimum safe values
+- Implement **stack overflow detection** with hardware indicators (LED alerts)
+
+---
+
+## Grading Rubric
+
+| Part | Task | Description | Points |
+| :--- | :--- | :----------- | :----: |
+| 1 | Hardware Timer Setup | Configure Timer0 for microsecond timestamp measurements | 5 |
+| 2 | Baseline Timing Measurement | Measure and display jitter for three tasks using vTaskDelay | 10 |
+| 3 | Timing Comparison Analysis | Convert to vTaskDelayUntil and compare results; document findings | 10 |
+| 4 | Joystick Input Buffering | Implement counting semaphore for input queue; prevent reverse moves | 10 |
+| 5 | Game Chronometer | Add software timer for mm:ss:cs display; start/stop/reset functionality | 10 |
+| 6 | Wall Collision & Game Over | Implement deadly walls and game-over animation | 10 |
+| 7 | Stack Usage Analysis | Measure per-task stack usage; optimize to safe minimums; display on LCD | 15 |
+| 8 | Stack Overflow Detection | Implement detection hook with LED alert; demonstrate functionality | 5 |
+|   | Lab Report | Complete analysis of timing, synchronization, and optimization decisions | 25 |
+|   | **Total** |  | **100 points** |
+
+---
+
+## Expected Results
+
+By the end of this lab, your system will:
+
+- Display real-time timing metrics (average period and jitter) on the LCD
+- Demonstrate measurably lower jitter using vTaskDelayUntil compared to vTaskDelay
+- Buffer joystick inputs without losing rapid directional changes
+- Show an accurate game chronometer (mm:ss:cs format) that pauses with the game
+- End the game when the snake hits walls (no more wrap-around)
+- Display a game-over animation and message when collision occurs
+- Show per-task stack usage statistics on the LCD
+- Trigger LED alert if any task experiences stack overflow
+- Run efficiently with optimized (minimal safe) stack allocations
+
+---
+
+## Getting Started
+
+### Step 1: Duplicate Your Lab 3 Project
+
+This lab builds directly on Lab 3. Create a copy to preserve your original work:
+
+
+<Steps>
+
+1. In Code Composer Studio's Project Explorer, right-click your Lab 3 project folder
+2. Select **Copy**, then right-click in an empty area and select **Paste**
+3. Rename the copied project to `ece3849_lab4_<username>`
+4. Set it as the active project by double-clicking on it
+
+</Steps>
+
+
+<Aside type="caution">
+Close all Lab 3 files before starting Lab 4 to avoid accidentally editing the wrong project!
+</Aside>
+
+---
+
+## Part 1: Hardware Timer for Microsecond Timestamps
+
+### Understanding the Need
+
+FreeRTOS tick resolution (typically 1ms) is too coarse to accurately measure task timing jitter. We need microsecond-level precision to evaluate scheduling performance.
+
+### Implementation
+
+**Add Required Includes** (in main.cpp):
+
+```c
+extern "C" {
+#include "driverlib/timer.h"
+#include "inc/hw_memmap.h"
+#include "Crystalfontz128x128_ST7735.h"
+#include "grlib/grlib.h"
+}
+#include <stdio.h>  // for snprintf
+```
+
+**Initialize Timer0 for Free-Running Count**:
+
+```c
+void Timing_Init(void)
+{
+    // Enable Timer0 peripheral
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_TIMER0));
+
+    // Configure as 32-bit periodic timer counting UP
+    TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC_UP);
+    
+     After creating the timer, start it with `xTimerStart(chronoTimer, 0)` if creation succeeded.
+    TimerLoadSet(TIMER0_BASE, TIMER_A, 0xFFFFFFFF);
+     Call this function in `main()` after creating tasks but before starting the scheduler.
+    // Start the timer
+    TimerEnable(TIMER0_BASE, TIMER_A);
+}
+```
+
+**Create Helper Function to Read Microseconds**:
+
+```c
+uint32_t micros(void)
+{
+    uint32_t ticks = TimerValueGet(TIMER0_BASE, TIMER_A);
+    // Convert ticks to microseconds: system clock is 120 MHz
+    return ticks / (gSysClk / 1000000);
+}
+```
+
+**Call Timing_Init() in main()** before creating tasks:
+
+```c
+int main(void)
+{
+    // ... existing initialization ...
+    
+    Buzzer_Init();
+    Timing_Init();  // Add this line
+    
+    IntMasterEnable();
+    // ... create tasks ...
+}
+```
+
+<Aside type="tip" title="Why Free-Running?">
+A free-running counter that wraps around simplifies calculations. Unsigned arithmetic naturally handles wrap-around: if the timer wraps from 0xFFFFFFFF to 0x00000005, the subtraction `(0x00000005 - 0xFFFFFFF0) = 0x00000015` still gives the correct delta.
+</Aside>
+
+---
+
+## Part 2: Baseline Timing Measurement
+
+### Understanding Jitter
+
+**Jitter** is the variation in period between consecutive task executions:
+
+- **Ideal**: Task runs exactly every 150.000 ms
+- **Reality**: 149.8ms, 150.3ms, 149.5ms, 151.2ms...
+- **Jitter**: Difference from expected period (can be positive or negative)
+
+High jitter causes:
+- Jerky snake movement
+- Inconsistent game speed
+- Poor user experience
+
+### Global Variables for Statistics
+
+Add these to main.cpp (above your task functions):
+
+```c
+// Timing measurement state
+volatile uint32_t last_us = 0;               // Last timestamp
+volatile uint32_t min_period_us = 0xFFFFFFFF;
+volatile uint32_t max_period_us = 0;
+volatile uint64_t sum_period_us = 0;         // For averaging
+volatile uint32_t period_count  = 0;
+volatile int32_t  last_jitter_us = 0;        // Signed jitter
+
+uint32_t expected_period_us = 10000;         // Set per task being measured
+```
+
+### Measurement Function
+
+```c
+void Timing_PeriodTick(void)
+{
+    uint32_t now_us = micros();
+    
+    if (last_us != 0)  // Skip first measurement
+    {
+        // Calculate actual period
+        uint32_t actual_us = now_us - last_us;
+        
+        // Calculate jitter (signed)
+        last_jitter_us = (int32_t)actual_us - (int32_t)expected_period_us;
+        
+        // Update statistics
+        if (actual_us < min_period_us) min_period_us = actual_us;
+        if (actual_us > max_period_us) max_period_us = actual_us;
+        sum_period_us += actual_us;
+        period_count++;
+    }
+    
+    last_us = now_us;
+}
+```
+
+### Important: Measure One Task at a Time
+
+<Aside type="caution" title="Critical Measurement Rule">
+Because all tasks share the same global timing variables, you can only measure **ONE task at a time**. If multiple tasks call `Timing_PeriodTick()`, the measurements will be meaningless.
+
+**Procedure for each task:**
+1. Add `Timing_PeriodTick()` call to ONLY ONE task
+2. Set `expected_period_us` appropriately for that task
+3. Run for 30 seconds and record AVG and JITTER values
+4. Remove `Timing_PeriodTick()` from that task
+5. Repeat for next task
+</Aside>
+
+### Measurement Procedure
+
+You will measure three tasks: **Input**, **Snake**, and **Render**.
+
+**Step 1: Measure Input Task (10ms period)**
+
+Temporarily add measurement to vInputTask ONLY:
+
+```c
+static void vInputTask(void *pvParameters)
+{
+    (void)pvParameters;
+    
+    expected_period_us = INPUT_TICK_MS * 1000;  // 10ms = 10000us
+    
+    for (;;) {
+        Timing_PeriodTick();  // Add this line
+        
+        // ... existing button and joystick code ...
+        
+        vTaskDelay(pdMS_TO_TICKS(INPUT_TICK_MS));
+    }
+}
+```
+
+Run your game and play for 30 seconds. Record in your report:
+- Average period (AVG): _______ us
+- Last jitter (JIT): _______ us
+
+Then **remove** the `Timing_PeriodTick()` call before measuring the next task.
+
+**Step 2: Measure Snake Task (150ms period)**
+
+```c
+static void vSnakeTask(void *pvParameters)
+{
+    (void)pvParameters;
+    ResetGame();
+    
+    expected_period_us = 150000;  // 150ms
+    
+    for(;;) {
+        Timing_PeriodTick();  // Add this line
+        
+        // ... existing game logic ...
+        
+        vTaskDelay(pdMS_TO_TICKS(150));
+    }
+}
+```
+
+Run and record:
+- Average period: _______ us
+- Last jitter: _______ us
+
+Remove the measurement call.
+
+**Step 3: Create Monitor Task to Display Metrics**
+
+Instead of manually recording measurements, create a task that continuously displays the timing metrics on the LCD. This task should:
+- Run every 1 second (1000ms)
+- Display the average period and jitter on screen
+- Reset the statistics after each display update
+
+You'll implement this task in the main file. Here's the structure you need to follow:
+
+```c
+void MonitorTask(void *arg)
+{
+    const TickType_t period = pdMS_TO_TICKS(1000);  // update every 1 second
+    TickType_t last = xTaskGetTickCount();
+
+    for (;;)
+    {
+        vTaskDelayUntil(&last, period);
+
+        //
+        // Copy statistics so they don't change while drawing
+        //
+        uint32_t n   = period_count;
+        uint64_t sum = sum_period_us;
+        int32_t  jit = last_jitter_us;
+
+        uint32_t avg_us = (n > 0u) ? (uint32_t)(sum / n) : 0u;
+
+        // ==========================================
+        // Draw timing information on the top of LCD
+        // ==========================================
+        
+        // PSEUDOCODE - Implement this using grlib functions:
+        // 1. Take the LCD mutex (xSemaphoreTake)
+        // 2. Define a rectangle for the top info bar
+        //    Suggested: x=0, y=0, width=127, height=20
+        // 3. Set foreground color to black (ClrBlack)
+        // 4. Fill the rectangle with GrRectFill to clear the area
+        // 5. Build a string "AVG:%luus" with snprintf using avg_us
+        // 6. Set foreground color to white (ClrWhite)
+        // 7. Draw the average string at (2, 2) with GrStringDraw
+        // 8. Build a string "JIT:%ldus" with snprintf using jit (can be negative)
+        // 9. Draw the jitter string at (64, 2) with GrStringDraw
+        // 10. Call GrFlush to update the screen
+        // 11. Release the LCD mutex (xSemaphoreGive)
+
+        //
+        // Reset 1-second statistics window
+        //
+        min_period_us = 0xFFFFFFFFu;
+        max_period_us = 0u;
+        sum_period_us = 0u;
+        period_count  = 0u;
+    }
+}
+```
+
+<Aside type="tip" title="Pseudocode Implementation">
+You already used grlib functions in earlier labs. Look at your Lab 3 code for examples of how to:
+- Define a `tRectangle` with coordinates
+- Use `GrContextForegroundSet(&gContext, color)` to change colors
+- Use `GrRectFill(&gContext, &rect)` to fill rectangles
+- Use `GrStringDraw(&gContext, text, -1, x, y, false)` to draw text
+- Use `GrFlush(&gContext)` to update the display
+
+The `xMutexLCD` mutex already exists in your project from Lab 3.
+</Aside>
+
+**Create the task in main():**
+
+```c
+// In main(), after creating your other tasks:
+xTaskCreate(MonitorTask, "Monitor", 512, NULL, 2, NULL);
+```
+
+You can now leave `Timing_PeriodTick()` in one active task (e.g., Input or Snake) and you'll see the metrics updating in real time on the display.
+
+<Aside type="note" title="For Your Report">
+With the monitor task running, you can now observe metrics in real-time. Capture screenshots or note the values after 30 seconds of execution for each task. Create a table with these values. In Part 3 you will compare these results after converting tasks to use `vTaskDelayUntil`.
+</Aside>
+
+---
+
+## Part 3: Timing Comparison - vTaskDelayUntil
+
+### The Problem with vTaskDelay
+
+`vTaskDelay(ticks)` delays for a **relative** time from when it's called. If your task's work varies (1ms one iteration, 3ms the next), the overall period varies too, causing **accumulating drift** and jitter.
+
+### Understanding vTaskDelayUntil
+
+`vTaskDelayUntil(&lastWakeTime, period)` delays until an **absolute** time, compensating for execution time variations and maintaining a precise period.
+
+**Key difference:**
+```
+vTaskDelay:      Work(2ms) -> Delay(10ms) -> Total: 12ms
+                 Work(1ms) -> Delay(10ms) -> Total: 11ms (jitter!)
+
+vTaskDelayUntil: Work(2ms) -> Delay(8ms)  -> Total: 10ms  
+                 Work(1ms) -> Delay(9ms)  -> Total: 10ms (precise!)
+```
+
+### Your Task: Convert and Compare
+
+You will now convert your Input and Snake tasks from `vTaskDelay` to `vTaskDelayUntil` and measure the improvement using the monitor task you created.
+
+<Aside type="tip" title="Hint: vTaskDelayUntil Pattern">
+The standard pattern for `vTaskDelayUntil` is:
+
+```c
+void SomeTask(void *pvParameters)
+{
+    TickType_t xLastWakeTime = xTaskGetTickCount();  // Inicializar UNA VEZ
+    const TickType_t xPeriod = pdMS_TO_TICKS(PERIOD_MS);
+    
+    for (;;) {
+        // Do work here
+        
+        vTaskDelayUntil(&xLastWakeTime, xPeriod);  // Pasar por REFERENCIA (&)
+    }
+}
+```
+
+Key points:
+- Initialize `xLastWakeTime` BEFORE the loop using `xTaskGetTickCount()`
+- Declare the period as a constant
+- Pass `&xLastWakeTime` (the address, not the value) to the function
+- The function updates `xLastWakeTime` automatically on each call
+</Aside>
+
+**Step 1: Convert Input Task**
+
+Modify vInputTask to use `vTaskDelayUntil` instead of `vTaskDelay`. Think about:
+1. Where should you declare and initialize `xLastWakeTime`?
+2. What is the correct period in ticks for this task? (Hint: it currently uses `INPUT_TICK_MS`)
+3. How do you correctly pass the variable to `vTaskDelayUntil`?
+
+**Step 2: Observe Input Task Metrics**
+
+With `Timing_PeriodTick()` still in the Input task and your MonitorTask running:
+- Run the game for 30 seconds
+- Observe AVG and JIT on screen
+- Record or take a screenshot of the results
+
+**Step 3: Convert Snake Task**
+
+Repeat the conversion for vSnakeTask. Remember:
+- Move `Timing_PeriodTick()` from Input to the Snake task
+- Update `expected_period_us` to the correct Snake period (150ms)
+- Apply the same `vTaskDelayUntil` pattern
+
+**Step 4: Observe Snake Task Metrics**
+
+Run again and record Snake task metrics.
+
+### Analysis Questions for Report
+
+After completing your measurements, answer these in your report:
+
+1. **Which method (vTaskDelay vs vTaskDelayUntil) produced lower jitter?** Show your data.
+
+2. **Why does vTaskDelayUntil perform better?** Explain in terms of when the delay starts counting.
+
+3. **Did you notice any difference in gameplay smoothness?** Be honest - sometimes the improvement is too small to feel.
+
+4. **What is the theoretical minimum jitter you could achieve?** (Hint: Think about FreeRTOS tick resolution - what is `configTICK_RATE_HZ` set to?)
+
+<Aside type="note" title="Expected Results">
+You should see jitter reduced by 50-80% when using `vTaskDelayUntil`. Typical measurements:
+- Input Task: ~500-800us jitter (down from 2000-4000us)
+- Snake Task: ~800-1200us jitter (down from 3000-6000us)
+
+The remaining jitter is limited by the 1ms tick resolution.
+</Aside>
+
+---
+
+## Part 4: Joystick Buffering with Counting Semaphore
+
+### The Problem: Lost Inputs
+
+When a player makes rapid directional changes (e.g., quick left-then-up to navigate around an obstacle), the Snake task running at 150ms might only process one input before the next game tick, losing commands. This feels unresponsive and frustrating.
+
+**Question**: How can you store multiple pending inputs without losing any?
+
+### Understanding Counting Semaphores
+
+Unlike a binary semaphore (0 or 1), a **counting semaphore** can count from 0 up to a maximum value. It's perfect for tracking "how many items are waiting":
+
+```
+Initial count: 0 (no inputs pending)
+Input 1 arrives → Give → count: 1
+Input 2 arrives → Give → count: 2
+Input 3 arrives → Give → count: 3
+Snake processes → Take → count: 2
+Snake processes → Take → count: 1
+```
+
+### Design Challenge
+
+You need to implement an input buffering system. Think about these questions:
+
+1. **How many inputs should you buffer?** Too small = still lose inputs. Too large = unnecessary memory.
+
+2. **Where do you store the actual direction values?** The semaphore only counts - it doesn't store data!
+
+3. **How do you prevent the buffer from wrapping incorrectly?** (Hint: circular buffer with head and tail pointers)
+
+4. **When should the Input task add to the buffer?** Every joystick read, or only on direction changes?
+
+5. **When should the Snake task consume from the buffer?** Every game tick, or only when buffer has items?
+
+<details>
+<summary>Hint 1: Data Structure (Click to expand)</summary>
+
+You need TWO things:
+1. A **counting semaphore** to track how many inputs are pending
+2. A **circular buffer** (array) to store `Direction` values
+
+Think about:
+- What handle type do you need for a counting semaphore?
+- What buffer size makes sense? (5 is reasonable for quick inputs)
+- What variables do you need to track where you write (head) and where you read (tail)?
+- How do you create a counting semaphore? See FreeRTOS `xSemaphoreCreateCounting()`:
+    - First parameter: maximum counter value
+    - Second parameter: initial value (start at 0, buffer empty)
+</details>
+
+<details>
+<summary>Hint 2: Input Task Logic (Click to expand)</summary>
+
+Your Input task should:
+1. Detect when the joystick direction **changes** (not every read)
+2. Add the new direction to the buffer at `bufferHead`
+3. Increment `bufferHead` with wrap-around: `bufferHead = (bufferHead + 1) % INPUT_BUFFER_SIZE`
+4. Signal availability by giving the semaphore: `xSemaphoreGive(xSemJoystickBuffer)`
+
+Important question: Why only on direction changes and not every read?
+Answer: Because storing the same direction repeatedly would fill the buffer with unnecessary duplicates.
+
+Additional hint: You’ll need a static variable to remember the previous direction:
+```c
+static Direction prevDirection = NONE;
+Direction currentDirection = /* leer joystick */;
+if (currentDirection != prevDirection && currentDirection != NONE) {
+    // Agregar al buffer
+    prevDirection = currentDirection;
+}
+```
+</details>
+
+<details>
+<summary>Hint 3: Snake Task Consumption (Click to expand)</summary>
+
+Your Snake task should:
+1. Try to take from the semaphore (non-blocking): `xSemaphoreTake(xSemJoystickBuffer, 0)`
+    - 0 means immediate timeout (do not block)
+    - Why non-blocking? The snake must move even if there’s no new input
+2. If take succeeds (`== pdTRUE`), read from the buffer at `bufferTail`
+3. Increment `bufferTail` with wrap-around: `bufferTail = (bufferTail + 1) % INPUT_BUFFER_SIZE`
+4. Validate the direction (no instant reverse!)
+5. Apply the direction change
+
+Suggested structure:
+```c
+if (xSemaphoreTake(xSemJoystickBuffer, 0) == pdTRUE) {
+    // Leer: Direction newDir = inputBuffer[bufferTail];
+    // Actualizar tail
+    // Validar con GetOppositeDirection()
+    // Apply if valid
+}
+```
+</details>
+
+<details>
+<summary>Hint 4: Prevent Reverse Moves (Click to expand)</summary>
+
+You already have `GetOppositeDirection()` from Lab 3. Use it to reject invalid moves.
+
+Validation logic:
+```c
+Direction bufferedDir = /* leer del buffer */;
+Direction opposite = GetOppositeDirection(gameState.currentDirection);
+
+if (bufferedDir != opposite) {
+    // Safe to apply
+    gameState.currentDirection = bufferedDir;
+} else {
+    // Ignore: instant reverse
+}
+```
+
+This prevents the snake from instantly reversing into itself.
+</details>
+
+### Implementation Checklist
+
+<Steps>
+
+1. Declare the counting semaphore handle and circular buffer (global variables)
+2. Create the counting semaphore in `main()` before tasks
+3. Modify **vInputTask** to detect direction changes and add to buffer
+4. Modify **vSnakeTask** to consume from buffer before moving snake
+5. Test with rapid joystick movements - all commands should execute
+
+</Steps>
+
+### Testing Your Buffer
+
+Try these scenarios:
+
+1. **Rapid zigzag**: Quickly move joystick left-right-left-right. Snake should execute all moves.
+
+2. **Quick corner**: Move right, then immediately up. Both moves should happen on consecutive game ticks.
+
+3. **Buffer overflow**: Make 10 rapid moves. First 5 should execute, rest are lost (that's okay - buffer is full).
+
+<Aside type="caution" title="Common Mistake">
+Don't add to the buffer on EVERY joystick read. Only add when the direction actually *changes*. Otherwise, you'll fill the buffer with duplicate entries!
+
+Example: If joystick is held UP for 100ms, the Input task runs 10 times (every 10ms). Only the first detection should go in the buffer.
+</Aside>
+
+### Why This Works
+
+- **Input Task** (fast, 10ms): Captures every direction change immediately
+- **Snake Task** (slow, 150ms): Processes one buffered input per game tick
+- **Counting Semaphore**: Tracks exactly how many unprocessed inputs exist
+- **Circular Buffer**: Stores the actual direction values in order
+
+Result: Responsive controls that don't drop player commands!
+
+---
+
+## Part 5: Game Chronometer with Software Timer
+
+### Software Timer Concept
+
+A **software timer** executes a callback function periodically without dedicating a full task. The timer service (daemon) task manages all timers efficiently.
+
+### Requirements
+
+- Display format: `MM:SS:CS` (minutes:seconds:centiseconds)
+- Updates every 10ms (0.01 second = 1 centisecond)
+- Pauses when game is paused
+- Resets when game resets
+
+### Implementation
+
+**1. Add Timer Include**:
+
+```c
+extern "C" {
+#include "timers.h"
+}
+```
+
+**2. Declare Timer Handle and Variables**:
+
+You need:
+- A timer handle (`TimerHandle_t`)
+- Volatile variables for minutes, seconds, and centiseconds
+- Centiseconds range 0-99, seconds 0-59, and minutes 0-99
+
+<Aside type="tip" title="Hint: Variable Declarations">
+```c
+TimerHandle_t chronoTimer = NULL;
+
+volatile uint8_t  g_chrono_min = 0;   // 0-99
+volatile uint8_t  g_chrono_sec = 0;   // 0-59
+volatile uint16_t g_chrono_cs = 0;    // 0-99 (centiseconds)
+```
+</Aside>
+
+**3. Write Timer Callback**:
+
+The callback should:
+- Receive a `TimerHandle_t xTimer` parameter (you can ignore it with `(void)xTimer`)
+- Only increment time if the game is running (`gameState.isRunning && !gameState.loose`)
+- Increment centiseconds by 1
+- If centiseconds reach 100: reset to 0 and increment seconds
+- If seconds reach 60: reset to 0 and increment minutes
+- If minutes reach 100: reset to 0 (wrap around)
+
+<details>
+<summary>Hint: Callback Structure (Click to expand)</summary>
+
+```c
+void chronoTimerCallback(TimerHandle_t xTimer)
+{
+    (void)xTimer;
+    
+    if (gameState.isRunning && !gameState.loose) {
+        g_chrono_cs++;
+        if (g_chrono_cs >= 100) {
+            g_chrono_cs = 0;
+            g_chrono_sec++;
+            // Continue logic...
+        }
+    }
+}
+```
+</details>
+
+**4. Create and Start Timer**:
+
+Create a function to configure the chronometer. Use `xTimerCreate()` with these parameters:
+- Name: "Chrono" (for debugging)
+- Period: 10ms converted to ticks with `pdMS_TO_TICKS(10)`
+- Auto-reload: `pdTRUE` (repeat automatically)
+- Timer ID: `NULL` (not needed)
+- Callback: your callback function name
+
+After creating the timer, start it with `xTimerStart(chronoTimer, 0)` if creation succeeded.
+
+Call this function in `main()` after creating tasks but before starting the scheduler.
+
+**5. Display Chronometer in DrawGame()**:
+
+In your `DrawGame()` function in display.cpp:
+1. Read the chronometer variables inside a critical section (because the timer callback modifies them)
+2. Format the string with `snprintf` as `MM:SS:CS`
+3. Draw the string on the screen at your preferred position
+
+<Aside type="tip" title="Hint: Safe Read and Formatting">
+```c
+// Read with protection
+taskENTER_CRITICAL();
+uint8_t min = g_chrono_min;
+uint8_t sec = g_chrono_sec;
+uint16_t cs = g_chrono_cs;
+taskEXIT_CRITICAL();
+
+// %02u means "unsigned with 2 digits, zero-padded"
+char timeStr[16];
+snprintf(timeStr, sizeof(timeStr), "%02u:%02u:%02u", min, sec, cs);
+
+// Draw on screen (use the functions you already know)
+```
+</Aside>
+
+**6. Reset Chronometer on Game Reset**:
+
+In the `ResetGame()` function in game.cpp, reset the chronometer variables to 0.
+**Important!** Use critical sections because these variables are shared with the timer callback.
+
+<Aside type="tip" title="Why Critical Sections?">
+The timer callback (running in daemon task context) writes to these variables while the render task reads them. Critical sections ensure atomic access and prevent reading partially-updated values.
+</Aside>
+
+---
+
+## Part 6: Wall Collision & Game Over Animation
+
+### Implement Deadly Walls
+
+In Lab 3 your snake likely used wrap-around — exiting one side re-entered on the opposite side. Now, walls are deadly.
+
+Modify `moveSnake()` in game.cpp:
+
+**Required changes:**
+
+1. **Remove wrap-around**: Instead of using modulo (`%`) for the new position, clamp to bounds
+    - If `UP` and already at y=0, keep y=0 (don’t wrap)
+    - If `DOWN` and at y=GRID_SIZE-1, keep that position
+    - Do similarly for LEFT and RIGHT
+
+2. **Detect wall collision**: After computing the new position, check if the snake head is on the grid border
+    - Borders are: x=0, x=GRID_SIZE-1, y=0, y=GRID_SIZE-1
+    - If the head is at any border, set:
+      - `gameState.loose = true`
+      - `gameState.isRunning = false`
+
+<details>
+<summary>Hint: Movement Logic without Wrap-Around (Click to expand)</summary>
+
+```c
+// Example for UP direction:
+case UP:
+    if (oldHead.y > 0) {
+        snake[0].y = oldHead.y - 1;
+    } else {
+        snake[0].y = 0;  // Stay at border (collision)
+    }
+    break;
+```
+
+Apply similar logic for DOWN, LEFT, and RIGHT.
+
+Then, after the switch, check collision:
+```c
+if (snake[0].x == 0 || snake[0].x == GRID_SIZE - 1 ||
+    snake[0].y == 0 || snake[0].y == GRID_SIZE - 1) {
+    // Game over
+}
+```
+</details>
+
+### Add Game Over Animation
+
+Create a function in display.cpp that shows a visual effect when the game ends.
+
+**Animation requirements:**
+- Flash the screen red 3 times
+- Each flash: red for 150ms, then black for 150ms
+- Use `GrRectFill` to fill the entire screen
+- Full-screen rectangle coordinates: `{0, 0, 127, 127}`
+- Use `vTaskDelay(pdMS_TO_TICKS(150))` for timing
+- Don’t forget `GrFlush(&gContext)` after drawing
+
+<Aside type="tip" title="Hint: Loop Structure">
+```c
+void GameOverAnimation(void)
+{
+    for (int i = 0; i < 3; i++) {
+        // Define full-screen rectangle
+        // Red flash: set color, fill, flush, delay
+        // Black flash: set color, fill, flush, delay
+    }
+}
+```
+</Aside>
+
+**Call from vSnakeTask** when collision is detected:
+
+When to call the animation?
+- Only when `gameState.loose` is true
+- Acquire the LCD mutex before calling `GameOverAnimation()`
+- Use a 100ms timeout in `xSemaphoreTake`
+- Release the mutex afterward
+
+**Display Game Over Screen** in DrawGame():
+
+In your `DrawGame()` function, add an early check:
+- If the game ended (`state->loose && !state->isRunning`)
+- Clear the screen (black rectangle)
+- Draw "GAME OVER" in red and centered
+- Draw instructions in white: "Press S2" and "to Reset"
+- Use `GrStringDrawCentered()` for centered text
+- Return early (don’t draw the normal game)
+
+<details>
+<summary>Hint: GrStringDrawCentered (Click to expand)</summary>
+
+```c
+GrStringDrawCentered(&gContext, "TEXT", -1, x_center, y, false);
+```
+- x_center for a 128-pixel-wide display: 64
+- -1 means "auto-calculate length"
+- false means "transparent background" (not opaque)
+</details>
+
+---
+
+## Part 7: Stack Usage Monitoring & Optimization
+
+### Understanding Stack Usage
+
+Each FreeRTOS task has its own stack (allocated at creation). **Stack overflow** happens when a task uses more stack than allocated, corrupting memory and causing crashes.
+
+### Measuring Stack Usage
+
+FreeRTOS provides `uxTaskGetStackHighWaterMark()` which returns the minimum free stack (in words) ever observed for a task.
+
+**Example**:
+- Task allocated 512 words
+- High water mark = 120 words
+- Actual usage = 512 - 120 = 392 words
+- Safety margin = 120 words (23%)
+
+### Your Task: Implement Stack Monitoring
+
+Extend the `MonitorTask` to alternate between displaying:
+- Timing metrics (AVG and JIT) on odd seconds
+- Task stack usage on even seconds
+
+**Challenge**: How can you get information for all system tasks?
+
+<details>
+<summary>Hint 1: Get Task Info (Click to expand)</summary>
+
+FreeRTOS provides `uxTaskGetSystemState()` which fills an array with info for all tasks:
+
+```c
+TaskStatus_t taskStatusArray[10];  // Buffer for up to 10 tasks
+UBaseType_t numTasks;
+
+numTasks = uxTaskGetSystemState(taskStatusArray, 10, NULL);
+```
+
+Each array element has:
+- `pcTaskName`: task name
+- `xHandle`: task handle (needed for other functions)
+- Other fields you can explore
+</details>
+
+<details>
+<summary>Hint 2: Measure Each Task’s Stack (Click to expand)</summary>
+
+For each task in the array, use:
+```c
+UBaseType_t remaining = uxTaskGetStackHighWaterMark(taskStatusArray[i].xHandle);
+```
+
+This gives you the high water mark — the minimum free space the task has had.
+
+Question: If you allocated 512 words and `remaining` is 120, how much is the task using?
+Answer: 512 - 120 = 392 words
+</details>
+
+<details>
+<summary>Hint 3: Toggle Display (Click to expand)</summary>
+
+In `MonitorTask`, use a static variable to toggle:
+```c
+static uint8_t displayMode = 0;  // 0 = timing, 1 = stack
+
+for (;;) {
+    vTaskDelayUntil(&last, period);
+    
+    displayMode = !displayMode;  // Toggle every second
+    
+    if (displayMode == 0) {
+        // Show AVG and JIT (code you already have)
+    } else {
+        // Show stack info for 2-3 main tasks
+        // Suggested format: "S:120 R:85" (Snake:120 words, Render:85 words)
+    }
+}
+```
+</details>
+
+<Aside type="note" title="Display Format">
+You don’t need to show every task — the screen is small. Show the 2-3 main tasks you created:
+- Snake task
+- Render task  
+- Input task
+
+Suggested format: `"S:120 R:85 I:94"` where numbers are free words (high water mark).
+</Aside>
+
+### Optimization Challenge
+
+Now that you can measure stack usage in real-time, your challenge is to optimize:
+
+<Steps>
+
+1. Run the game for 2 minutes while playing actively (move a lot, eat fruit, pause/resume)
+2. Observe and note the lowest high water mark you see for each task
+3. Compute actual usage: `Usage = Allocated_Stack - High_Water_Mark`
+4. Compute optimal size: `New = Actual_Usage + Safety_Margin`
+    - Recommended margin: 20-30% for production code
+5. Update `xTaskCreate()` with the new sizes
+6. Test thoroughly to ensure no overflow
+
+</Steps>
+
+**Optimization Example**:
+
+```
+Original: xTaskCreate(vSnakeTask, "Snake", 512, ...)
+Measured after 2 min: High Water Mark = 120 words
+Actual usage: 512 - 120 = 392 words
+With 20% margin: 392 * 1.20 = 470 words (round to 480)
+Updated: xTaskCreate(vSnakeTask, "Snake", 480, ...)
+```
+
+**Questions for your report:**
+1. Which task uses the most stack? Why do you think that is?
+2. How much total memory did you save by optimizing?
+3. Why is it important NOT to optimize right to the measured limit?
+
+<Aside type="caution">
+Never optimize below the measured maximum usage! Always leave safety margin for worst-case scenarios (deep recursion, large stack variables, nested interrupts, etc.).
+</Aside>
+
+---
+
+## Part 8: Stack Overflow Detection Hook
+
+### Enable Detection in FreeRTOSConfig.h
+
+Add or modify:
+
+```c
+#define configCHECK_FOR_STACK_OVERFLOW 2
+```
+
+Method 2 is most thorough - it checks both context switches and uses a canary pattern.
+
+### Implement Hook Function
+
+Add to main.cpp:
+
+```c
+extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+    (void)xTask;
+    
+    // Turn on LED as hardware indicator
+    // TM4C1294XL user LED2 (red) is on PN1
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION));
+    
+    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_1);
+    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, GPIO_PIN_1);  // LED ON
+    
+    // Display error on LCD (may fail if LCD stack overflow)
+    tRectangle full = {0, 0, 127, 127};
+    GrContextForegroundSet(&gContext, ClrRed);
+    GrRectFill(&gContext, &full);
+    
+    GrContextForegroundSet(&gContext, ClrWhite);
+    GrStringDrawCentered(&gContext, "STACK OVERFLOW", -1, 64, 40, false);
+    GrStringDrawCentered(&gContext, pcTaskName, -1, 64, 60, false);
+    
+    GrFlush(&gContext);
+    
+    // Halt system - overflow is unrecoverable
+    IntMasterDisable();
+    while(1);
+}
+```
+
+### Testing the Hook
+
+Intentionally cause overflow to verify detection works:
+
+```c
+// Add to any task temporarily:
+void causeStackOverflow(void) {
+    volatile char bigArray[2000];  // Way too large
+    bigArray[0] = 1;  // Prevent optimization
+}
+```
+
+Expected behavior:
+- LED turns red
+- LCD shows "STACK OVERFLOW" and task name
+- System halts
+
+<Aside type="caution">
+Remove test code before final submission! Stack overflow detection is for catching bugs during development, not normal operation.
+</Aside>
+
+---
+
+## Final Testing Checklist
+
+Before submitting, verify all requirements:
+
+- Hardware timer measures and displays timing metrics on LCD
+- vTaskDelayUntil reduces jitter compared to vTaskDelay (documented in report)
+- Buttons respond instantly via interrupts (no polling delay)
+- Rapid joystick moves are buffered and executed in order
+- Chronometer displays accurate time and pauses with game
+- Snake dies when hitting walls (no wrap-around)
+- Game over animation displays on collision
+- Stack usage shown on LCD with realistic values
+- Stack overflow hook lights LED and halts system
+- All tasks optimized to safe minimum stack sizes
+- Code is clean and well-commented
+
+---
+
+## Report Requirements
+
+Your lab report (25 points) must include:
+
+### 1. Timing Analysis (8 points)
+- Table comparing vTaskDelay vs vTaskDelayUntil measurements
+- Graphs or charts showing jitter distribution
+- Explanation of why vTaskDelayUntil performs better
+- Discussion of tick resolution limitations
+
+### 2. Synchronization Design (8 points)
+- Explanation of binary vs counting semaphore use cases
+- Justification for chosen buffer size (why 5 inputs?)
+- Analysis of ISR response time vs polling
+- Discussion of critical section placement for chronometer
+
+### 3. Memory Optimization (6 points)
+- Table showing stack measurements for all tasks
+- Calculation of optimization percentages
+- Justification for safety margins chosen
+- Discussion of worst-case scenarios considered
+
+### 4. Reflection (3 points)
+- What was most challenging?
+- How did testing reveal bugs?
+- What would you improve given more time?
+
+---
+
+## Additional Resources
+
+<CardGrid>
+<LinkCard
+    title="FreeRTOS Timing API"
+    description="Official documentation for delay functions"
+    href="https://www.freertos.org/a00127.html"
+    icon="external"
+/>
+
+<LinkCard
+    title="FreeRTOS Software Timers"  
+    description="Guide to creating and managing timers"
+    href="https://www.freertos.org/RTOS-software-timer.html"
+    icon="external"
+/>
+
+<LinkCard
+    title="Semaphores & Mutexes"
+    description="Understanding synchronization primitives"
+    href="https://www.freertos.org/a00113.html"
+    icon="external"
+/>
+
+<LinkCard
+    title="Stack Overflow Detection"
+    description="Methods and configuration"
+    href="https://www.freertos.org/Stacks-and-stack-overflow-checking.html"
+    icon="external"
+/>
+</CardGrid>
+
+---
+
+## Submitting Your Work
+
+### Export Project
+
+<Steps>
+
+1. Ensure your project is named `ece3849_lab4_<username>`
+2. Right-click the project in Project Explorer
+3. Select **Export** > **General** > **Archive File**
+4. Save as `ece3849_lab4_<username>.zip`
+
+</Steps>
+
+### Submit to Canvas
+
+Upload both:
+- `ece3849_lab4_<username>.zip` (source code)
+- `ece3849_lab4_<username>_report.pdf` (lab report)
+
+---
+
+Good luck optimizing your real-time system!
