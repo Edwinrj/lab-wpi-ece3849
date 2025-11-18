@@ -884,10 +884,42 @@ Your task is to **increase the SPI clock frequency** to reduce LCD drawing time 
    - If artifacts appear, reduce frequency slightly
 
 6. **Measure the improvement**
-   - Use your timing measurement code from Part 3
-   - Document the new LCD execution time
+   - Your timing measurements from Part 3 are still active and displaying on the LCD
+   - **Observe the new LCD execution time** displayed on screen (Ex: avg/max values)
+   - Document how much the execution time decreased compared to 15 MHz
    - Document the new maximum achievable FPS
    - Calculate the performance gain percentage
+
+7. **Adjust render task timing based on new measurements**
+   - Based on the new execution time shown on screen, **update your render task period**
+   - Example: If execution time dropped from ~45ms to ~30ms, you can decrease period from 65ms to ~40-45ms
+   - **Don't forget to update `expected_period_us`** to match your new period!
+   
+   ```c
+   // Example: If new execution time is 30ms, use 40ms period (33% safety margin)
+   uint32_t expected_period_us = 40000;  // 40ms in microseconds
+   
+   static void vRenderTask(void *pvParameters)
+   {
+       TickType_t last = xTaskGetTickCount();
+       
+       for(;;)
+       {
+           Timing_PeriodTick();        
+           Timing_ExecutionStart();    
+           
+           // ... LCD drawing code ...
+           
+           gFrameCount++;
+           Timing_ExecutionEnd();      
+           
+           vTaskDelayUntil(&last, pdMS_TO_TICKS(40));  // Match expected_period_us!
+       }
+   }
+   ```
+   
+   - **Verify stability**: Run for several minutes and ensure jitter remains low
+   - **Gradually optimize**: Decrease period in 5ms steps until jitter increases, then add safety margin
 
 </Steps>
 
@@ -912,6 +944,8 @@ Based on your research, you should find:
 5. **Testing duration**: Display artifacts may only appear after extended operation
 </Aside>
 
+
+
 ### Validation and Analysis
 
 After optimizing the SPI clock, document:
@@ -928,12 +962,6 @@ After optimizing the SPI clock, document:
    - Execution time reduction: _____% 
    - FPS increase: _____% 
    - New theoretical limit: _____ FPS
-
-4. **Reliability Assessment**:
-   - Test duration: _____ minutes
-   - Artifacts observed: Yes / No
-   - Description of any issues: _____________
-   - Final recommended frequency: _____ MHz
 
 ### Questions for Your Report
 
@@ -991,6 +1019,36 @@ This is exactly how professional embedded systems engineers work:
 These skills apply to any embedded project: motor controllers, audio processing, video streaming, sensor fusion, etc.
 </Aside>
 
+### Increase Game Speed
+
+Now that you've optimized both the hardware (SPI clock) and software (task timing), your game runs much smoother with higher FPS. This opens up an exciting opportunity: **you can make the game faster!**
+
+With the original LCD bottleneck, increasing snake speed would have made the game feel even more sluggish because the display couldn't keep up. But now that you've achieved higher FPS through hardware optimization, the display can handle faster gameplay.
+
+Increase the snake's movement speed by **decreasing the period** of the `vSnakeTask`:
+
+**Recommended Starting Point:** 100ms (down from 150ms)
+
+**Why This Works Now:**
+- Original setup: 13-15 FPS couldn't smoothly display fast snake movement
+- Optimized setup: 25-30+ FPS can easily handle faster gameplay
+- The snake now moves 1.5× faster, but the display can keep up!
+
+**Experiment Further:**
+- Try even faster speeds: 80ms, 75ms, 70ms...
+- Find the sweet spot between challenge and playability
+- Notice how smooth gameplay feels compared to the original sluggish version
+
+**Questions for Your Report:**
+1. What snake speed (task period) did you find most enjoyable?
+2. At what speed does the game become too difficult to play?
+3. How does the optimized display performance enable better gameplay?
+4. Could you have achieved this speed before hardware optimization? Why not?
+
+<Aside type="tip" title="Gameplay Balance">
+Faster isn't always better! The goal is to find a speed that's **challenging but fair**. With your optimized system, you now have the freedom to experiment and find that perfect balance—something that wasn't possible before hardware optimization.
+</Aside>
+
 ### Critical Insights for Your Report
 
 Document your understanding of these key concepts:
@@ -1003,172 +1061,339 @@ Document your understanding of these key concepts:
 
 ---
 
-
-
 ## Part 5: Joystick Input Buffering with Counting Semaphores
 
 ### The Problem with Rapid Inputs
 
 Currently, if a user rapidly moves the joystick (faster than the snake update period), directional changes can be lost. We need to buffer these inputs to ensure responsive gameplay.
 
-### Understanding Counting Semaphores
+**This problem becomes especially noticeable after optimizing your game speed in Part 4.** Now that your snake moves faster (100ms period instead of 150ms), you'll notice that input responsiveness becomes critical. With faster gameplay:
+- Rapid directional changes may not register
+- The snake might miss turns, causing frustrating collisions
+- Input feels "laggy" or unresponsive compared to the visual update rate
+- Multiple quick joystick movements get lost between snake updates
 
-A **counting semaphore** tracks a count of available resources:
-- **Post** (signal): Increments count, wakes waiting tasks
-- **Pend** (wait): Decrements count, blocks if zero
-- **Count**: Number of available resources/pending signals
+**Why does faster gameplay expose this problem?**
+- Original slow snake (150ms): Players had time between movements, rarely made rapid inputs
+- Optimized fast snake (100ms or less): Players need to react quickly, making multiple rapid inputs
+- Without buffering: Only the most recent input is captured, earlier inputs are discarded
+- Result: The game feels like it's not responding correctly to your commands
 
-Perfect for buffering inputs where order matters!
+This is where **input buffering** becomes essential for a professional gaming experience.
+
+### Understanding Counting Semaphores and Queues
+
+Before we dive into the implementation, let's understand the synchronization mechanisms we'll use:
+
+#### What is a Counting Semaphore?
+
+A **counting semaphore** is a synchronization primitive that maintains an internal counter:
+
+- **Initial count**: Can be set to any value (e.g., 0, 5, 10)
+- **xSemaphoreGive()**: Increments the counter (up to the maximum)
+- **xSemaphoreTake()**: Decrements the counter (blocks if counter is 0)
+- **Use case**: Tracking the number of available resources or pending events
+
+**Key difference from binary semaphores:**
+- Binary semaphore: Can only be 0 or 1 (like a mutex or flag)
+- Counting semaphore: Can count multiple events (0, 1, 2, 3, ..., max)
+
+**Example scenario:**
+```
+Initial count = 0 (no inputs pending)
+User presses joystick → xSemaphoreGive() → count = 1
+User presses again   → xSemaphoreGive() → count = 2
+User presses again   → xSemaphoreGive() → count = 3
+
+Snake task calls xSemaphoreTake() → count = 2 (one input processed)
+Snake task calls xSemaphoreTake() → count = 1 (another input processed)
+Snake task calls xSemaphoreTake() → count = 0 (last input processed)
+Snake task calls xSemaphoreTake() → BLOCKS (no inputs available)
+```
+
+#### What is a Queue?
+
+A **queue** is a FIFO (First In, First Out) buffer that stores actual data:
+
+- **Purpose**: Store the actual values (in our case, Direction enums)
+- **Operations**: xQueueSend() adds items, xQueueReceive() retrieves items
+- **Blocking behavior**: Can block if queue is full (send) or empty (receive)
+- **Order preservation**: Items are retrieved in the same order they were added
+
+**Why do we need BOTH a semaphore AND a queue?**
+
+This is a common design pattern in RTOS programming:
+
+1. **Queue stores the data** (UP, DOWN, LEFT, RIGHT)
+2. **Counting semaphore tracks how many items are in the queue**
+3. **Snake task waits on semaphore** (efficient sleeping instead of polling)
+4. **When semaphore signals, snake task reads from queue**
+
+**Analogy:**
+- Queue = Mailbox (stores actual letters)
+- Counting Semaphore = Counter showing "3 letters inside"
+- Snake Task = Person waiting for notification before checking mailbox
+
+**Without counting semaphore:**
+```c
+// BAD: Polling approach (wastes CPU)
+while (1) {
+    if (queue has items) {  // Constantly checking!
+        read from queue
+    }
+    vTaskDelay(1);  // Still checking 1000 times per second!
+}
+```
+
+**With counting semaphore:**
+```c
+// GOOD: Event-driven approach (efficient)
+while (1) {
+    xSemaphoreTake(xSemJoystickInput, portMAX_DELAY);  // Sleep until input!
+    xQueueReceive(xQueueDirections, &direction, 0);     // Guaranteed to have data
+    // Process direction
+}
+```
+
+<Aside type="tip" title="Synchronization Pattern">
+Using a counting semaphore + queue together is a standard RTOS pattern for **producer-consumer** scenarios:
+- **Producer** (Input Task): Adds data to queue, signals semaphore
+- **Consumer** (Snake Task): Waits on semaphore, reads from queue
+- **Benefit**: Consumer sleeps efficiently instead of wasting CPU polling
+</Aside>
 
 ### Implementation Strategy
 
-1. **Interrupt-driven joystick reading** for instant response
-2. **Counting semaphore** to signal new inputs
-3. **Queue or buffer** to store directional commands
-4. **Snake task** processes buffered commands
+Your task is to implement an input buffering system using the counting semaphore + queue pattern. Here's the high-level architecture:
 
-### Global Variables
+1. **Enable counting semaphores in FreeRTOS** configuration
+2. **Declare global synchronization objects** properly across files
+3. **Initialize semaphore and queue** in main() before starting scheduler
+4. **Producer (Input Task)**: Detect direction changes, add to queue, signal semaphore
+5. **Consumer (Snake Task)**: Wait on semaphore, process all queued directions
 
-```c
-#include "queue.h"
+<Steps>
 
-SemaphoreHandle_t xSemJoystickInput = NULL;
-QueueHandle_t xQueueDirections = NULL;
+1. **Enable Counting Semaphores in FreeRTOS**
 
-#define MAX_DIRECTION_BUFFER 5  // Buffer up to 5 direction changes
+   Open `FreeRTOSConfig.h` and add this configuration:
+   
+   ```c
+   #define configUSE_COUNTING_SEMAPHORES    1
+   ```
+   
+   This enables the counting semaphore API in FreeRTOS.
+
+2. **Declare Global Objects in app_objects.h**
+
+   Add these extern declarations so other files can access the synchronization objects:
+   
+   ```c
+   extern SemaphoreHandle_t xSemJoystickInput;
+   extern QueueHandle_t xQueueDirections;
+   
+   #define MAX_DIRECTION_BUFFER 5  // Buffer up to 5 direction changes
+   ```
+   
+   <Aside type="note">
+   The `extern` keyword declares that these variables exist elsewhere (will be defined in main.cpp) but can be accessed from any file that includes this header.
+   </Aside>
+
+3. **Define Global Objects in main.cpp**
+
+   At the top of `main.cpp`, add the actual variable definitions:
+   
+   ```c
+   SemaphoreHandle_t xSemJoystickInput = NULL;
+   QueueHandle_t xQueueDirections = NULL;
+   ```
+   
+   Also ensure `queue.h` is included in the `extern "C"` block:
+   
+   ```c
+   extern "C" {
+   #include "FreeRTOS.h"
+   #include "task.h"
+   #include "queue.h"  // Make sure this is included!
+   #include "semphr.h"
+   // ... other includes ...
+   }
+   ```
+
+4. **Initialize Synchronization Objects in main()**
+
+   Before starting the scheduler, create the counting semaphore and queue:
+   
+   ```c
+   // In main(), after creating tasks but before vTaskStartScheduler():
+   
+   // Create counting semaphore (max count = MAX_DIRECTION_BUFFER, initial count = 0)
+   xSemJoystickInput = xSemaphoreCreateCounting(MAX_DIRECTION_BUFFER, 0);
+   if (xSemJoystickInput == NULL) {
+       while(1);  // Creation failed - halt system
+   }
+   
+   // Create queue to store Direction values
+   xQueueDirections = xQueueCreate(MAX_DIRECTION_BUFFER, sizeof(Direction));
+   if (xQueueDirections == NULL) {
+       while(1);  // Creation failed - halt system
+   }
+   ```
+   
+   <Aside type="caution">
+   Always check if creation succeeded! Returning NULL means insufficient heap memory.
+   </Aside>
+
+</Steps>
+
+### Implementation Pseudocode
+
+Now that you have the synchronization objects initialized, you need to modify your Input and Snake tasks. Here's the logic you need to implement:
+
+#### Producer Logic (Input Task)
+
+```
+TASK: InputTask
+    VARIABLE: lastDetectedDirection = CURRENT_DIRECTION
+    
+    LOOP forever:
+        Poll joystick hardware
+        
+        newDirection = MapJoystickToDirection()
+        
+        IF newDirection changed from lastDetectedDirection:
+            IF newDirection is NOT opposite of current snake direction:
+                TRY to add newDirection to queue (non-blocking):
+                    IF successfully added to queue:
+                        Signal counting semaphore (increment count)
+                        Update lastDetectedDirection
+                    ELSE:
+                        Drop input (queue full - prevents lag buildup)
+        
+        Delay for input polling period
 ```
 
-### Direction Queue Setup
+**Key design decisions to implement:**
+
+1. **Prevent reversals**: Snake can't reverse direction (e.g., can't go LEFT if currently going RIGHT)
+2. **Non-blocking queue send**: Use timeout of 0 to avoid blocking if queue is full
+3. **Drop old inputs**: If queue is full, drop the new input rather than blocking
+4. **Track last direction**: Only queue when direction actually changes
+5. **Semaphore after queue**: Only signal semaphore if data was successfully added to queue
+
+#### Consumer Logic (Snake Task)
+
+```
+TASK: SnakeTask
+    VARIABLE: lastWakeTime = current tick count
+    
+    LOOP forever:
+        WHILE counting semaphore count > 0:
+            Take one count from semaphore (non-blocking)
+            IF take succeeded:
+                Receive one direction from queue
+                Update snake's current direction
+        
+        IF game is running:
+            Move snake in current direction
+            Check collisions
+            Check fruit eating
+            Update score
+        
+        Delay until next scheduled execution
+```
+
+**Key design decisions to implement:**
+
+1. **Process ALL queued inputs**: Use a while loop to drain all pending directions
+2. **Non-blocking semaphore take**: Check if inputs are available without blocking
+3. **Synchronized access**: Semaphore count should always match queue item count
+4. **Apply direction immediately**: Update current direction before moving snake
+5. **Maintain timing**: Use vTaskDelayUntil to keep consistent snake speed
+
+### Implementation Hints
+
+<Aside type="tip" title="Critical Synchronization Pattern">
+**Always maintain this relationship:**
+```
+Semaphore Count == Number of Items in Queue
+```
+
+For every `xQueueSend()` that succeeds, call `xSemaphoreGive()` once.
+For every `xSemaphoreTake()` that succeeds, call `xQueueReceive()` once.
+
+If these get out of sync, your system will behave incorrectly!
+</Aside>
+
+**FreeRTOS API Functions You'll Need:**
+
+1. **xQueueSend(queue, item, timeout)**
+   - Adds item to queue
+   - Returns `pdPASS` if successful, `errQUEUE_FULL` if queue is full
+   - Use timeout = 0 for non-blocking
+
+2. **xQueueReceive(queue, buffer, timeout)**
+   - Retrieves item from queue into buffer
+   - Returns `pdPASS` if successful, `errQUEUE_EMPTY` if queue is empty
+   - Use timeout = 0 for non-blocking
+
+3. **xSemaphoreGive(semaphore)**
+   - Increments semaphore count
+   - Returns `pdPASS` if successful
+
+4. **xSemaphoreTake(semaphore, timeout)**
+   - Decrements semaphore count (blocks if count is 0)
+   - Returns `pdPASS` if successful
+   - Use timeout = 0 for non-blocking check
+
+**Example: Checking API Return Values**
 
 ```c
-// In main(), after creating other synchronization objects:
-xSemJoystickInput = xSemaphoreCreateCounting(MAX_DIRECTION_BUFFER, 0);
-if (xSemJoystickInput == NULL) {
-    while(1);  // Semaphore creation failed
-}
+Direction newDirection = UP;
 
-xQueueDirections = xQueueCreate(MAX_DIRECTION_BUFFER, sizeof(Direction));
-if (xQueueDirections == NULL) {
-    while(1);  // Queue creation failed  
+// Non-blocking queue send
+if (xQueueSend(xQueueDirections, &newDirection, 0) == pdPASS) {
+    // Success! Data was added to queue
+    xSemaphoreGive(xSemJoystickInput);  // Signal that data is available
+    lastDirection = newDirection;
+} else {
+    // Queue is full - input is dropped
 }
 ```
 
-### Modified Input Task
-
 ```c
-static void vInputTask(void *pvParameters)
-{
-    (void)pvParameters;
-    
-    Direction lastDirection = gameState.currentDirection;
-    
-    for (;;) {
-        // Hardware button + joystick polling (keep existing code)
-        btnPause.tick();
-        btnReset.tick();
-        gJoystick.tick();
+Direction bufferedDirection;
 
-        // Process buttons (existing code)
-        if (btnPause.wasPressed()) {
-            gameState.isRunning = !gameState.isRunning && !gameState.loose;
-            Buzzer_Post(1000, 50);
-        }
-
-        if (btnReset.wasPressed()) {
-            gameState.needsReset = true;
-            Buzzer_Post(500, 100);
-        }
-
-        // Joystick direction mapping (existing code)
-        Direction newDirection = lastDirection;  // Keep current by default
-
-        switch (gJoystick.direction8()) {
-            case JoystickDir::N:
-            case JoystickDir::NE:
-            case JoystickDir::NW:
-                newDirection = UP;
-                break;
-            case JoystickDir::S:
-            case JoystickDir::SE:
-            case JoystickDir::SW:
-                newDirection = DOWN;
-                break;
-            case JoystickDir::E:
-                newDirection = RIGHT;
-                break;
-            case JoystickDir::W:
-                newDirection = LEFT;
-                break;
-            default:
-                // No change
-                break;
-        }
-
-        // NEW: Only queue valid direction changes (not reversals)
-        if (newDirection != lastDirection && 
-            newDirection != GetOppositeDirection(gameState.currentDirection)) {
-            
-            // Try to add to queue (non-blocking)
-            if (xQueueSend(xQueueDirections, &newDirection, 0) == pdPASS) {
-                xSemaphoreGive(xSemJoystickInput);  // Signal new input
-                lastDirection = newDirection;
-            }
-            // If queue full, drop the input (prevents lag)
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(INPUT_TICK_MS));
+while (xSemaphoreTake(xSemJoystickInput, 0) == pdPASS) {
+    // Semaphore was available, should be data in queue
+    if (xQueueReceive(xQueueDirections, &bufferedDirection, 0) == pdPASS) {
+        // Got the direction value from queue
+        gameState.currentDirection = bufferedDirection;
     }
 }
 ```
 
-### Modified Snake Task
+### Questions to Answer Before Implementing
 
-```c
-static void vSnakeTask(void *pvParameters)
-{
-    (void)pvParameters;
-    ResetGame();
-    
-    TickType_t last = xTaskGetTickCount();
+Think through these questions to ensure you understand the design:
 
-    for(;;) {
-        // Process ALL queued direction changes
-        Direction bufferedDirection;
-        while (xSemaphoreTake(xSemJoystickInput, 0) == pdPASS) {
-            if (xQueueReceive(xQueueDirections, &bufferedDirection, 0) == pdPASS) {
-                gameState.currentDirection = bufferedDirection;
-            }
-        }
+1. **Why use a counting semaphore instead of a binary semaphore?**
+   - What happens if 3 inputs arrive before snake task processes them?
 
-        // Handle reset request
-        if (gameState.needsReset) {
-            ResetGame();
-        }
+2. **Why use non-blocking queue operations instead of blocking?**
+   - What would happen if Input Task blocked waiting for queue space?
 
-        if (gameState.isRunning) {
-            moveSnake();
+3. **Why process ALL queued inputs in a while loop instead of just one?**
+   - What happens if 5 direction changes occurred during one snake movement?
 
-            // Check self-collision
-            if (HasSelfCollision()) {
-                gameState.loose = true;
-                gameState.isRunning = false;
-                Buzzer_Post(200, 500);
-            }
+4. **Why check for opposite direction before queuing?**
+   - What would happen if you allow UP→DOWN transition while moving UP?
 
-            // Check if fruit was eaten
-            if (HasEatenFruit()) {
-                score++;
-                GrowSnake();
-                hasFruit = false;
-                SpawnFruit();
-                Buzzer_Post(1500, 80);
-            }
-        }
+5. **What happens if queue fills up?**
+   - Should you block and wait, or drop the input? Why?
 
-        vTaskDelayUntil(&last, pdMS_TO_TICKS(150));
-    }
-}
-```
+6. **Why signal semaphore AFTER successfully adding to queue?**
+   - What would happen if you signal before checking if queue had space?
 
 ### Testing the Buffer
 
