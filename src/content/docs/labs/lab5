@@ -1,0 +1,267 @@
+
+## Part 7: Stack Usage Analysis and Optimization
+
+### Understanding Stack Monitoring
+
+FreeRTOS can track stack usage for each task:
+- **Stack size**: Total allocated words
+- **High water mark**: Maximum words used since task creation  
+- **Free stack**: Current available words
+
+### Enable Stack Monitoring
+
+In `FreeRTOSConfig.h`, add or modify:
+
+```c
+#define configGENERATE_RUN_TIME_STATS 1
+#define configUSE_TRACE_FACILITY 1
+```
+
+### Stack Monitoring Function
+
+```c
+void GetTaskStackInfo(const char* taskName, UBaseType_t* allocated, UBaseType_t* highWater)
+{
+    TaskHandle_t taskHandle = xTaskGetHandle(taskName);
+    if (taskHandle != NULL) {
+        *highWater = uxTaskGetStackHighWaterMark(taskHandle);
+        
+        // Get allocated size from task creation
+        // Note: This requires tracking creation parameters
+        // For now, use the values from your xTaskCreate calls
+    }
+}
+```
+
+### Monitor Task Enhancement
+
+Modify your MonitorTask to display both timing and stack information alternately:
+
+```c
+void MonitorTask(void *arg)
+{
+    const TickType_t period = pdMS_TO_TICKS(1000);  
+    TickType_t last = xTaskGetTickCount();
+    static uint8_t displayMode = 0;  // 0 = timing, 1 = stack
+    
+    for (;;)
+    {
+        vTaskDelayUntil(&last, period);
+        
+        displayMode = !displayMode;  // Toggle every second
+        
+        if (displayMode == 0) {
+            // Timing info (existing code)
+            uint32_t n   = period_count;
+            uint64_t sum = sum_period_us;
+            int32_t  jit = last_jitter_us;
+            
+            uint32_t avg_us = (n > 0u) ? (uint32_t)(sum / n) : 0u;
+            
+            gAvgPeriodUs = avg_us;
+            gLastJitterSnapshot = jit;
+            
+            // Reset stats
+            min_period_us = 0xFFFFFFFFu;
+            max_period_us = 0u;
+            sum_period_us = 0u;
+            period_count  = 0u;
+        } else {
+            // Stack info
+            UBaseType_t snakeStack = uxTaskGetStackHighWaterMark(xTaskGetHandle("Snake"));
+            UBaseType_t renderStack = uxTaskGetStackHighWaterMark(xTaskGetHandle("Render")); 
+            UBaseType_t inputStack = uxTaskGetStackHighWaterMark(xTaskGetHandle("Input"));
+            
+            // Store for display
+            // You'll need global variables to share this data
+        }
+    }
+}
+```
+
+### Display Stack Information
+
+In your render task, alternate between timing and stack displays:
+
+```c
+static uint8_t showStackInfo = 0;
+
+// In render loop:
+if (showStackInfo) {
+    char stackText[30];
+    snprintf(stackText, sizeof(stackText), "S:%lu R:%lu I:%lu", 
+             snakeHighWater, renderHighWater, inputHighWater);
+    
+    // Display stack info
+} else {
+    // Display timing info (existing code)
+}
+
+// Toggle every few frames
+static uint32_t frameCount = 0;
+frameCount++;
+if (frameCount > 30) {  // Switch every ~3 seconds
+    showStackInfo = !showStackInfo;
+    frameCount = 0;
+}
+```
+
+<details>
+<summary>Hint 1: Task Handle Storage (Click to expand)</summary>
+
+Store task handles when creating tasks:
+```c
+TaskHandle_t xSnakeTask, xRenderTask, xInputTask;
+
+xTaskCreate(vSnakeTask, "Snake", 512, NULL, 2, &xSnakeTask);
+xTaskCreate(vRenderTask, "Render", 768, NULL, 1, &xRenderTask);
+xTaskCreate(vInputTask, "Input", 512, NULL, 3, &xInputTask);
+```
+</details>
+
+<details>
+<summary>Hint 2: Understanding High Water Mark (Click to expand)</summary>
+
+High water mark = **minimum** free stack words since task creation.
+If `uxTaskGetStackHighWaterMark()` returns 120, it means **at least 120 words are still free**.
+
+Question: If you allocated 512 words and `remaining` is 120, how much is the task using?
+Answer: 512 - 120 = 392 words
+</details>
+
+<details>
+<summary>Hint 3: Toggle Display (Click to expand)</summary>
+
+In `MonitorTask`, use a static variable to toggle:
+```c
+static uint8_t displayMode = 0;  // 0 = timing, 1 = stack
+
+for (;;) {
+    vTaskDelayUntil(&last, period);
+    
+    displayMode = !displayMode;  // Toggle every second
+    
+    if (displayMode == 0) {
+        // Show AVG and JIT (code you already have)
+    } else {
+        // Show stack info for 2-3 main tasks
+        // Suggested format: "S:120 R:85" (Snake:120 words, Render:85 words)
+    }
+}
+```
+</details>
+
+<Aside type="note" title="Display Format">
+You don't need to show every task — the screen is small. Show the 2-3 main tasks you created:
+- Snake task
+- Render task  
+- Input task
+
+Suggested format: `"S:120 R:85 I:94"` where numbers are free words (high water mark).
+</Aside>
+
+### Optimization Challenge
+
+Now that you can measure stack usage in real-time, your challenge is to optimize:
+
+<Steps>
+
+1. Run the game for 2 minutes while playing actively (move a lot, eat fruit, pause/resume)
+2. Observe and note the lowest high water mark you see for each task
+3. Compute actual usage: `Usage = Allocated_Stack - High_Water_Mark`
+4. Compute optimal size: `New = Actual_Usage + Safety_Margin`
+    - Recommended margin: 20-30% for production code
+5. Update `xTaskCreate()` with the new sizes
+6. Test thoroughly to ensure no overflow
+
+</Steps>
+
+**Optimization Example**:
+
+```
+Original: xTaskCreate(vSnakeTask, "Snake", 512, ...)
+Measured after 2 min: High Water Mark = 120 words
+Actual usage: 512 - 120 = 392 words
+With 20% margin: 392 * 1.20 = 470 words (round to 480)
+Updated: xTaskCreate(vSnakeTask, "Snake", 480, ...)
+```
+
+**Questions for your report:**
+1. Which task uses the most stack? Why do you think that is?
+2. How much total memory did you save by optimizing?
+3. Why is it important NOT to optimize right to the measured limit?
+
+<Aside type="caution">
+Never optimize below the measured maximum usage! Always leave safety margin for worst-case scenarios (deep recursion, large stack variables, nested interrupts, etc.).
+</Aside>
+
+---
+
+## Part 8: Stack Overflow Detection Hook
+
+### Enable Detection in FreeRTOSConfig.h
+
+Add or modify:
+
+```c
+#define configCHECK_FOR_STACK_OVERFLOW 2
+```
+
+Method 2 is most thorough - it checks both context switches and uses a canary pattern.
+
+### Implement Hook Function
+
+Add to main.cpp:
+
+```c
+extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+    (void)xTask;
+    
+    // Turn on LED as hardware indicator
+    // TM4C1294XL user LED2 (red) is on PN1
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION));
+    
+    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_1);
+    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, GPIO_PIN_1);  // LED ON
+    
+    // Display error on LCD (may fail if LCD stack overflow)
+    tRectangle full = {0, 0, 127, 127};
+    GrContextForegroundSet(&gContext, ClrRed);
+    GrRectFill(&gContext, &full);
+    
+    GrContextForegroundSet(&gContext, ClrWhite);
+    GrStringDrawCentered(&gContext, "STACK OVERFLOW", -1, 64, 40, false);
+    GrStringDrawCentered(&gContext, pcTaskName, -1, 64, 60, false);
+    
+    GrFlush(&gContext);
+    
+    // Halt system - overflow is unrecoverable
+    IntMasterDisable();
+    while(1);
+}
+```
+
+### Testing the Hook
+
+Intentionally cause overflow to verify detection works:
+
+```c
+// Add to any task temporarily:
+void causeStackOverflow(void) {
+    volatile char bigArray[2000];  // Way too large
+    bigArray[0] = 1;  // Prevent optimization
+}
+```
+
+Expected behavior:
+- LED turns red
+- LCD shows "STACK OVERFLOW" and task name
+- System halts
+
+<Aside type="caution">
+Remove test code before final submission! Stack overflow detection is for catching bugs during development, not normal operation.
+</Aside>
+
+---

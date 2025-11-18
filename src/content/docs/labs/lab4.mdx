@@ -53,15 +53,13 @@ In this lab, you will enhance your Snake game by mastering advanced timing and s
 
 | Part | Task | Description | Points |
 | :--- | :--- | :----------- | :----: |
-| 1 | Hardware Timer Setup | Configure Timer0 for microsecond timestamp measurements | 5 |
-| 2 | Discovery Exercise | Experiment with vTaskDelay vs vTaskDelayUntil and document observations | 10 |
+| 1 | Hardware Timer Setup | Configure Timer0 for microsecond timestamp measurements | 10 |
+| 2 | Discovery Exercise | Experiment with vTaskDelay vs vTaskDelayUntil; document observations | 10 |
 | 3 | Execution Time Measurement | Measure and analyze task execution times; find LCD drawing bottleneck | 15 |
-| 4 | Jitter Analysis & Optimization | Compare timing methods and optimize task periods based on measurements | 15 |
-| 5 | Game Chronometer | Add software timer for mm:ss:cs display; start/stop/reset functionality | 10 |
-| 6 | Wall Collision & Game Over | Implement deadly walls and game-over animation | 10 |
-| 7 | Stack Usage Analysis | Measure per-task stack usage; optimize to safe minimums; display on LCD | 15 |
-| 8 | Stack Overflow Detection | Implement detection hook with LED alert; demonstrate functionality | 5 |
-|   | Lab Report | Complete analysis of timing, synchronization, and optimization decisions | 15 |
+| 4 | Jitter Analysis & Optimization | Compare timing methods, optimize periods, add FPS counter | 15 |
+| 5 | Joystick Input Buffering | Implement counting semaphores and queue for input buffering | 15 |
+| 6 | Game Chronometer | Add software timer for mm:ss:cs display; start/stop/reset functionality | 10 |
+|   | **Lab Report** | Complete analysis of timing, synchronization, and optimization decisions | **25** |
 |   | **Total** |  | **100 points** |
 
 ---
@@ -73,13 +71,9 @@ By the end of this lab, your system will:
 - Display real-time timing metrics (average period, jitter, and execution times) on the LCD
 - Demonstrate measurably lower jitter using vTaskDelayUntil compared to vTaskDelay
 - Show optimized task periods based on real execution time measurements
+- Display FPS counter showing actual frames per second
 - Buffer joystick inputs without losing rapid directional changes
 - Show an accurate game chronometer (mm:ss:cs format) that pauses with the game
-- End the game when the snake hits walls (no more wrap-around)
-- Display a game-over animation and message when collision occurs
-- Show per-task stack usage statistics on the LCD
-- Trigger LED alert if any task experiences stack overflow
-- Run efficiently with optimized (minimal safe) stack allocations
 
 ---
 
@@ -1409,412 +1403,533 @@ To test your input buffer:
 
 ### Understanding Software Timers
 
-FreeRTOS **software timers** execute callback functions at specified intervals:
-- Run in timer service task context (not ISR)
-- Can be one-shot or periodic
-- Ideal for time-keeping and periodic operations
+FreeRTOS **software timers** are a powerful feature for executing periodic callbacks without creating dedicated tasks. They are essential for time-keeping, delays, and periodic operations that don't require a full task.
 
-### Global Variables
+#### How Software Timers Work
+
+Unlike hardware timers (like Timer0 we used for microsecond measurements), **software timers** are managed by FreeRTOS:
+
+- **Timer Service Task**: FreeRTOS creates a special daemon task that manages all software timers
+- **Callback Execution**: When a timer expires, its callback function runs in the context of the timer service task
+- **Not an ISR**: Callbacks run as normal C functions (not interrupts), so you can use FreeRTOS APIs safely
+- **Periodic or One-Shot**: Timers can auto-reload (periodic) or run once (one-shot)
+- **Precision**: Limited by FreeRTOS tick rate (typically 1ms), not suitable for microsecond timing
+
+**Key Advantages:**
+- No need to create a separate task just for timing
+- Multiple timers share the same timer service task (memory efficient)
+- Simple API for start/stop/reset operations
+- Automatic callback execution at specified intervals
+
+**Use Cases:**
+- Game chronometers and countdowns
+- Periodic sensor readings
+- Timeout detection
+- Delayed actions
+- Watchdog timer simulation
+
+<Aside type="tip" title="Why Not Just Use a Task with vTaskDelay?">
+You *could* create a task that delays and increments a counter, but that wastes:
+- Stack memory (each task needs its own stack)
+- A task control block (TCB)
+- Scheduler overhead for context switching
+
+Software timers are **more efficient** for simple periodic callbacks that don't need a full task context.
+</Aside>
+
+### Step 1: Enable Software Timers in FreeRTOS
+
+Software timers require configuration in `FreeRTOSConfig.h`. Add or modify these settings:
 
 ```c
-#include "timers.h"
+#define configUSE_TIMERS                   1
+#define configTIMER_TASK_PRIORITY          (configMAX_PRIORITIES - 1)
+#define configTIMER_QUEUE_LENGTH           10
+#define configTIMER_TASK_STACK_DEPTH       (configMINIMAL_STACK_SIZE * 2)
+```
 
+**Understanding each configuration:**
+
+1. **configUSE_TIMERS = 1**
+   - Enables the software timer API in FreeRTOS
+   - Without this, timer functions won't compile
+
+2. **configTIMER_TASK_PRIORITY = (configMAX_PRIORITIES - 1)**
+   - Sets the priority of the timer service daemon task
+   - High priority (MAX-1) ensures timer callbacks execute promptly
+   - Should be higher than your game tasks to guarantee timing accuracy
+   - Why not MAX? Leave room for critical interrupts/handlers
+
+3. **configTIMER_QUEUE_LENGTH = 10**
+   - Number of timer commands that can be queued
+   - Commands include: start, stop, reset, change period
+   - 10 is typically sufficient for most applications
+   - If you have many timers starting/stopping frequently, increase this
+
+4. **configTIMER_TASK_STACK_DEPTH = (configMINIMAL_STACK_SIZE * 2)**
+   - Stack size for the timer service task
+   - Must be large enough for timer callbacks to execute
+   - 2× minimal stack is a safe starting point
+   - Monitor with stack analysis tools if callbacks are complex
+
+<Aside type="caution">
+The timer service task priority should be **higher than your game tasks** but **lower than critical ISRs**. This ensures timer callbacks execute promptly without blocking time-critical interrupt handling.
+</Aside>
+
+### Step 2: Declare Timer Objects
+
+#### In main.cpp
+
+Add the timer handle and time tracking variable at the top of `main.cpp`:
+
+```c
+extern "C" {
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+#include "timers.h"  // Add this for software timer support
+// ... other includes ...
+}
+
+// Global timer objects
 TimerHandle_t chronoTimer = NULL;
 volatile uint32_t gameTimeMs = 0;  // Total game time in milliseconds
 ```
 
-### Timer Callback Function
+**Why volatile?**
+- `gameTimeMs` is modified by timer callback (different execution context)
+- `volatile` tells compiler the value can change unexpectedly
+- Prevents compiler optimization bugs
+
+#### In app_objects.h
+
+Add extern declarations so other files can access the timer:
+
+```c
+#include "timers.h"
+
+extern TimerHandle_t chronoTimer;
+extern volatile uint32_t gameTimeMs;
+```
+
+This allows `display.cpp` to read `gameTimeMs` for rendering the chronometer on screen.
+
+### Step 3: Implement Timer Callback Function
+
+The timer callback is the function that FreeRTOS calls every time the timer expires. For our chronometer, we want to increment the game time every 10ms (for centisecond precision).
+
+**Add this callback function to main.cpp:**
 
 ```c
 void ChronoCallback(TimerHandle_t xTimer)
 {
-    (void)xTimer;
+    (void)xTimer;  // Unused parameter
     
     // Only count time when game is running
     if (gameState.isRunning) {
-        gameTimeMs += 10;  // Timer fires every 10ms
+        gameTimeMs += 10;  // Timer fires every 10ms (1 centisecond)
     }
+    // If game is paused, time doesn't advance
 }
 ```
 
-### Timer Creation
+**How it works:**
+- Called automatically every 10ms by FreeRTOS timer service task
+- Checks if game is running (not paused, not game over)
+- Increments `gameTimeMs` by 10 (representing 10 milliseconds = 1 centisecond)
+- If game is paused, does nothing (time freezes)
+
+<Aside type="note">
+The callback runs in the timer service task context, **not in an ISR**. This means you can safely call most FreeRTOS APIs (like posting to queues, giving semaphores, etc.) if needed.
+</Aside>
+
+### Step 4: Create and Start the Timer
+
+In `main()`, after creating your tasks but before starting the scheduler, create the chronometer timer:
 
 ```c
-// In main(), after creating tasks:
+// In main(), after xTaskCreate calls, before vTaskStartScheduler():
+
 chronoTimer = xTimerCreate(
-    "Chrono",                    // Timer name
-    pdMS_TO_TICKS(10),          // 10ms period for centisecond precision  
-    pdTRUE,                     // Auto-reload (periodic)
-    (void*)0,                   // Timer ID (unused)
-    ChronoCallback);            // Callback function
+    "Chrono",                    // Timer name (for debugging)
+    pdMS_TO_TICKS(10),          // Period: 10ms = 1 centisecond
+    pdTRUE,                     // Auto-reload (periodic timer)
+    (void*)0,                   // Timer ID (not used, can be NULL)
+    ChronoCallback);            // Callback function to execute
 
 if (chronoTimer != NULL) {
-    xTimerStart(chronoTimer, 0);  // Start immediately
+    // Timer created successfully, start it
+    if (xTimerStart(chronoTimer, 0) != pdPASS) {
+        // Failed to start timer
+        while(1);  // Error handling
+    }
+} else {
+    // Timer creation failed (insufficient heap memory)
+    while(1);  // Error handling
 }
 ```
 
-### Display Format Function
+**Understanding xTimerCreate parameters:**
+
+1. **Timer Name**: String identifier for debugging (shows in task list viewers)
+2. **Period**: `pdMS_TO_TICKS(10)` converts 10ms to FreeRTOS ticks
+3. **Auto-reload**: 
+   - `pdTRUE` = periodic timer (restarts automatically after callback)
+   - `pdFALSE` = one-shot timer (runs once then stops)
+4. **Timer ID**: Optional identifier you can retrieve in callback (we don't need it)
+5. **Callback Function**: Function to call when timer expires
+
+**Understanding xTimerStart parameters:**
+
+1. **Timer Handle**: The handle returned by xTimerCreate
+2. **Block Time**: How long to wait if timer command queue is full (0 = don't wait)
+
+<Aside type="caution">
+Always check return values! Timer creation and start can fail if:
+- Insufficient heap memory for timer control block
+- Timer command queue is full
+- Timer service task not created (config error)
+</Aside>
+
+### Step 5: Format Time for Display
+
+The `gameTimeMs` variable stores milliseconds. We need to convert it to a human-readable format: `MM:SS:CS` (minutes:seconds:centiseconds).
+
+**Add this helper function to main.cpp:**
 
 ```c
 void FormatGameTime(char* buffer, size_t bufSize, uint32_t timeMs)
 {
-    uint32_t totalCs = timeMs / 10;        // Convert to centiseconds
-    uint32_t minutes = totalCs / 6000;     // 60 sec * 100 cs = 6000 cs/min
-    uint32_t seconds = (totalCs % 6000) / 100;
-    uint32_t centiseconds = totalCs % 100;
+    // Your implementation here - convert milliseconds to MM:SS:CS format
     
-    snprintf(buffer, bufSize, "%02lu:%02lu:%02lu", minutes, seconds, centiseconds);
+    // Hints:
+    // 1. Convert milliseconds to centiseconds (1 cs = 10 ms)
+    // 2. Extract minutes: How many 60-second periods have passed?
+    // 3. Extract seconds: After removing full minutes, how many seconds remain?
+    // 4. Extract centiseconds: After removing seconds, what's left?
+    // 5. Use snprintf to format as "MM:SS:CS" with leading zeros
+    
+    // Example: 125,750 ms should display as "02:05:75"
+    //          (2 minutes, 5 seconds, 75 centiseconds)
 }
 ```
 
-### Integrate into Display
+**Pseudocode to implement:**
 
-```c
-// In your render task, add chronometer display:
-char timeStr[12];
-FormatGameTime(timeStr, sizeof(timeStr), gameTimeMs);
-
-// Display in top area
-tRectangle timeArea = {0, 0, 127, 12};
-GrContextForegroundSet(&gContext, ClrBlack);
-GrRectFill(&gContext, &timeArea);
-
-GrContextForegroundSet(&gContext, ClrWhite);
-GrStringDrawCentered(&gContext, timeStr, -1, 64, 6, false);
+```
+FUNCTION FormatGameTime(buffer, bufSize, timeMs):
+    // Step 1: Convert to centiseconds
+    totalCs = timeMs / 10
+    
+    // Step 2: Extract minutes
+    // (60 seconds * 100 centiseconds = 6000 centiseconds per minute)
+    minutes = totalCs / 6000
+    
+    // Step 3: Extract seconds from remaining centiseconds
+    remainingCs = totalCs % 6000  // After removing full minutes
+    seconds = remainingCs / 100
+    
+    // Step 4: Extract centiseconds from remaining
+    centiseconds = remainingCs % 100
+    
+    // Step 5: Format as "MM:SS:CS" with leading zeros
+    // Use snprintf with format: "%02lu:%02lu:%02lu"
+    // %02lu = unsigned long, minimum 2 digits, pad with 0
+    Format string into buffer
+END FUNCTION
 ```
 
-### Reset Functionality
+**Test your implementation:**
+
+| Input (ms) | Expected Output |
+|------------|-----------------|
+| 0 | `00:00:00` |
+| 1,000 | `00:01:00` |
+| 10,000 | `00:10:00` |
+| 60,000 | `01:00:00` |
+| 125,750 | `02:05:75` |
+
+<Aside type="tip" title="Mathematical Breakdown">
+**Why 6000 centiseconds per minute?**
+- 1 minute = 60 seconds
+- 1 second = 100 centiseconds
+- Therefore: 1 minute = 60 × 100 = 6000 centiseconds
+
+**Modulo operator (%)** gives the remainder after division:
+- 12575 cs ÷ 6000 = 2 minutes (quotient) with **575 cs remaining**
+- 575 cs ÷ 100 = 5 seconds (quotient) with **75 cs remaining**
+- Result: `02:05:75`
+</Aside>
+
+### Step 6: Display Chronometer on LCD
+
+Now we need to show the formatted time on the LCD screen. The best place is the **top-right corner** so it doesn't interfere with the game area.
+
+#### Modify display.cpp
+
+At the top of `display.cpp`, declare the external variable so you can access the game time:
 
 ```c
-// In your reset game function, add:
+// Add near the top of display.cpp, after includes
+extern volatile uint32_t gameTimeMs;  // Game time from main.cpp
+```
+
+Also declare the formatting function as external:
+
+```c
+// Declare the formatting function
+extern void FormatGameTime(char* buffer, size_t bufSize, uint32_t timeMs);
+```
+
+#### Update DrawGame Function
+
+Inside your `DrawGame` function in `display.cpp`, add the chronometer display. This should be drawn **after** all game elements (snake, fruit, walls) so it appears on top.
+
+**Pseudocode for chronometer display:**
+
+```
+FUNCTION DrawGame(gameState):
+    // ... existing game drawing code (snake, fruit, grid, etc.) ...
+    
+    // Draw chronometer in top-right corner
+    DECLARE timeString[12]  // Buffer for "MM:SS:CS" + null terminator
+    
+    // Format the current game time
+    CALL FormatGameTime(timeString, sizeof(timeString), gameTimeMs)
+    
+    // Define display area in top-right corner
+    // Screen is 128 pixels wide, use right 50 pixels
+    // Top row: y = 0 to y = 10
+    chronoArea = {78, 0, 127, 10}  // x1=78, y1=0, x2=127, y2=10
+    
+    // Clear the chronometer area with black background
+    SET foreground color to ClrBlack
+    FILL rectangle chronoArea
+    
+    // Draw the time string in white
+    SET foreground color to ClrWhite
+    DRAW string timeString at position (80, 2)  // x=80, y=2 for top-right
+    
+    // Flush graphics context if needed
+    IF GrFlush is defined:
+        CALL GrFlush()
+END FUNCTION
+```
+
+**Implementation hints:**
+
+1. **Position calculation**: 
+   - Screen width = 128 pixels
+   - Time string "MM:SS:CS" is about 48 pixels wide with default font
+   - Place at x = 80 to leave 48 pixels for the text
+
+2. **Text vs. Centered**:
+   - Use `GrStringDraw()` for left-aligned text at specific position
+   - Use `GrStringDrawCentered()` if you want to center within an area
+
+3. **Drawing order matters**:
+   - Draw chronometer **last** so it appears on top of game elements
+   - Clear the area first to prevent ghosting from previous frames
+
+4. **Color scheme**:
+   - Black background ensures readability
+   - White text contrasts well with black
+   - Alternative: Use different color (ClrYellow, ClrGreen) for visibility
+
+<Aside type="note">
+Since the render task already draws everything to the LCD, adding the chronometer here means it updates automatically every frame without needing a separate task or additional LCD writes.
+</Aside>
+
+### Step 7: Reset Chronometer When Game Resets
+
+When the player resets the game, the chronometer should also reset to `00:00:00`.
+
+**Add this to your ResetGame() function:**
+
+```c
 void ResetGame(void)
 {
-    // ... existing reset code ...
+    // ... existing reset code (snake position, score, fruit, etc.) ...
     
-    gameTimeMs = 0;  // Reset chronometer
+    // Reset chronometer to zero
+    gameTimeMs = 0;
     
     // ... rest of reset code ...
 }
 ```
 
-The chronometer will now:
-- Display mm:ss:cs format
-- Only count when game is running
-- Pause when game is paused
-- Reset when game is reset
+**Why this works:**
+- The timer callback checks `gameState.isRunning` before incrementing
+- When game is reset, `gameState.isRunning` is typically set to false
+- Setting `gameTimeMs = 0` ensures the displayed time starts at `00:00:00`
+- When player presses play, timer resumes from zero
 
----
+### Expected Behavior
 
-## Part 7: Stack Usage Analysis and Optimization
+Once implemented correctly, your chronometer will:
 
-### Understanding Stack Monitoring
+✅ **Start counting** when game starts (gameState.isRunning = true)  
+✅ **Pause** when game is paused (gameState.isRunning = false)  
+✅ **Resume** when game is unpaused (continues from paused time)  
+✅ **Reset to 00:00:00** when game is reset  
+✅ **Display in top-right corner** in MM:SS:CS format  
+✅ **Update smoothly** every centisecond (10ms)  
 
-FreeRTOS can track stack usage for each task:
-- **Stack size**: Total allocated words
-- **High water mark**: Maximum words used since task creation  
-- **Free stack**: Current available words
-
-### Enable Stack Monitoring
-
-In `FreeRTOSConfig.h`, add or modify:
-
-```c
-#define configGENERATE_RUN_TIME_STATS 1
-#define configUSE_TRACE_FACILITY 1
-```
-
-### Stack Monitoring Function
-
-```c
-void GetTaskStackInfo(const char* taskName, UBaseType_t* allocated, UBaseType_t* highWater)
-{
-    TaskHandle_t taskHandle = xTaskGetHandle(taskName);
-    if (taskHandle != NULL) {
-        *highWater = uxTaskGetStackHighWaterMark(taskHandle);
-        
-        // Get allocated size from task creation
-        // Note: This requires tracking creation parameters
-        // For now, use the values from your xTaskCreate calls
-    }
-}
-```
-
-### Monitor Task Enhancement
-
-Modify your MonitorTask to display both timing and stack information alternately:
-
-```c
-void MonitorTask(void *arg)
-{
-    const TickType_t period = pdMS_TO_TICKS(1000);  
-    TickType_t last = xTaskGetTickCount();
-    static uint8_t displayMode = 0;  // 0 = timing, 1 = stack
-    
-    for (;;)
-    {
-        vTaskDelayUntil(&last, period);
-        
-        displayMode = !displayMode;  // Toggle every second
-        
-        if (displayMode == 0) {
-            // Timing info (existing code)
-            uint32_t n   = period_count;
-            uint64_t sum = sum_period_us;
-            int32_t  jit = last_jitter_us;
-            
-            uint32_t avg_us = (n > 0u) ? (uint32_t)(sum / n) : 0u;
-            
-            gAvgPeriodUs = avg_us;
-            gLastJitterSnapshot = jit;
-            
-            // Reset stats
-            min_period_us = 0xFFFFFFFFu;
-            max_period_us = 0u;
-            sum_period_us = 0u;
-            period_count  = 0u;
-        } else {
-            // Stack info
-            UBaseType_t snakeStack = uxTaskGetStackHighWaterMark(xTaskGetHandle("Snake"));
-            UBaseType_t renderStack = uxTaskGetStackHighWaterMark(xTaskGetHandle("Render")); 
-            UBaseType_t inputStack = uxTaskGetStackHighWaterMark(xTaskGetHandle("Input"));
-            
-            // Store for display
-            // You'll need global variables to share this data
-        }
-    }
-}
-```
-
-### Display Stack Information
-
-In your render task, alternate between timing and stack displays:
-
-```c
-static uint8_t showStackInfo = 0;
-
-// In render loop:
-if (showStackInfo) {
-    char stackText[30];
-    snprintf(stackText, sizeof(stackText), "S:%lu R:%lu I:%lu", 
-             snakeHighWater, renderHighWater, inputHighWater);
-    
-    // Display stack info
-} else {
-    // Display timing info (existing code)
-}
-
-// Toggle every few frames
-static uint32_t frameCount = 0;
-frameCount++;
-if (frameCount > 30) {  // Switch every ~3 seconds
-    showStackInfo = !showStackInfo;
-    frameCount = 0;
-}
-```
-
-<details>
-<summary>Hint 1: Task Handle Storage (Click to expand)</summary>
-
-Store task handles when creating tasks:
-```c
-TaskHandle_t xSnakeTask, xRenderTask, xInputTask;
-
-xTaskCreate(vSnakeTask, "Snake", 512, NULL, 2, &xSnakeTask);
-xTaskCreate(vRenderTask, "Render", 768, NULL, 1, &xRenderTask);
-xTaskCreate(vInputTask, "Input", 512, NULL, 3, &xInputTask);
-```
-</details>
-
-<details>
-<summary>Hint 2: Understanding High Water Mark (Click to expand)</summary>
-
-High water mark = **minimum** free stack words since task creation.
-If `uxTaskGetStackHighWaterMark()` returns 120, it means **at least 120 words are still free**.
-
-Question: If you allocated 512 words and `remaining` is 120, how much is the task using?
-Answer: 512 - 120 = 392 words
-</details>
-
-<details>
-<summary>Hint 3: Toggle Display (Click to expand)</summary>
-
-In `MonitorTask`, use a static variable to toggle:
-```c
-static uint8_t displayMode = 0;  // 0 = timing, 1 = stack
-
-for (;;) {
-    vTaskDelayUntil(&last, period);
-    
-    displayMode = !displayMode;  // Toggle every second
-    
-    if (displayMode == 0) {
-        // Show AVG and JIT (code you already have)
-    } else {
-        // Show stack info for 2-3 main tasks
-        // Suggested format: "S:120 R:85" (Snake:120 words, Render:85 words)
-    }
-}
-```
-</details>
-
-<Aside type="note" title="Display Format">
-You don't need to show every task — the screen is small. Show the 2-3 main tasks you created:
-- Snake task
-- Render task  
-- Input task
-
-Suggested format: `"S:120 R:85 I:94"` where numbers are free words (high water mark).
-</Aside>
-
-### Optimization Challenge
-
-Now that you can measure stack usage in real-time, your challenge is to optimize:
+### Testing Checklist
 
 <Steps>
 
-1. Run the game for 2 minutes while playing actively (move a lot, eat fruit, pause/resume)
-2. Observe and note the lowest high water mark you see for each task
-3. Compute actual usage: `Usage = Allocated_Stack - High_Water_Mark`
-4. Compute optimal size: `New = Actual_Usage + Safety_Margin`
-    - Recommended margin: 20-30% for production code
-5. Update `xTaskCreate()` with the new sizes
-6. Test thoroughly to ensure no overflow
+1. **Start game** - verify chronometer starts from `00:00:00` and counts up
+2. **Pause game** - verify chronometer freezes at current time
+3. **Resume game** - verify chronometer continues from frozen time
+4. **Play for 1+ minute** - verify minutes increment correctly (00:59:99 → 01:00:00)
+5. **Reset game** - verify chronometer returns to `00:00:00`
+6. **Visual positioning** - verify chronometer doesn't overlap with game elements
 
 </Steps>
 
-**Optimization Example**:
+### Troubleshooting
 
-```
-Original: xTaskCreate(vSnakeTask, "Snake", 512, ...)
-Measured after 2 min: High Water Mark = 120 words
-Actual usage: 512 - 120 = 392 words
-With 20% margin: 392 * 1.20 = 470 words (round to 480)
-Updated: xTaskCreate(vSnakeTask, "Snake", 480, ...)
-```
+**Chronometer not updating:**
+- Check `configUSE_TIMERS` is set to 1 in FreeRTOSConfig.h
+- Verify timer was created successfully (check return value)
+- Verify timer started successfully (check xTimerStart return value)
+- Check gameState.isRunning is true when game should be running
 
-**Questions for your report:**
-1. Which task uses the most stack? Why do you think that is?
-2. How much total memory did you save by optimizing?
-3. Why is it important NOT to optimize right to the measured limit?
+**Display flickering:**
+- Make sure you clear the chronometer area before redrawing
+- Ensure chronometer is drawn in the render task, not elsewhere
 
-<Aside type="caution">
-Never optimize below the measured maximum usage! Always leave safety margin for worst-case scenarios (deep recursion, large stack variables, nested interrupts, etc.).
+**Time format incorrect:**
+- Verify FormatGameTime calculations (test with known values)
+- Check buffer size is sufficient (minimum 9 chars + null terminator)
+- Verify snprintf format string uses %02lu for leading zeros
+
+**Timer not pausing:**
+- Ensure ChronoCallback checks `gameState.isRunning` before incrementing
+- Verify pause button correctly sets gameState.isRunning = false
+
+<Aside type="tip" title="Advanced Challenge: Lap Times">
+Want to go further? Add a "lap time" feature:
+- Store multiple lap times in an array when player presses a button
+- Display best lap time on screen
+- Show lap time history in a debug view
+- Calculate average lap time
+
+This teaches you about data structures in embedded systems and advanced timer usage!
 </Aside>
 
 ---
 
-## Part 8: Stack Overflow Detection Hook
 
-### Enable Detection in FreeRTOSConfig.h
+## Final Testing & Submission Checklist
 
-Add or modify:
+Before submitting, verify all requirements are met:
 
-```c
-#define configCHECK_FOR_STACK_OVERFLOW 2
-```
+### Implementation Testing (75 points)
 
-Method 2 is most thorough - it checks both context switches and uses a canary pattern.
+**Part 1 - Hardware Timer (10 pts):**
+- ✅ Timer0 configured for microsecond timestamps
+- ✅ `micros()` function returns accurate time values
+- ✅ Timing measurements display on LCD
 
-### Implement Hook Function
+**Part 2 - Discovery Exercise (10 pts):**
+- ✅ Tested both vTaskDelay and vTaskDelayUntil
+- ✅ Documented observations and system behavior
+- ✅ Measurements collected for both methods
+- ✅ Understanding of timing differences demonstrated
 
-Add to main.cpp:
+**Part 3 - Execution Time Measurement (15 pts):**
+- ✅ Measurement functions implemented correctly
+- ✅ Can measure one task at a time without interference
+- ✅ Timing metrics (avg/max execution, period, jitter) display on LCD
+- ✅ LCD bottleneck discovered and documented
+- ✅ Monitor task updates statistics every second
 
-```c
-extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
-{
-    (void)xTask;
-    
-    // Turn on LED as hardware indicator
-    // TM4C1294XL user LED2 (red) is on PN1
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION));
-    
-    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_1);
-    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, GPIO_PIN_1);  // LED ON
-    
-    // Display error on LCD (may fail if LCD stack overflow)
-    tRectangle full = {0, 0, 127, 127};
-    GrContextForegroundSet(&gContext, ClrRed);
-    GrRectFill(&gContext, &full);
-    
-    GrContextForegroundSet(&gContext, ClrWhite);
-    GrStringDrawCentered(&gContext, "STACK OVERFLOW", -1, 64, 40, false);
-    GrStringDrawCentered(&gContext, pcTaskName, -1, 64, 60, false);
-    
-    GrFlush(&gContext);
-    
-    // Halt system - overflow is unrecoverable
-    IntMasterDisable();
-    while(1);
-}
-```
+**Part 4 - Jitter Analysis & Optimization (15 pts):**
+- ✅ Render task period optimized based on measurements
+- ✅ vTaskDelayUntil implemented where beneficial
+- ✅ Measurable jitter reduction achieved
+- ✅ FPS counter implemented and working
+- ✅ All tasks analyzed for optimization potential
 
-### Testing the Hook
+**Part 5 - Input Buffering (15 pts):**
+- ✅ Counting semaphore configured in FreeRTOSConfig.h
+- ✅ Counting semaphore and queue properly initialized
+- ✅ Input task detects direction changes and queues them
+- ✅ Snake task processes all buffered inputs with while loop
+- ✅ Rapid joystick movements don't get lost
+- ✅ No reverse moves accepted
+- ✅ Non-blocking operations prevent task blocking
 
-Intentionally cause overflow to verify detection works:
+**Part 6 - Chronometer (10 pts):**
+- ✅ Software timers configured in FreeRTOSConfig.h
+- ✅ Timer callback increments time only when game running
+- ✅ Time formatted as MM:SS:CS with leading zeros
+- ✅ Chronometer displays in top-right corner
+- ✅ Pauses when game pauses, resets when game resets
 
-```c
-// Add to any task temporarily:
-void causeStackOverflow(void) {
-    volatile char bigArray[2000];  // Way too large
-    bigArray[0] = 1;  // Prevent optimization
-}
-```
+### Lab Report (25 points)
 
-Expected behavior:
-- LED turns red
-- LCD shows "STACK OVERFLOW" and task name
-- System halts
+- ✅ All measurement tables completed with real data
+- ✅ Screenshots of LCD displaying metrics and FPS
+- ✅ All lab document questions answered
+- ✅ Optimization calculations and justifications shown
+- ✅ Design decisions explained (priorities, periods, buffer sizes)
+- ✅ System insights and lessons learned documented
+- ✅ Professional formatting and writing quality
+- ✅ Code quality meets standards
+
+---
+
+## Lab Report Requirements (25 points)
+
+Your lab report must be submitted as a PDF and include comprehensive analysis of your implementation and measurements. The report should demonstrate deep understanding of RTOS timing, synchronization, and optimization techniques.
+
+### Required Content
+
+**1. Discovery & Measurement Analysis**
+- Document observations when switching from vTaskDelay to vTaskDelayUntil
+- Complete timing measurements table for all tasks (execution time, period, jitter)
+- Explain the LCD bottleneck discovery and its impact on system performance
+- Calculate theoretical vs. actual FPS and explain differences
+
+**2. Optimization Analysis**
+- Justify your final task periods with calculations and safety margins
+- Document jitter reduction achieved with vTaskDelayUntil
+- Analyze the relationship between execution time, period, jitter, and FPS
+- Explain task priority assignments and their impact on system behavior
+
+**3. Synchronization Design**
+- Explain why counting semaphores and queues are used together for input buffering
+- Justify buffer size choice and describe overflow handling strategy
+- Analyze software timer configuration and priority settings
+
+**4. Hardware Optimization (Optional)**
+- If completed: Document SPI clock frequency optimization with datasheets
+- Show theoretical calculations and measured performance improvements
+- Analyze reliability considerations and testing methodology
+
+**5. Critical Insights**
+- When is vTaskDelayUntil essential vs vTaskDelay acceptable?
+- How did measurement-driven development reveal system bottlenecks?
+- What design decisions maximize real-time performance?
+- How do these concepts apply to professional embedded systems?
+
+### Submission Requirements
+
+- Professional formatting with clear sections and page numbers
+- All measurement tables completed with actual data
+- Screenshots of LCD displaying timing metrics and FPS
+- Calculations shown for all optimizations
+- All questions from lab document answered
+- File named: `ece3849_lab4_<username>_report.pdf`
+- Submitted with code archive to Canvas
 
 <Aside type="caution">
-Remove test code before final submission! Stack overflow detection is for catching bugs during development, not normal operation.
+**Academic Integrity:** Your report must be your own work. All analysis, measurements, calculations, and writing must be original. Copied reports will receive zero points and be reported for academic dishonesty.
 </Aside>
-
----
-
-## Final Testing Checklist
-
-Before submitting, verify all requirements:
-
-- Hardware timer measures and displays timing metrics on LCD
-- vTaskDelayUntil reduces jitter compared to vTaskDelay (documented in report)
-- Display updates work smoothly with optimized periods based on real measurements
-- Rapid joystick moves are buffered and executed in order
-- Chronometer displays accurate time and pauses with game
-- Snake dies when hitting walls (no wrap-around)
-- Game over animation displays on collision
-- Stack usage shown on LCD with realistic values
-- Stack overflow hook lights LED and halts system
-- All tasks optimized to safe minimum stack sizes
-- Code is clean and well-commented
-
----
-
-## Report Requirements
-
-Your lab report (15 points) must include:
-
-### 1. Discovery Exercise Results (4 points)
-- Documentation of observations when switching from vTaskDelayUntil to vTaskDelay
-- Explanation of why the display became sluggish
-- Clear understanding of relative vs absolute delay mechanisms
-
-### 2. Timing and Performance Analysis (5 points)
-- Table showing measured execution times for all tasks
-- Analysis of LCD drawing bottleneck discovery
-- Justification for optimized periods based on measurements
-- Comparison of jitter before and after optimization
-
-### 3. System Design Decisions (4 points)  
-- Explanation of why LCD mutex was removed
-- Justification for single-task LCD drawing approach
-- Analysis of task responsibility allocation
-- Stack optimization calculations and safety margins
-
-### 4. Critical Insights (2 points)
-- Key lessons learned about real-time system performance
-- How measurement-driven development changed your approach
-- What would you improve given more time?
 
 ---
 
@@ -1839,13 +1954,6 @@ Your lab report (15 points) must include:
     title="Semaphores & Mutexes"
     description="Understanding synchronization primitives"
     href="https://www.freertos.org/a00113.html"
-    icon="external"
-/>
-
-<LinkCard
-    title="Stack Overflow Detection"
-    description="Methods and configuration"
-    href="https://www.freertos.org/Stacks-and-stack-overflow-checking.html"
     icon="external"
 />
 </CardGrid>
