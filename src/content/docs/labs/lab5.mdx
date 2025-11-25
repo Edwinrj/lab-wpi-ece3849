@@ -139,6 +139,79 @@ Each task has a `ulRunTimeCounter` field. Compare this to the total runtime to g
 - Call this function from your Monitor task every 2 seconds
 - Display the results on LCD (you choose the format)
 
+<Aside type="note" title="Implementation Hints: Task Handles & CPU Usage">
+
+To monitor each task, make sure you keep the task handles returned by `xTaskCreate()`:
+
+```c
+TaskHandle_t hInput  = NULL;
+TaskHandle_t hSnake  = NULL;
+TaskHandle_t hRender = NULL;
+TaskHandle_t hMonitor = NULL;
+
+xTaskCreate(vInputTask,  "Input",  512, NULL, 4, &hInput);
+xTaskCreate(vSnakeTask,  "Snake",  512, NULL, 2, &hSnake);
+xTaskCreate(vRenderTask, "Render", 768, NULL, 3, &hRender);
+xTaskCreate(MonitorTask, "Monitor", 512, NULL, 1, &hMonitor);
+```
+
+One possible approach for CPU usage is:
+
+1. Define a small struct and a global array to store results:
+
+```c
+#define MAX_TASKS 10
+
+typedef struct {
+    char     name[16];      // Task name (truncated)
+    uint32_t runtime;       // Raw runtime counter
+    uint8_t  cpuPercent;    // Computed CPU %
+} TaskCpuInfo;
+
+TaskCpuInfo gTaskCpuInfo[MAX_TASKS];
+uint8_t gNumTasks = 0;
+```
+
+2. In a helper function called from your Monitor task, use `uxTaskGetSystemState()` to fill an array of `TaskStatus_t`, accumulate the total runtime, and then compute percentages:
+
+```c
+void CollectCPUUsage(void)
+{
+    UBaseType_t numTasks = uxTaskGetNumberOfTasks();
+    TaskStatus_t *taskArray;
+
+    if (numTasks > MAX_TASKS) numTasks = MAX_TASKS;
+
+    taskArray = (TaskStatus_t *) pvPortMalloc(numTasks * sizeof(TaskStatus_t));
+    if (taskArray == NULL) return;
+
+    uint32_t totalRuntime = 0;
+
+    numTasks = uxTaskGetSystemState(taskArray, numTasks, &totalRuntime);
+
+    if (totalRuntime == 0) totalRuntime = 1;   // avoid divide-by-zero
+
+    gNumTasks = numTasks;
+
+    for (UBaseType_t i = 0; i < numTasks; i++)
+    {
+        strncpy(gTaskCpuInfo[i].name, taskArray[i].pcTaskName, 15);
+        gTaskCpuInfo[i].name[15] = '\0';
+
+        gTaskCpuInfo[i].runtime = taskArray[i].ulRunTimeCounter;
+
+        gTaskCpuInfo[i].cpuPercent =
+            (uint8_t)((taskArray[i].ulRunTimeCounter * 100ULL) / totalRuntime);
+    }
+
+    vPortFree(taskArray);
+}
+```
+
+You can then have your render/debug code iterate over `gTaskCpuInfo` and draw the task names and percentages on the LCD.
+
+</Aside>
+
 ### Discovery Questions
 
 After implementation:
@@ -199,6 +272,52 @@ With 25% margin: 367 × 1.25 = 459 words
 Optimized allocation: 460 words (round up)
 Memory saved: 512 - 460 = 52 words per task
 ```
+
+<Aside type="note" title="Implementation Hints: Stack High Water Mark">
+
+Once you have the task handles (`hInput`, `hSnake`, `hRender`, `hMonitor`), you can use `uxTaskGetStackHighWaterMark()` to see how close each task gets to a stack overflow.
+
+Define a small struct and one instance per task:
+
+```c
+typedef struct {
+    uint32_t allocated;  // words given to xTaskCreate
+    uint32_t highWater;  // minimum free stack seen
+    uint32_t used;       // derived: allocated - highWater
+} StackInfo;
+
+StackInfo stackInput;
+StackInfo stackSnake;
+StackInfo stackRender;
+StackInfo stackMonitor;
+```
+
+Then, from your Monitor task, periodically collect stack information:
+
+```c
+void CollectStackUsage(void)
+{
+    // Must match the sizes you passed to xTaskCreate
+    stackInput.allocated   = 512;
+    stackSnake.allocated   = 512;
+    stackRender.allocated  = 768;
+    stackMonitor.allocated = 512;
+
+    stackInput.highWater   = uxTaskGetStackHighWaterMark(hInput);
+    stackSnake.highWater   = uxTaskGetStackHighWaterMark(hSnake);
+    stackRender.highWater  = uxTaskGetStackHighWaterMark(hRender);
+    stackMonitor.highWater = uxTaskGetStackHighWaterMark(hMonitor);
+
+    stackInput.used   = stackInput.allocated   - stackInput.highWater;
+    stackSnake.used   = stackSnake.allocated   - stackSnake.highWater;
+    stackRender.used  = stackRender.allocated  - stackRender.highWater;
+    stackMonitor.used = stackMonitor.allocated - stackMonitor.highWater;
+}
+```
+
+Your debug display can then show, for example, `used/allocated` for each task and color‑code when `highWater` becomes too small.
+
+</Aside>
 
 ### Analysis Questions
 
