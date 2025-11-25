@@ -27,7 +27,7 @@ import { Steps } from '@astrojs/starlight/components';
 
 ## Objective
 
-Build on your Lab 4 Snake game by adding system monitoring capabilities to track CPU usage, stack memory consumption, and task performance. You'll implement FreeRTOS runtime statistics to measure how efficiently your tasks execute and optimize memory allocation based on actual usage patterns.
+Transform your Snake game into a **professional debugging platform** by implementing system monitoring that reveals CPU usage, memory consumption, and optimization opportunities. Learn the debugging techniques used in commercial embedded systems.
 
 ---
 
@@ -37,6 +37,7 @@ Build on your Lab 4 Snake game by adding system monitoring capabilities to track
 - **Monitor stack usage** to optimize memory allocation
 - **Implement system debugging** displays for real-time monitoring
 - **Understand embedded optimization** trade-offs and power management
+- **Use debugging tools** built into FreeRTOS
 
 ---
 
@@ -44,12 +45,24 @@ Build on your Lab 4 Snake game by adding system monitoring capabilities to track
 
 | Part | Task | Description | Points |
 | :--- | :--- | :----------- | :----: |
-| 1 | CPU Usage Monitoring | Enable runtime stats and calculate CPU percentage per task | 25 |
-| 2 | Stack Usage Analysis | Monitor and optimize task stack sizes | 20 |
-| 3 | Debug Display | Create on-screen system information display | 20 |
-| 4 | Stack Overflow Protection | Implement overflow detection and safety hooks | 10 |
+| 1 | CPU Usage Monitoring | Enable runtime stats and calculate CPU percentage per task | 15 |
+| 2 | Stack Usage Analysis | Monitor and optimize task stack sizes | 15 |
+| 3 | Debug Display | Create on-screen system information display | 15 |
+| 4 | Global CPU Usage Display | Show overall system CPU utilization on LCD | 10 |
+| 5 | CPU Optimization | Reduce overall CPU usage and quantify improvements | 20 |
 |   | **Lab Report** | Analysis of discoveries and optimizations | **25** |
 |   | **Total** |  | **100 points** |
+
+---
+
+## Expected Results
+
+Your enhanced Snake game will display:
+- Real-time CPU usage percentage per task
+- Global system CPU utilization with idle time percentage
+- Stack usage monitoring with optimization recommendations  
+- Debugging interface showing system health
+- Quantified CPU usage reductions through task optimization
 
 ---
 
@@ -162,7 +175,7 @@ Look for `uxTaskGetStackHighWaterMark()`. What parameter does it need?
 
 <Steps>
 
-1. **Run your game for 1 minutes** while playing actively
+1. **Run your game for 5 minutes** while playing actively
 2. **Record the minimum high water mark** you observe for each task  
 3. **Calculate actual usage:** `Used = Allocated - High_Water_Mark`
 4. **Design new stack sizes:** `New_Size = Used + Safety_Margin`
@@ -188,9 +201,205 @@ Memory saved: 512 - 460 = 52 words per task
 2. **How much total memory did you save?**
 3. **Why is a safety margin essential in embedded systems?**
 
-## Part 3: Stack Overflow Protection
+---
 
-### Enable Built-in Protection
+## Part 3: Debug Display
+
+### Design Challenge
+
+Create a debug display that shows system information without overwhelming the small LCD screen.
+
+**Requirements:**
+- Toggle debug mode with joystick button press
+- Show CPU usage for each task with percentages
+- Display stack usage and warnings  
+- Use color coding (green = OK, yellow = caution, red = danger)
+
+### Implementation Approach
+
+**Research these concepts:**
+- How to detect joystick button presses in your input task
+- How to overlay debug information on your game display
+- How to format text efficiently for 128x128 LCD
+
+<details>
+<summary>Hint: Debug Toggle (Click to expand)</summary>
+
+Use a global boolean flag. Toggle it when joystick button is pressed:
+```c
+static bool debugMode = false;
+if (joystick_button_pressed) {
+    debugMode = !debugMode;
+}
+```
+
+</details>
+
+<details>
+<summary>Hint: Display Layout (Click to expand)</summary>
+
+For small screens, use compact format:
+```
+CPU: S:15% R:45% I:5%  
+STK: S:120 R:85 I:200
+```
+Where S=Snake, R=Render, I=Input
+
+</details>
+
+**Color Coding Guidelines:**
+- **CPU Usage:** > 80%=Red, > 50%=Yellow, else=Green
+- **Stack:** < 50 words=Red, < 100=Yellow, else=Green
+
+---
+
+## Part 4: Global CPU Usage Display
+
+### Understanding System Load
+
+Individual task CPU usage is important, but understanding overall system load is critical for optimization. Global CPU usage shows:
+
+**Total Active CPU Time** = Sum of all task execution times
+**Idle Time** = Time when no tasks are running  
+**System Utilization** = (Active Time / Total Time) × 100
+
+### Implementation Challenge
+
+**Research and Calculate:** How do you determine total system CPU usage?
+
+<details>
+<summary>Hint 1: FreeRTOS Idle Task (Click to expand)</summary>
+
+FreeRTOS has a special "IDLE" task that runs when no other tasks are ready. What percentage of time does it run?
+
+</details>
+
+<details>
+<summary>Hint 2: Runtime Counter (Click to expand)</summary>
+
+The idle task also has a `ulRunTimeCounter`. How does this relate to total system time?
+
+</details>
+
+### Display Requirements
+
+Add global CPU information to your debug display:
+- **Total CPU Usage:** Percentage of time system is busy
+- **Idle Time:** Percentage of time system is idle  
+- **Task Count:** Number of active tasks
+
+**Suggested Display Format:**
+```
+CPU: 68%  IDLE: 32%
+Tasks: 4  Load: HIGH
+```
+
+### Analysis Questions
+
+1. **What is your current overall CPU usage during gameplay?**
+2. **How much idle time does your system have?**
+3. **Is there room for optimization or additional features?**
+
+**Baseline for Optimization:** Record these values before Part 5. You'll compare them after optimization.
+
+---
+
+## Part 5: CPU Optimization Challenge
+
+### The Optimization Goal
+
+Your current system likely uses more CPU than necessary. Common inefficiencies in embedded systems:
+- **Polling too frequently** (Input task checking joystick every 1ms instead of 10ms)
+- **Rendering unnecessarily** (Updating LCD when nothing changed)
+- **Poor task periods** (Tasks running more often than needed)
+- **Blocking operations** (Tasks waiting instead of yielding CPU)
+
+### Optimization Strategies
+
+**Strategy 1: Increase Task Periods**
+Longer periods = less frequent execution = lower CPU usage
+- Input task: Try 15ms or 20ms instead of 10ms
+- Monitor task: Try 3000ms instead of 2000ms
+- Consider user experience impact
+
+**Strategy 2: Conditional Rendering** 
+Only redraw LCD when game state actually changes
+- Track if snake moved, fruit eaten, score changed
+- Skip expensive LCD operations when possible
+
+**Strategy 3: Optimize Task Priorities**
+- Lower priority for non-critical tasks
+- Allow higher priority tasks to preempt when needed
+
+**Strategy 4: Reduce Polling Frequency**
+- Check joystick less frequently if response time allows
+- Use interrupt-driven input instead of polling (advanced)
+
+### Implementation Requirements
+
+<Steps>
+
+1. **Record baseline:** Note current global CPU usage from Part 4
+2. **Choose 2-3 optimization strategies** to implement
+3. **Make incremental changes:** One optimization at a time  
+4. **Measure after each change:** Quantify the improvement
+5. **Test gameplay:** Ensure optimizations don't hurt user experience
+6. **Calculate total improvement:** Final CPU usage vs. baseline
+
+</Steps>
+
+### Quantification Example
+
+```
+Baseline Measurement:
+- Global CPU Usage: 72%
+- Idle Time: 28%
+
+After Input Task Period Change (10ms → 15ms):
+- Global CPU Usage: 65%
+- Improvement: 7 percentage points
+
+After Monitor Task Period Change (2000ms → 3000ms):  
+- Global CPU Usage: 63%
+- Additional Improvement: 2 percentage points
+
+Total Improvement: 72% → 63% = 9 percentage points (12.5% reduction)
+```
+
+### Trade-off Analysis
+
+Document the trade-offs you discover:
+- **Responsiveness vs. CPU Usage:** How does longer input period affect control feel?
+- **Update Frequency vs. Resources:** Does slower monitoring affect debugging experience?
+- **Performance vs. Power:** How would these changes affect battery life?
+
+### Realistic Expectations
+
+Typical improvements in well-designed embedded systems:
+- 5-15% CPU usage reduction through period optimization
+- 10-25% reduction through conditional rendering
+- 3-8% reduction through priority adjustments
+
+Do not expect dramatic improvements if your Lab 4 implementation was already efficient.
+
+### Validation Requirements
+
+**Functionality Testing:**
+- Game still plays smoothly
+- All buttons and joystick respond appropriately  
+- Display updates correctly
+- No crashes or system instability
+
+**Performance Testing:**
+- Run optimized game for 10 minutes
+- Monitor CPU usage throughout
+- Verify improvement is sustained
+
+---
+
+### Stack Overflow Protection
+
+#### Enable Built-in Protection
 
 **Add to FreeRTOSConfig.h:**
 ```c
@@ -199,7 +408,7 @@ Memory saved: 512 - 460 = 52 words per task
 
 This enables automatic stack overflow detection.
 
-### Implement Emergency Handler
+#### Implement Emergency Handler
 
 **Research:** Look up `vApplicationStackOverflowHook()`. What happens when FreeRTOS detects overflow?
 
@@ -220,7 +429,7 @@ extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskNa
 
 </details>
 
-### Test Your Protection
+#### Test Your Protection
 
 **Temporary test code** (remove after testing):
 ```c
@@ -237,7 +446,7 @@ Remove test code before submission! This is just to verify your protection works
 
 ---
 
-## Part 4: Power Management Concepts
+## Power Management Concepts (Optional Reading)
 
 ### Understanding Power in Embedded Systems
 
