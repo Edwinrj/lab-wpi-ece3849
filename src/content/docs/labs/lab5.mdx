@@ -1,0 +1,284 @@
+---
+title: "Lab 5: FreeRTOS System Monitoring & Optimization"
+description: "Discover hidden performance bottlenecks and learn professional debugging techniques by adding system monitoring to your Snake game."
+links:
+- /labs/lab4/
+- /guides/labtimeline/
+tags:
+  - freertos
+  - debugging
+  - optimization
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+<CardGrid>
+   <LinkCard
+      title="Complete Lab 4"
+      description="Working Snake game with timing measurements"
+      href="/labs/lab4/"
+      icon="setting"
+   />
+</CardGrid>
+
+## Objective
+
+Build on your Lab 4 Snake game by adding system monitoring capabilities to track CPU usage, stack memory consumption, and task performance. You'll implement FreeRTOS runtime statistics to measure how efficiently your tasks execute and optimize memory allocation based on actual usage patterns.
+
+---
+
+## Learning Goals
+
+- **Measure CPU usage** per task using FreeRTOS runtime statistics
+- **Monitor stack usage** to optimize memory allocation
+- **Implement system debugging** displays for real-time monitoring
+- **Understand embedded optimization** trade-offs and power management
+
+---
+
+## Grading Rubric
+
+| Part | Task | Description | Points |
+| :--- | :--- | :----------- | :----: |
+| 1 | CPU Usage Monitoring | Enable runtime stats and calculate CPU percentage per task | 25 |
+| 2 | Stack Usage Analysis | Monitor and optimize task stack sizes | 20 |
+| 3 | Debug Display | Create on-screen system information display | 20 |
+| 4 | Stack Overflow Protection | Implement overflow detection and safety hooks | 10 |
+|   | **Lab Report** | Analysis of discoveries and optimizations | **25** |
+|   | **Total** |  | **100 points** |
+
+---
+
+## Part 1: CPU Usage Monitoring - The Discovery
+
+### The Challenge Question
+
+**Before starting:** Which task in your Snake game do you think uses the most CPU time?
+- Input Task (joystick polling)
+- Snake Task (game logic)  
+- Render Task (LCD drawing)
+- Monitor Task (statistics)
+
+Write down your prediction—you'll test it!
+
+### Enable FreeRTOS Runtime Statistics
+
+**Step 1: Configure FreeRTOS**
+
+Add these lines to your `FreeRTOSConfig.h`:
+
+```c
+#define configGENERATE_RUN_TIME_STATS       1
+#define configUSE_STATS_FORMATTING_FUNCTIONS 1
+#define configUSE_TRACE_FACILITY            1
+
+// Use your existing Timer0 from Lab 4
+extern uint32_t micros(void);
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS() 
+#define portGET_RUN_TIME_STATS_TIME_STAMP() micros()
+```
+
+**Step 2: Understanding the Data**
+
+FreeRTOS tracks runtime for each task. CPU usage is calculated as:
+
+```
+CPU Usage (%) = (Task Runtime / Total Runtime) × 100
+```
+
+### Your Implementation Challenge
+
+**Research and implement:** How do you get runtime statistics from FreeRTOS?
+
+<details>
+<summary>Hint 1: FreeRTOS Function (Click to expand)</summary>
+
+Look up the FreeRTOS function `uxTaskGetSystemState()`. What parameters does it need?
+
+</details>
+
+<details>
+<summary>Hint 2: Data Structure (Click to expand)</summary>
+
+You'll need an array of `TaskStatus_t` structures. How do you allocate memory for this?
+
+</details>
+
+<details>
+<summary>Hint 3: Calculation (Click to expand)</summary>
+
+Each task has a `ulRunTimeCounter` field. Compare this to the total runtime to get percentages.
+
+</details>
+
+**Implementation Requirements:**
+- Create a function that collects CPU usage for all tasks
+- Store results in a simple data structure
+- Call this function from your Monitor task every 2 seconds
+- Display the results on LCD (you choose the format)
+
+### Discovery Questions
+
+After implementation:
+1. **Which task actually uses the most CPU?** 
+2. **How does CPU usage change when you pause the game?**
+3. **Were your initial predictions correct?**
+
+---
+
+## Part 2: Stack Usage Analysis & Optimization
+
+### Understanding Stack Memory
+
+Each FreeRTOS task has a fixed stack size (set when you call `xTaskCreate`). But how much do they actually use?
+
+**Stack High Water Mark** = Minimum free stack space since task creation
+
+If you allocated 512 words but high water mark is 120, your task used: 512 - 120 = 392 words maximum.
+
+### Monitor Stack Usage
+
+**Research Challenge:** Find the FreeRTOS function that gives you stack high water marks.
+
+<details>
+<summary>Hint: Function Name (Click to expand)</summary>
+
+Look for `uxTaskGetStackHighWaterMark()`. What parameter does it need?
+
+</details>
+
+### Implementation Requirements
+
+**Step 1: Collect Stack Data**
+- Monitor stack usage for your main tasks (Input, Snake, Render)
+- Display high water marks on LCD
+- Update every few seconds
+
+**Step 2: Optimization Experiment**
+
+<Steps>
+
+1. **Run your game for 1 minutes** while playing actively
+2. **Record the minimum high water mark** you observe for each task  
+3. **Calculate actual usage:** `Used = Allocated - High_Water_Mark`
+4. **Design new stack sizes:** `New_Size = Used + Safety_Margin`
+   - Use 25% safety margin for embedded systems
+5. **Update your xTaskCreate() calls** with optimized sizes
+6. **Test thoroughly** to ensure no crashes
+
+</Steps>
+
+**Example Calculation:**
+```
+Original allocation: 512 words
+Observed high water mark: 145 words  
+Actual usage: 512 - 145 = 367 words
+With 25% margin: 367 × 1.25 = 459 words
+Optimized allocation: 460 words (round up)
+Memory saved: 512 - 460 = 52 words per task
+```
+
+### Analysis Questions
+
+1. **Which task uses the most stack space? Why?**
+2. **How much total memory did you save?**
+3. **Why is a safety margin essential in embedded systems?**
+
+## Part 3: Stack Overflow Protection
+
+### Enable Built-in Protection
+
+**Add to FreeRTOSConfig.h:**
+```c
+#define configCHECK_FOR_STACK_OVERFLOW 2
+```
+
+This enables automatic stack overflow detection.
+
+### Implement Emergency Handler
+
+**Research:** Look up `vApplicationStackOverflowHook()`. What happens when FreeRTOS detects overflow?
+
+**Your Implementation:**
+- Turn on the TM4C1294XL's red LED (GPIO PN1)
+- Display error message on LCD
+- Halt the system safely
+
+<details>
+<summary>Hint: Hook Function Signature (Click to expand)</summary>
+
+```c
+extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+    // Your emergency response here
+}
+```
+
+</details>
+
+### Test Your Protection
+
+**Temporary test code** (remove after testing):
+```c
+// Add to any task temporarily:
+volatile char bigArray[1000];  // Intentionally too large
+bigArray[0] = 1;  // Prevent optimization
+```
+
+**Expected behavior:** Red LED + error display + system halt
+
+<Aside type="caution">
+Remove test code before submission! This is just to verify your protection works.
+</Aside>
+
+---
+
+## Part 4: Power Management Concepts
+
+### Understanding Power in Embedded Systems
+
+**Key Concept:** CPU idle time = power saving opportunities
+
+When no tasks are ready to run, FreeRTOS can:
+- Stop unnecessary clock cycles
+- Enter low-power sleep modes
+- Wake up only when needed
+
+### FreeRTOS Power Features
+
+**Tickless Idle Mode:** Enable with `configUSE_TICKLESS_IDLE 1`
+
+**Idle Hook:** Function called when system is idle
+```c
+void vApplicationIdleHook(void) {
+    // Power-saving code here
+}
+```
+
+### Power Optimization Strategies
+
+**Task Period Optimization:**
+- Longer periods = less frequent execution = lower power
+- Trade-off: Responsiveness vs. battery life
+
+**Priority-Based Power Scaling:**
+- Lower priority for non-critical tasks when on battery
+- Dynamic frequency scaling based on workload
+
+**Real-World Example:** Smartphone adjusts screen refresh rate based on content and battery level.
+
+### Discussion Questions
+
+1. **How could you modify your Snake game for better battery life?**
+2. **What tasks could run less frequently during idle periods?**
+3. **How would you detect when the system is "idle" vs. "active"?**
+
+<Aside type="note" title="Measurement Note">
+You won't measure actual power consumption in this lab, but understanding these concepts is crucial for battery-powered embedded systems.
+</Aside>
+
+---
