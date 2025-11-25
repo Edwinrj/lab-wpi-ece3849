@@ -82,6 +82,15 @@ Write down your prediction—you'll test it!
 
 **Step 1: Configure FreeRTOS**
 
+<Aside type="caution">
+Avoid redefining these macros if they already exist in your `FreeRTOSConfig.h` file. Duplicate definitions will cause errors.
+</Aside>
+
+
+<Aside type="danger">
+We are assuming you are using Timer0 configured in Lab 4 to measure execution time. Make sure the `micros()` function is correctly implemented and returns time in microseconds.
+</Aside>
+
 Add these lines to your `FreeRTOSConfig.h`:
 
 ```c
@@ -91,8 +100,8 @@ Add these lines to your `FreeRTOSConfig.h`:
 
 // Use your existing Timer0 from Lab 4
 extern uint32_t micros(void);
-#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS() 
-#define portGET_RUN_TIME_STATS_TIME_STAMP() micros()
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()  
+#define portGET_RUN_TIME_COUNTER_VALUE()           micros()
 ```
 
 **Step 2: Understanding the Data**
