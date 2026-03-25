@@ -1,10 +1,10 @@
 import 'es-module-lexer';
-import './chunks/astro-designed-error-pages_ZOg2sFmW.mjs';
+import './chunks/astro-designed-error-pages_NbOqoVes.mjs';
 import 'piccolore';
 import { A as AstroUserError } from './chunks/astro/server_I-R8HWCB.mjs';
 import 'clsx';
-import { d as defineMiddleware, s as sequence } from './chunks/index_BS9hY7Y8.mjs';
-import { u as useTranslations } from './chunks/translations_D-u4DL3Q.mjs';
+import { d as defineMiddleware, s as sequence } from './chunks/index_BkF7E-Vh.mjs';
+import { u as useTranslations } from './chunks/translations_DGMbCHLs.mjs';
 
 const onRequest$1 = defineMiddleware(async (context, next) => {
   context.locals.t = useTranslations(context.currentLocale);
