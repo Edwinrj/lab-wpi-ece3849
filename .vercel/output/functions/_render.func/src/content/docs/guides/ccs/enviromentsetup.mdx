@@ -1,0 +1,73 @@
+---
+title: "Environment setup for CCS"
+description: "Instructionss to configure Code Composer Studio for lab development"
+---
+> [!IMPORTANT]
+> ⚙️ **This procedure must always be done when using university lab computers.**  
+> These systems reset their configurations every time you log out, so you must reconfigure the environment each session.
+
+---
+
+### Open the Compiler Preferences
+
+1. In Code Composer Studio, go to:
+   ```
+   Window → Preferences → Code Composer Studio → Build → Compilers
+   ```
+2. You will see a list of available compiler paths.
+
+
+
+<p align="center">
+  <img src="https://hackmd.io/_uploads/BJD1a740ge.png" alt="CCS Compiler Preferences" width="460" style="border-radius:10px;"/>
+   <br />
+  <sub>Compiler Preferences window in Code Composer Studio</sub>
+</p>
+
+---
+
+### Add the TivaWare Path
+
+1. Click **Add...** and navigate to:
+   ```
+   C:\ti\TivaWare_C_Series-2.2.0.295
+   ```
+2. Select the folder and click **OK**.
+3. Then click **Refresh** — you should now see the **TivaWare** compiler resources appear in the list.
+---
+
+### Verify Environment Variable
+
+Ensure that the environment variable `SW_ROOT` is defined as `String` and points to:
+```bash
+C:\ti\TivaWare_C_Series-2.2.0.295
+```
+You can verify or edit this under: 
+```
+Window → Preferences → Code Composer Studio → Build → Variables
+```
+This variable is required by many projects to locate shared driver and graphics libraries.
+
+---
+
+### Verify Perspective
+
+1. In the top menu, go to:
+   ```
+   Window → Perspective → Other...
+   ```
+2. Select **CCS Edit** to switch to the correct perspective.
+3. If your layout ever becomes misconfigured, reset it via:
+   ```
+   Window → Perspective → Reset Perspective
+   ```
+
+<p align="center">
+  <img src="https://hackmd.io/_uploads/HkbopXNCll.png" alt="Reset CCS Perspective" width="250" style="border-radius:10px;"/>
+  <sub>Resetting the Code Composer Studio Perspective</sub>
+</p>
+---
+
+Once this configuration is complete, your environment is ready to build and debug projects using TivaWare support libraries.
+
+---

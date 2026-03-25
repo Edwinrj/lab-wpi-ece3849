@@ -1,0 +1,78 @@
+---
+title: "Software Timers"
+description: "Create one-shot and periodic timers to run callbacks without dedicating a task."
+tags:
+  - freertos
+links:
+  - "/guides/freertos/"
+---
+import { Aside } from '@astrojs/starlight/components';
+
+## Why Software Timers?
+Software timers let you run a function later or periodically without writing a dedicated task loop. The callback runs in the context of the FreeRTOS timer service task.
+
+Key APIs:
+- `xTimerCreate()` — define a timer
+- `xTimerStart()` / `xTimerStop()` — control running state
+- `xTimerReset()` — restart count from now
+- `xTimerChangePeriod()` — change the interval
+
+Enable timers in `FreeRTOSConfig.h`:
+```c
+#define configUSE_TIMERS           1
+#define configTIMER_TASK_PRIORITY  2
+#define configTIMER_QUEUE_LENGTH   8
+#define configTIMER_TASK_STACK_DEPTH  256
+```
+
+## Basic Example
+```c
+#include "FreeRTOS.h"
+#include "timers.h"
+
+static void HeartbeatCb(TimerHandle_t xTimer){
+  (void)xTimer;
+  // toggle LED or log heartbeat
+}
+
+TimerHandle_t tHeartbeat;
+
+void app_init(void){
+  tHeartbeat = xTimerCreate(
+    "hb",
+    pdMS_TO_TICKS(500),    // period
+    pdTRUE,                // auto-reload (periodic)
+    NULL,                  // timer ID (optional user data)
+    HeartbeatCb);
+
+  xTimerStart(tHeartbeat, 0);
+}
+```
+
+## One-Shot Timer
+```c
+static void TimeoutCb(TimerHandle_t xTimer){ /* handle timeout */ }
+TimerHandle_t tTimeout = xTimerCreate("tmo", pdMS_TO_TICKS(2000), pdFALSE, NULL, TimeoutCb);
+// start when needed
+xTimerStart(tTimeout, 0);
+```
+
+## Reset and Change Period
+```c
+// restart countdown (useful for inactivity timers)
+xTimerReset(tTimeout, 0);
+
+// change period on the fly
+xTimerChangePeriod(tHeartbeat, pdMS_TO_TICKS(1000), 0);
+```
+
+## Notes and Best Practices
+- The callback runs in the timer service task; keep it short and non-blocking.
+- Do not call blocking APIs from the callback. If substantial work is required, notify/queue to a worker task.
+- The timer API is thread-safe; you can start/stop from tasks and from callbacks.
+- For ISR context, use `xTimerPendFunctionCallFromISR()` to defer work to the timer task.
+
+<Aside type="tip">
+Use timers for periodic maintenance (LED heartbeat, watchdog kick, sensor polling) instead of creating extra tasks.
+</Aside>
+

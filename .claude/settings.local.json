@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /c/Users/Edwin/Documents/GitHub/lab-wpi-ece3849/src/content/docs/guides/FreeRTOS -type f -name *.mdx)"
+      "Bash(find /c/Users/Edwin/Documents/GitHub/lab-wpi-ece3849/src/content/docs/guides/FreeRTOS -type f -name *.mdx)",
+      "Bash(npm run:*)",
+      "Bash(1)",
+      "Bash(npm ls:*)",
+      "Bash(npm view:*)",
+      "Bash(find node_modules/starlight-site-graph -name schema* -type f)",
+      "Bash(npx astro:*)",
+      "Bash(ls src/pages/404*)",
+      "Bash(ls src/content/docs/404*)"
     ]
   }
 }

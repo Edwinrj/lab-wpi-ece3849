@@ -1,0 +1,111 @@
+---
+title: "Semaphores and Mutexes"
+description: "Protect shared resources and synchronize tasks using binary, counting semaphores, and mutexes."
+tags:
+  - freertos
+links:
+  - "/guides/freertos/"
+---
+import { Aside } from '@astrojs/starlight/components';
+
+## Overview
+Semaphores and mutexes solve two problems:
+- Synchronization: wake a task when an event happens (button press, ISR, DMA done).
+- Mutual exclusion: protect a shared resource (I2C, UART, display) from concurrent access.
+
+You will use:
+- `xSemaphoreCreateBinary()` — on/off flag (often signaled from an ISR)
+- `xSemaphoreCreateCounting()` — N tokens (e.g., N buffers)
+- `xSemaphoreCreateMutex()` — ownership lock with priority inheritance
+- `xSemaphoreTake()` / `xSemaphoreGive()` — wait/release
+
+## Binary Semaphore (ISR -> Task)
+```c
+#include "FreeRTOS.h"
+#include "semphr.h"
+
+static SemaphoreHandle_t xBtn;
+
+void GPIO_InterruptHandler(void) {
+  BaseType_t higher = pdFALSE;
+  // clear hardware interrupt flag here...
+  xSemaphoreGiveFromISR(xBtn, &higher);
+  portYIELD_FROM_ISR(higher);
+}
+
+static void ButtonTask(void *arg) {
+  (void)arg;
+  for (;;) {
+    if (xSemaphoreTake(xBtn, portMAX_DELAY) == pdTRUE) {
+      // button pressed -> handle event
+    }
+  }
+}
+
+int main(void) {
+  // hw + GPIO interrupt init...
+  xBtn = xSemaphoreCreateBinary();
+  // ensure created before enabling interrupts
+  // create ButtonTask, start scheduler
+}
+```
+
+<Aside type="caution">
+Use `xSemaphoreGiveFromISR()` inside ISRs, not `xSemaphoreGive()`.
+</Aside>
+
+## Counting Semaphore (N Resources)
+Counting semaphores generalize binary semaphores. Example: a pool of 3 DMA descriptors.
+```c
+SemaphoreHandle_t xPool = NULL;
+
+void init_pool(void) {
+  xPool = xSemaphoreCreateCounting(3 /*max*/, 3 /*initial*/);
+}
+
+void user_task(void *p) {
+  for (;;) {
+    if (xSemaphoreTake(xPool, pdMS_TO_TICKS(50)) == pdTRUE) {
+      // acquired one token => use a descriptor
+      // ... work ...
+      xSemaphoreGive(xPool); // return token
+    } else {
+      // timed out -> backlog; consider yielding or logging
+    }
+  }
+}
+```
+
+## Mutex (Mutual Exclusion w/ Priority Inheritance)
+Use a mutex to guard code that must be executed by only one task at a time.
+```c
+SemaphoreHandle_t xUartMutex;
+
+void UartWrite(const char *s) {
+  xSemaphoreTake(xUartMutex, portMAX_DELAY);
+  // low-level UART send...
+  xSemaphoreGive(xUartMutex);
+}
+
+void TaskA(void *p){ for(;;){ UartWrite("A\n"); vTaskDelay(pdMS_TO_TICKS(10)); }}
+void TaskB(void *p){ for(;;){ UartWrite("B\n"); vTaskDelay(pdMS_TO_TICKS(20)); }}
+
+int main(void){
+  // hw init...
+  xUartMutex = xSemaphoreCreateMutex();
+  // create TaskA/TaskB; start scheduler
+}
+```
+
+Why mutex (not binary semaphore) for protection?
+- Mutexes implement priority inheritance: if a low-priority task holds the mutex, and a high-priority task waits on it, the low-priority task temporarily inherits the higher priority to avoid inversion.
+
+## Timeouts and Responsiveness
+`xSemaphoreTake(xSem, ticks)` lets you bound how long a task waits. Prefer finite timeouts where appropriate; use `portMAX_DELAY` only when you are sure an event will arrive.
+
+## Common Pitfalls
+- Do not use mutexes from ISRs; mutex APIs are task-context only.
+- Keep critical sections short. Long holds starve other tasks.
+- Initialize semaphores before enabling the corresponding interrupts.
+- Prefer mutex for resource protection; use binary semaphores for event signaling.
+

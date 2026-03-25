@@ -1,0 +1,94 @@
+---
+title: "Workspace setup for CCS"
+description: "Instructions to set up the CCS workspace for lab development"
+---
+import { Tabs, TabItem, Aside, FileTree } from '@astrojs/starlight/components';
+
+## Workspace Setup 
+<Aside type="note" title="Important">
+Every time you use a **lab computer**, you must reconfigure the CCS environment. These computers reset to default settings each time you log out.
+</Aside>
+
+---
+### Download the Workspace
+
+Download the provided workspace archive (link provided on every lab).  
+Once downloaded, **extract** the folder to a location you can easily find, for example:
+```bash
+C:\Users\<your_username>\Documents\labx
+```
+
+#### Folder Organization
+When you open your workspace, you will find two main folders:
+<FileTree>
+- Lab_x
+  - Lab_x_workspace
+    - ...
+  - Libraries
+    - ...
+</FileTree>
+
+
+> [!tip]
+> The **libraries** folder should always remain **outside** your project workspace folder. Keep all library files together in this single location.
+
+### Open Workspace in CCS
+
+When you launch Code Composer Studio, a window will appear asking you to select a **workspace**:
+<p align="center">
+  <img src="https://hackmd.io/_uploads/HkhDFQVRxl.png" alt="Workspace selection window at startup" width="360" />
+  <br />
+  <sub>Workspace selection window at startup</sub>
+</p>
+
+In this dialog:
+1. Click **Browse...**  and navigate to the folder where you extracted the workspace.
+2. Select the extracted workspace directory.
+3. Click **Launch**.
+---
+After launching, CCS will open using the provided workspace configuration.  
+Inside that workspace, you should see a **template project folder** "LabX" where you will develop your labs.
+
+> [!TIP]
+> If CCS opens an empty workspace, make sure you selected the **correct folder** — it should contain the `.metadata` subfolder and your lab project files.
+
+
+### Verifying Project Properties
+
+> [!warning]
+> Ensure your project is configured for the correct device and connection interface before building.
+
+When working in Code Composer Studio, it’s important to confirm that your project is set up for the **correct microcontroller and debug interface**.
+
+---
+
+### Open Project Properties
+
+1. In the **Project Explorer**, right-click your project (e.g., `ece3849_lab0`) and select:
+   ```
+   Properties
+   ```
+2. Go to the following menu:
+   ```
+   General → Project
+   ```
+
+---
+
+### Verify Device and Connection
+
+Make sure the settings match the following:
+
+- **Device:** `Tiva TM4C1294NCPDT`
+- **Connection:** `Stellaris In-Circuit Debug Interface`
+
+<p align="center">
+  <img src="https://hackmd.io/_uploads/HkNdMoVAxg.png" alt="CCS Project Properties Device and Connection" width="500" style="border-radius:10px; box-shadow:0 0 10px #00ffff66;"/>
+  <br/>
+  <sub><span style="color:#4ec9b0; font-weight:bold;">Correct project configuration for TM4C1294NCPDT and Stellaris interface</span></sub>
+</p>
+
+> [!TIP]
+> These settings ensure that CCS can correctly compile and flash your program to the TM4C1294XL LaunchPad. If they don’t match, select the correct options and click **Apply and Close**.
+
+---

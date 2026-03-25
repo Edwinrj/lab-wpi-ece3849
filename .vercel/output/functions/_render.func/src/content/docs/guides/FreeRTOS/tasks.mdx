@@ -1,0 +1,362 @@
+---
+title: "Tasks: Creation and Control"
+description: "How to create, run, delay, suspend, resume, and delete FreeRTOS tasks — with practical guidance on stack sizing and periodic timing."
+tags:
+  - freertos
+links:
+  - "/guides/freertos/"
+---
+import { Aside } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
+
+## 1. What Is a Task?
+
+A task is a C function that **never returns**. It runs in an infinite loop, does its job, and then sleeps until it's time to work again. Each task gets its own stack, its own priority, and the illusion of having the CPU all to itself.
+
+```c
+void MyTask(void *pvParameters) {
+    // one-time setup (runs once when the task first executes)
+
+    for (;;) {
+        // do work
+        vTaskDelay(pdMS_TO_TICKS(50));  // sleep 50 ms — frees the CPU
+    }
+    // never reaches here
+}
+```
+
+<Aside type="tip" title="Think About This">
+Why `for (;;)` and not `while (1)`? They're identical — FreeRTOS examples use `for (;;)` by convention, but either works. What matters is that **you never return from this function**. If you do, FreeRTOS has no cleanup mechanism — the behavior is undefined and usually a crash.
+</Aside>
+
+---
+
+## 2. Creating a Task: `xTaskCreate()`
+
+This is the function you'll call most often in `main()` before starting the scheduler.
+
+```c
+BaseType_t xTaskCreate(
+    TaskFunction_t pvTaskCode,              // function pointer: void (*)(void *)
+    const char * const pcName,              // name (for debugging only — max 16 chars)
+    configSTACK_DEPTH_TYPE usStackDepth,    // stack size in WORDS (not bytes!)
+    void * const pvParameters,              // argument passed to the task function
+    UBaseType_t uxPriority,                 // priority: higher number = more important
+    TaskHandle_t * const pxCreatedTask      // optional handle (NULL if you don't need it)
+);
+```
+
+Returns `pdPASS` on success, `errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY` on failure.
+
+### A Simple Example
+
+```c
+xTaskCreate(
+    BlinkTask,              // function
+    "Blink",                // debug name
+    256,                    // stack: 256 words = 1024 bytes
+    NULL,                   // no parameter
+    tskIDLE_PRIORITY + 1,   // one above idle
+    NULL                    // don't need a handle
+);
+```
+
+### Passing Parameters to Tasks
+
+You can pass a pointer to any data through the `pvParameters` argument. The task receives it as `void *` and casts it back:
+
+```c
+typedef struct {
+    uint8_t led_pin;
+    uint32_t period_ms;
+} BlinkCfg;
+
+// IMPORTANT: this must outlive the task — use static or global storage
+static BlinkCfg fast = { .led_pin = GPIO_PIN_0, .period_ms = 200 };
+static BlinkCfg slow = { .led_pin = GPIO_PIN_1, .period_ms = 2000 };
+
+void BlinkTask(void *pvParameters) {
+    BlinkCfg *cfg = (BlinkCfg *)pvParameters;
+    for (;;) {
+        GPIOPinWrite(GPIO_PORTN_BASE, cfg->led_pin, cfg->led_pin);
+        vTaskDelay(pdMS_TO_TICKS(cfg->period_ms));
+        GPIOPinWrite(GPIO_PORTN_BASE, cfg->led_pin, 0);
+        vTaskDelay(pdMS_TO_TICKS(cfg->period_ms));
+    }
+}
+
+// In main():
+xTaskCreate(BlinkTask, "Fast", 256, &fast, 1, NULL);
+xTaskCreate(BlinkTask, "Slow", 256, &slow, 1, NULL);
+```
+
+<Aside type="caution" title="Lifetime Trap">
+The parameter pointer must remain valid for the entire life of the task. **Never** pass a pointer to a local variable inside `main()` if the scheduler starts before the task copies it — the variable may be gone by the time the task reads it. Use `static` or global storage.
+</Aside>
+
+### Using Task Handles
+
+If you need to suspend, resume, or delete a task later, save its handle:
+
+```c
+TaskHandle_t hSensor = NULL;
+
+xTaskCreate(SensorTask, "Sensor", 512, NULL, 3, &hSensor);
+
+// Later, from another task:
+vTaskSuspend(hSensor);   // pause it
+vTaskResume(hSensor);    // wake it back up
+```
+
+---
+
+## 3. Choosing a Stack Size
+
+Every task gets its own stack — it holds local variables, function call frames, and saved CPU registers during context switches. Get this wrong and you'll either waste RAM or crash.
+
+<Aside type="caution" title="Words, Not Bytes">
+On ARM Cortex-M, `usStackDepth` is in **words** (4 bytes each). So `256` means 1024 bytes, and `512` means 2048 bytes. This catches everyone at least once.
+</Aside>
+
+### Starting Points
+
+| Task type | Recommended start | Why |
+|:----------|:-----------------|:----|
+| Lightweight (button scan, LED toggle) | 256 words (1 KB) | Few local variables, no string ops |
+| Medium (timekeeping, display, queues) | 512 words (2 KB) | Some local buffers, moderate call depth |
+| Heavy (`sprintf`, `snprintf`, large buffers) | 1024+ words (4+ KB) | String formatting alone can use hundreds of bytes |
+
+### How to Right-Size Your Stacks
+
+<Steps>
+1. **Start generous.** Use 512 words for everything. Get your system working first.
+
+2. **Measure under worst-case load.** Inside each task, call:
+   ```c
+   UBaseType_t freeWords = uxTaskGetStackHighWaterMark(NULL);
+   // This returns the MINIMUM free stack words since the task started
+   ```
+   Run your system with all features active and rapid input — the high-water mark captures the peak usage.
+
+3. **Trim with a safety margin.** If a task uses 180 words out of 512, you could reduce to 256 (leaving ~30% margin). Don't go below `configMINIMAL_STACK_SIZE`.
+
+4. **Enable overflow detection during development:**
+   ```c
+   // In FreeRTOSConfig.h
+   #define configCHECK_FOR_STACK_OVERFLOW  2
+   ```
+   And implement the hook:
+   ```c
+   void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
+       // Make the crash visible — LED, UART, breakpoint
+       while (1) {}
+   }
+   ```
+</Steps>
+
+### Things That Eat Stack Fast
+
+- **Large local arrays:** `char buf[256]` inside a task eats 64 words on every call. Move large buffers to `static` storage.
+- **Recursion:** Each recursive call adds a full stack frame. Avoid it in tasks.
+- **`printf` / `sprintf`:** These can use 200+ bytes of stack internally. Use `snprintf` with small buffers, or move the buffer to static storage.
+- **Deep call chains:** If your task calls `A()` which calls `B()` which calls `C()`, all their local variables are on the stack simultaneously.
+
+<Aside type="tip" title="Think About This">
+You create a task with 256 words of stack. Inside it, you declare `char lcdLine[128];` — that's 32 words gone just for one variable. Add the context switch overhead (~16 words on Cortex-M4), function call frames, and you're already close to the edge. **Always account for the biggest function in the call chain, not just the task function itself.**
+</Aside>
+
+---
+
+## 4. Delays: `vTaskDelay` vs `vTaskDelayUntil`
+
+Both functions block the calling task (moving it to the **Blocked** state, using zero CPU). But they handle timing differently.
+
+### `vTaskDelay(ticks)` — Relative Delay
+
+Sleeps for a duration **starting from now**:
+
+```c
+for (;;) {
+    doWork();                        // takes some time (say 12 ms)
+    vTaskDelay(pdMS_TO_TICKS(50));   // then sleep 50 ms from NOW
+}
+// Actual period = 12 + 50 = 62 ms — drifts over time
+```
+
+**Use when:** slight drift is acceptable (display refresh, status logging, one-time waits).
+
+### `vTaskDelayUntil(&lastWake, ticks)` — Absolute / Periodic
+
+Sleeps until an **absolute tick count**, compensating for how long the work took:
+
+```c
+TickType_t lastWake = xTaskGetTickCount();
+const TickType_t period = pdMS_TO_TICKS(50);
+
+for (;;) {
+    doWork();                              // takes 12 ms
+    vTaskDelayUntil(&lastWake, period);    // wakes at lastWake + 50
+}
+// Actual period = exactly 50 ms (as long as doWork < 50 ms)
+```
+
+**Use when:** the period must not drift (timekeeping, sampling, control loops).
+
+<Aside type="caution" title="What if the work takes longer than the period?">
+If `doWork()` takes 60 ms but your period is 50 ms, the next wake time is already in the past. The task won't sleep at all — it'll run again immediately, potentially starving lower-priority tasks. **Always verify that your work completes well within the period.**
+</Aside>
+
+### Quick Reference
+
+| | `vTaskDelay` | `vTaskDelayUntil` |
+|:--|:------------|:-------------------|
+| Timing | Relative to *now* | Absolute (periodic) |
+| Drift | Accumulates over time | None (if work < period) |
+| Use case | Display, logging, one-shots | Sampling, timekeeping, control |
+| Complexity | Simpler — just one argument | Needs a `TickType_t` variable |
+
+---
+
+## 5. Suspend and Resume
+
+Sometimes you need to pause a task completely — not just delay it. `vTaskSuspend()` moves a task to the **Suspended** state, where the scheduler ignores it entirely until you call `vTaskResume()`.
+
+```c
+TaskHandle_t hSensor = NULL;
+
+// Create with a handle
+xTaskCreate(SensorTask, "Sensor", 512, NULL, 3, &hSensor);
+
+// From another task — pause the sensor while reconfiguring the bus
+vTaskSuspend(hSensor);
+reconfigureI2C();
+vTaskResume(hSensor);
+```
+
+A task can also suspend itself:
+
+```c
+void CalibrationTask(void *pvParameters) {
+    runCalibration();
+    // Done — suspend myself (could also use vTaskDelete)
+    vTaskSuspend(NULL);  // NULL = current task
+}
+```
+
+<Aside type="tip" title="Suspend vs Delay">
+`vTaskDelay` is a **timed** block — the task wakes automatically. `vTaskSuspend` is **indefinite** — the task stays frozen until someone explicitly calls `vTaskResume`. Use suspend for manual control, delays for periodic timing.
+</Aside>
+
+---
+
+## 6. Deleting Tasks
+
+```c
+vTaskDelete(NULL);      // delete the calling task
+vTaskDelete(hOther);    // delete another task by handle
+```
+
+When you delete a task, FreeRTOS frees its stack and TCB memory (the idle task handles the cleanup). Use this for tasks with a finite job — like a one-shot calibration or initialization sequence.
+
+<Aside type="caution" title="Don't Overuse Deletion">
+In most embedded systems, tasks run for the entire lifetime of the application. Creating and deleting tasks repeatedly fragments the FreeRTOS heap. If you need a task to "stop" temporarily, prefer `vTaskSuspend` over deletion.
+</Aside>
+
+---
+
+## 7. Reading the Tick Count
+
+```c
+TickType_t now = xTaskGetTickCount();
+```
+
+Returns the number of ticks since the scheduler started. At `configTICK_RATE_HZ = 1000`, this is effectively milliseconds.
+
+To convert to milliseconds explicitly:
+
+```c
+uint32_t ms = now;  // at 1000 Hz, ticks == ms
+// For other tick rates:
+// uint32_t ms = (now * 1000) / configTICK_RATE_HZ;
+```
+
+Use this for timestamping events, measuring elapsed time, or initializing `vTaskDelayUntil`:
+
+```c
+TickType_t start = xTaskGetTickCount();
+doExpensiveWork();
+TickType_t elapsed = xTaskGetTickCount() - start;
+// elapsed is in ticks (= ms at 1000 Hz)
+```
+
+---
+
+## 8. Complete Example: Two Tasks with Suspend/Resume
+
+This example creates two tasks on the TM4C1294XL:
+- **Blink** toggles an LED every 200 ms
+- **Controller** periodically suspends and resumes Blink to demonstrate manual control
+
+```c
+#include "FreeRTOS.h"
+#include "task.h"
+
+static TaskHandle_t hBlink = NULL;
+
+// Task 1: Blink LED (PN0) every 200 ms
+static void BlinkTask(void *pvParameters) {
+    (void)pvParameters;
+    TickType_t lastWake = xTaskGetTickCount();
+
+    for (;;) {
+        GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, GPIO_PIN_0);
+        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(200));
+        GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, 0);
+        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(200));
+    }
+}
+
+// Task 2: Suspend Blink for 1 second every 3 seconds
+static void ControllerTask(void *pvParameters) {
+    (void)pvParameters;
+
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(3000));   // LED blinks normally for 3 s
+        vTaskSuspend(hBlink);               // freeze the blink task
+        vTaskDelay(pdMS_TO_TICKS(1000));   // LED stays off for 1 s
+        vTaskResume(hBlink);                // resume blinking
+    }
+}
+
+int main(void) {
+    // Hardware init: clocks, GPIO for PN0 ...
+
+    xTaskCreate(BlinkTask,      "Blink", 256, NULL, 1, &hBlink);
+    xTaskCreate(ControllerTask, "Ctrl",  256, NULL, 2, NULL);
+
+    vTaskStartScheduler();
+
+    for (;;) {}  // only reached if scheduler fails
+}
+```
+
+<Aside type="tip" title="Think About This">
+The Controller task has priority 2, Blink has priority 1. Why? Because when Controller calls `vTaskSuspend(hBlink)`, it needs to preempt Blink immediately. If both had priority 1, the suspend would only take effect at the next tick — a subtle timing difference.
+</Aside>
+
+---
+
+## 9. Common Mistakes
+
+| Mistake | What happens | Fix |
+|:--------|:-------------|:----|
+| Returning from a task function | Undefined behavior (usually a crash) | Always use `for (;;)` or `while (1)` |
+| Passing a local variable as parameter | Task reads garbage after `main()` returns | Use `static` or global storage |
+| Stack too small | Silent memory corruption, random crashes | Start with 512, measure with `uxTaskGetStackHighWaterMark` |
+| Busy-waiting instead of `vTaskDelay` | Starves all lower-priority tasks | Always block — never spin |
+| Calling `xQueueSend` from an ISR | Scheduler corruption | Use `xQueueSendFromISR` in interrupts |
+| Using `vTaskDelay` for periodic timing | Period drifts by the work time | Use `vTaskDelayUntil` for fixed periods |
+
+<Aside type="caution">
+Do not call any blocking FreeRTOS API from inside an interrupt service routine. ISRs must use the `...FromISR` variants exclusively. See the [Queues guide](/guides/freertos/queues/) and [Semaphores guide](/guides/freertos/semaphores-mutexes/) for ISR-safe patterns.
+</Aside>

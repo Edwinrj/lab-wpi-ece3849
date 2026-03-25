@@ -1,0 +1,80 @@
+
+---
+title: Lab Kit Overview
+description: "Introduction to the TI EK-TM4C1294XL LaunchPad and BOOSTXL-EDUMKII BoosterPack used in the labs"
+---
+import { Tabs, TabItem, Aside, FileTree, CardGrid, Card, Badge } from '@astrojs/starlight/components';
+
+## Lab Kit
+
+<CardGrid>
+  <Card title="TI EK-TM4C1294XL LaunchPad" icon="laptop">
+    <img src="https://hackmd.io/_uploads/H1DF3MNClg.jpg" alt="TI EK-TM4C1294XL LaunchPad" width="300" />
+    
+    **ARM Cortex-M4F Microcontroller**
+    - 120MHz with hardware floating-point unit
+    - 1MB Flash memory, 256KB RAM
+    - Integrated Ethernet, USB, CAN interfaces
+    - Professional debugging capabilities
+</Card>
+  
+  <Card title="BOOSTXL-EDUMKII BoosterPack" icon="puzzle">
+    <img src="https://hackmd.io/_uploads/H1SmaGECgx.jpg" alt="BOOSTXL-EDUMKII BoosterPack" width="300" />
+    
+    **Complete I/O Interface Module**
+    - 128×128 color LCD display
+    - Multiple sensors: light, temperature, accelerometer
+    - Audio input/output with microphone and speaker
+    - Joystick and button interfaces
+    
+  </Card>
+</CardGrid>
+
+<Aside type="tip" title="Connection Note">
+In this lab, we will use the **BoosterPack 1** position on the EK‑TM4C1294XL LaunchPad.
+This corresponds to the **outer header connectors (J1, J2, J3, and J4)**. Make sure the pins are aligned correctly as shown below.
+</Aside>
+
+<p align="center">
+  <img src="https://hackmd.io/_uploads/B1eaRzNRee.png" alt="BoosterPack 1 Connection" width="360" />
+  <br />
+  <sub>BoosterPack MKII installed in BoosterPack 1 position on the EK-TM4C1294XL LaunchPad</sub>
+</p>
+
+<Aside type="danger">Always verify pin orientation and alignment before powering the board to avoid hardware damage.</Aside>
+
+
+### Connecting the LaunchPad via USB
+
+> [!Important]
+> Ensure proper power and communication between your computer and the **TM4C1294XL LaunchPad**.
+
+---
+
+### USB Connection Setup
+
+The **TM4C1294XL LaunchPad** includes two micro-USB connectors:
+
+1. **DEBUG** — used for programming, debugging, and powering the board.  
+2. **DEVICE** — used only for USB peripheral experiments (not used in this lab).
+
+For all labs in this course, including this one, you must connect your micro-USB cable to the **DEBUG** port — it is the connector **farther away from the Ethernet port**, located on the **left side** of the LaunchPad.
+
+<p align="center">
+  <img src="https://hackmd.io/_uploads/rk4ByhEAeg.png" alt="LaunchPad USB Debug Port" width="480" style="border-radius:10px; box-shadow:0 0 10px #00ffff66;"/>
+  <br/>
+  <sub><span style="color:#4ec9b0; font-weight:bold;">Connect the USB cable to the DEBUG port (the port farthest from the Ethernet jack)</span></sub>
+</p>
+
+> [!TIP]
+> **Do not** connect to the DEVICE port for this lab. The **DEBUG** port provides both power and the debugging interface used by Code Composer Studio.
+
+---
+
+Once connected, verify that:
+- The **Power LED** on the LaunchPad turns **ON**.  
+- The device appears in your system’s **Device Manager** or **CCS target configuration** as `Stellaris In-Circuit Debug Interface`.
+
+You are now ready to flash and debug your program directly from Code Composer Studio.
+
+---
