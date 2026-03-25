@@ -1,0 +1,374 @@
+---
+title: "Lab 1: FreeRTOS Stopwatch"
+description: "Redesign your bare-metal stopwatch as a multitasking application using FreeRTOS. Learn to decompose a system into concurrent tasks, manage shared state, and use inter-task communication."
+links:
+- /labs/lab0/
+- /guides/labtimeline/
+- /guides/FreeRTOS/freertos/
+- /guides/FreeRTOS/freertosproyects/
+tags:
+  - freertos
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
+import { Icon } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+<CardGrid>
+   <LinkCard
+      title="Complete Lab 0"
+      description="You need a working bare-metal stopwatch before starting this lab."
+      href="/labs/lab0/"
+      icon="setting"
+   />
+   <LinkCard
+      title="FreeRTOS Guide"
+      description="Read this guide thoroughly before you write any code."
+      href="/guides/FreeRTOS/freertos/"
+      icon="right-arrow"
+   />
+   <LinkCard
+      title="FreeRTOS Project Setup"
+      description="Follow this checklist to add FreeRTOS to your CCS project."
+      href="/guides/FreeRTOS/freertosproyects/"
+      icon="right-arrow"
+   />
+   <LinkCard
+      title="Back to Lab Summary"
+      description="Return to the overview of all labs."
+      href="/guides/labtimeline/"
+      icon="right-arrow"
+   />
+</CardGrid>
+
+---
+
+## Introduction
+
+In Lab 0, you built a stopwatch using a bare-metal `while(true)` loop with `elapsedMillis` timers. That approach works for simple programs, but it has fundamental limitations:
+
+- Every task shares one loop — if the display takes too long, buttons feel sluggish.
+- Adding features means more `if` checks, more state variables, and more coupling.
+- There is no way to guarantee that a time-critical operation runs on schedule.
+
+In this lab, you will **redesign your stopwatch from the ground up** using FreeRTOS. You already know _what_ the stopwatch should do. Now you must figure out _how to decompose it into concurrent tasks_ that cooperate through RTOS primitives.
+
+<Aside type="caution" title="No Starter Code">
+There is no template for this lab. You will create a new CCS project, integrate FreeRTOS yourself, and write all application code. Your Lab 0 code is your reference — not your starting point.
+</Aside>
+
+---
+
+## Objectives
+
+By the end of this lab, you will be able to:
+
+- Set up a FreeRTOS project from scratch in Code Composer Studio
+- Decompose a system into concurrent tasks with defined responsibilities
+- Assign task priorities based on timing requirements
+- Use `vTaskDelay` and `vTaskDelayUntil` for periodic scheduling
+- Communicate between tasks using **queues**
+- Identify and handle shared state between concurrent tasks
+
+---
+
+## Grading Rubric
+
+| Part | Description | Points |
+|:-----|:------------|:------:|
+| 1 | FreeRTOS project setup and scheduler running | 10 |
+| 2 | Task architecture design document | 15 |
+| 3 | Timekeeping task with stable ≤10 ms base period | 15 |
+| 4 | Button task with debounced S1 (Start/Pause) and S2 (Reset) | 15 |
+| 5 | Display task with non-blocking HH:MM:SS:MS rendering | 15 |
+| 6 | Buzzer task receiving commands through a queue | 10 |
+| 7 | Lab report | 20 |
+| | **Total** | **100** |
+
+---
+
+## Required Materials
+
+- TI EK-TM4C1294XL LaunchPad
+- BOOSTXL-EDUMKII BoosterPack
+- Micro-USB cable for programming and power
+
+<LinkCard
+   title="Download Libraries"
+   description="Download the timing, button, joystick, and display libraries."
+   href="/assets/libraries/libraries.zip"
+   icon="right-arrow"
+/>
+<LinkCard
+   title="Importing External Libraries"
+   description="How to add external libraries to your CCS project."
+   href="/guides/ccs/external_libraries/"
+   icon="right-arrow"
+/>
+
+---
+
+## Part 1 — FreeRTOS Project Setup (10 pts)
+
+Create a new CCS project and integrate FreeRTOS by following the setup guide linked above. Your goal is to reach a point where the **scheduler starts and runs at least two tasks**.
+
+<Steps>
+1. Create a new CCS project targeting the TM4C1294XL.
+2. Add the FreeRTOS kernel source files and configure include paths.
+3. Create a `FreeRTOSConfig.h` with a tick rate of 1000 Hz.
+4. Write a minimal `main()` that creates two tasks and calls `vTaskStartScheduler()`.
+5. Verify that both tasks execute by toggling the on-board LEDs at different rates.
+</Steps>
+
+<Aside type="tip" title="Verification">
+Before moving on, make sure you can answer: _If I set a breakpoint inside each task, does the debugger hit both?_ If not, your scheduler is not running correctly.
+</Aside>
+
+<Aside type="note" title="C++ and FreeRTOS">
+If you compile as C++, wrap FreeRTOS headers in `extern "C"` to prevent name mangling:
+
+```cpp
+extern "C" {
+    #include "FreeRTOS.h"
+    #include "task.h"
+    #include "queue.h"
+}
+```
+</Aside>
+
+**Deliverable:** Demonstrate two LEDs blinking at independent rates to a TA.
+
+---
+
+## Part 2 — Task Architecture Design (15 pts)
+
+Before writing your stopwatch code, you must plan your task architecture. Submit a short design document (one page max, can be handwritten or typed) that answers the following questions:
+
+### Design Questions
+
+1. **Task decomposition:** What tasks does your stopwatch need? For each task, state:
+   - Its name and single responsibility
+   - What it reads and what it writes
+   - How often it needs to run (and why)
+
+2. **Priority assignment:** Rank your tasks from highest to lowest priority. For each, justify _why_ it needs that priority relative to the others. Consider: what happens if a lower-priority task delays a higher-priority one?
+
+3. **Shared state:** Which variables are accessed by more than one task? For each shared variable, explain how you will ensure consistency. (Hint: consider what `volatile` does and does not guarantee.)
+
+4. **Communication:** When a button is pressed, multiple things must happen (update state, play a sound, refresh display). How will you notify the relevant tasks? Draw a diagram showing the flow of data between tasks.
+
+<Aside type="caution" title="This Is Graded">
+You must submit this design document **before** or **alongside** your code. The purpose is not to get it perfectly right on the first try — it is to force you to think about concurrency _before_ you encounter the bugs that come from not thinking about it.
+</Aside>
+
+<Aside type="note" title="There Is No Single Right Answer">
+Different task decompositions can work. What matters is that you can **justify** your choices. A three-task design with solid reasoning is better than a five-task design you cannot explain.
+</Aside>
+
+---
+
+## Part 3 — Timekeeping Task (15 pts)
+
+Implement a task responsible for maintaining the stopwatch time. This task is the heartbeat of your application.
+
+### Requirements
+
+- The task must run with a **period of 10 ms or less**
+- It must maintain time as **hours, minutes, seconds, and milliseconds**
+- It must support **pause** (stop counting) and **reset** (return to zero)
+- Time must not drift or overflow — if your Lab 0 had overflow issues, fix them now
+
+### Think About
+
+- What is the difference between `vTaskDelay(pdMS_TO_TICKS(10))` and `vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(10))`? Which is more appropriate here, and why?
+- What happens to your timekeeping accuracy if a higher-priority task preempts this one for several milliseconds?
+- If both the button task and the time task access `gRunning`, what could go wrong? What is the simplest way to prevent it?
+
+<Aside type="tip" title="Hierarchical Accumulators">
+To avoid overflow, accumulate milliseconds and roll over into seconds, minutes, and hours separately:
+
+```
+ms += TICK_PERIOD_MS;
+if (ms >= 1000) { ms -= 1000; sec++; }
+if (sec >= 60)  { sec -= 60;  min++; }
+if (min >= 60)  { min -= 60;  hr++;  }
+```
+
+Think about what data type each variable needs to be.
+</Aside>
+
+---
+
+## Part 4 — Button Task (15 pts)
+
+Implement a task that scans the physical buttons and translates presses into actions.
+
+### Requirements
+
+- **S1** toggles between Running and Stopped
+- **S2** resets the stopwatch to `00:00:00:000`
+- Buttons must be **debounced** (no double-triggers on a single press)
+- The task must not block other tasks while waiting for input
+
+### Think About
+
+- What scan rate do you need for responsive buttons without wasting CPU? Consider that human button presses last 50–200 ms.
+- How should this task communicate a button event to the timekeeping task? Should it write a shared variable directly, or is there a better mechanism?
+- When S2 (Reset) is pressed, the time variables must all go to zero atomically. What could go wrong if the display task reads the time between resetting `sec` and resetting `ms`?
+
+<Aside type="note" title="Button Library">
+You can reuse the `Button` class from Lab 0. Remember to call `begin()` and configure debounce timing during task initialization, not in `main()`.
+</Aside>
+
+---
+
+## Part 5 — Display Task (15 pts)
+
+Implement a task that renders the stopwatch state to the LCD.
+
+### Requirements
+
+- Display time in **HH:MM:SS:MS** format (e.g., `01:23:45:678`)
+- Show the current state: **Running** or **Stopped**
+- Show on-screen buttons that react visually to S1/S2 presses
+- The display must update smoothly without flicker
+- The task must **never use a blocking delay other than `vTaskDelay`**
+
+### Think About
+
+- What refresh rate makes the millisecond counter readable? Too fast wastes CPU; too slow looks frozen. Pick a rate and justify it.
+- The LCD is a **shared hardware resource**. Right now only one task uses it. What would happen if you added a second task that also draws to the LCD? (You will deal with this in Lab 2.)
+- How do you avoid redrawing the entire screen every frame? What if you only redraw the parts that changed?
+
+<Aside type="caution" title="LCD Drawing Is Slow">
+Drawing to the LCD over SPI takes real time — much more than you might expect. You will measure exactly how long in a later lab. For now, be aware that your display task's _actual_ period is `drawing_time + delay_time`, not just `delay_time`.
+</Aside>
+
+---
+
+## Part 6 — Buzzer Task with Queue (10 pts)
+
+Add audible feedback when buttons are pressed. This requires a **dedicated buzzer task** that receives commands through a **FreeRTOS queue**.
+
+### Requirements
+
+- Pressing S1 plays a short tone (e.g., 3000 Hz for 30 ms)
+- Pressing S2 plays a different tone (e.g., 1500 Hz for 50 ms)
+- The buzzer task must **block on the queue** when there is nothing to play
+- Button press handling must **not wait** for the sound to finish
+
+### What You Must Figure Out
+
+You need to decide:
+1. **What data to send through the queue.** What information does the buzzer task need to play a sound? Define a struct for it.
+2. **How to create the queue.** Look up `xQueueCreate` — what parameters does it need? How deep should the queue be?
+3. **How to send to the queue without blocking.** When the button task detects a press, it should post to the queue and move on immediately. What timeout value achieves this?
+4. **How the buzzer task consumes commands.** It should block waiting for a command, then drive PWM for the requested duration using `vTaskDelay`, then wait again.
+
+<Aside type="tip" title="Queue Resources">
+Read the FreeRTOS queue documentation carefully. Pay attention to the difference between `xQueueSend` with timeout `0` (non-blocking) and `portMAX_DELAY` (blocking forever).
+</Aside>
+
+<LinkCard
+  title="FreeRTOS Queue Guide"
+  description="How queues work and when to use them."
+  href="/guides/FreeRTOS/queues/"
+  icon="right-arrow"
+/>
+
+<LinkCard
+  title="FreeRTOS Queue API Reference"
+  description="Official API documentation for queue functions."
+  href="https://www.freertos.org/Documentation/02-Kernel/04-API-references/06-Queues/01-xQueueCreate"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+### Why a Queue?
+
+Think about what would happen if you tried to implement the buzzer _without_ a queue:
+- If the button task calls `Buzzer_Start()` and then `vTaskDelay(30ms)` and then `Buzzer_Stop()`, what happens to button scanning during those 30 ms?
+- If the button task just sets a global flag and the buzzer task polls it, what happens if two buttons are pressed quickly?
+
+The queue solves both problems. Make sure you understand _why_ before you implement it.
+
+---
+
+## Expected Behavior
+
+When your implementation is complete:
+
+1. The stopwatch starts in **Stopped** state showing `00:00:00:000`
+2. Pressing **S1** starts the timer — the display shows **Running** and time increments smoothly
+3. Pressing **S1** again pauses — time freezes, state shows **Stopped**
+4. Pressing **S2** at any time resets to `00:00:00:000`
+5. Each button press produces a short, distinct tone
+6. On-screen buttons change appearance briefly when their physical counterpart is pressed
+7. The system remains responsive at all times — no task starves another
+
+---
+
+## Lab Report (20 pts)
+
+Your lab report must include:
+
+1. **Design document** (from Part 2) — include your original version even if you changed the design during implementation. If you changed it, explain what you changed and why.
+
+2. **Task summary table:**
+
+   | Task | Priority | Period | Stack (words) | Responsibility |
+   |:-----|:---------|:-------|:--------------|:---------------|
+   | ... | ... | ... | ... | ... |
+
+3. **Answers to these questions:**
+   - What is the difference between `vTaskDelay` and `vTaskDelayUntil`? When would you prefer one over the other?
+   - What would happen if you gave all tasks the same priority? Try it and describe what you observe.
+   - What happens if you set the timekeeping task's stack size to 64 words? Why?
+   - Describe one bug you encountered related to shared state or task timing. How did you fix it?
+
+4. **Reflection:** Compare your bare-metal Lab 0 implementation with this FreeRTOS version. What is easier? What is harder? What would break in the bare-metal version if you added two more features?
+
+---
+
+## Submission
+
+<Steps>
+1. Name your project `ece3849_lab1_<username>`.
+2. Right-click the project → **Export...** → **General** → **Archive File**.
+3. Upload the `.zip` to Canvas along with your lab report.
+</Steps>
+
+---
+
+## Appendix — Useful References
+
+<CardGrid>
+   <LinkCard
+      title="FreeRTOS Task API"
+      description="xTaskCreate, vTaskDelay, vTaskDelayUntil, and more."
+      href="/guides/FreeRTOS/tasks/"
+      icon="right-arrow"
+   />
+   <LinkCard
+      title="FreeRTOS Queue API"
+      description="xQueueCreate, xQueueSend, xQueueReceive."
+      href="/guides/FreeRTOS/queues/"
+      icon="right-arrow"
+   />
+   <LinkCard
+      title="FreeRTOS Official API"
+      description="Complete API reference from freertos.org."
+      href="https://www.freertos.org/a00106.html"
+      icon="right-arrow"
+   />
+   <LinkCard
+      title="Fixing Stopwatch Overflow"
+      description="Hierarchical accumulators to prevent timing overflow."
+      href="/reference/example-projects/stopwatchoverflow/"
+      icon="right-arrow"
+   />
+</CardGrid>

@@ -1,13 +1,14 @@
 ---
-title: "Lab 1: Sensor Hub"
-description: "Learn how to add sound feedback, navigate between screens, and organize modular code."
+title: "Lab 1: FreeRTOS Stopwatch"
+description: "Read the FreeRTOS guide, set up the project, verify multitasking, and implement a stopwatch using FreeRTOS tasks."
 links:
-- /labs/lab0/
+- /labs/lab1/
 - /guides/labtimeline/
 - /guides/ccs/setupguide/
-- /reference/tivaware/pwmsignals/
-- /reference/libraries/otp3001/
-- /reference/tivaware/mic_adc/
+- /guides/freertos/
+- /guides/freertos/freertosproyects/
+tags:
+  - freertos
 ---
 import { Picture } from 'astro:assets';
 import { Aside } from '@astrojs/starlight/components';
@@ -26,56 +27,28 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
       icon="setting"
    />
    <LinkCard
-  title="Download Lab 1 Template"
-  description="Download the starter code for Lab 1."
-  href="/assets/lab_files/Lab_1.zip"
-  icon="right-arrow"
-/>
-   <LinkCard
-      title="Workspace Setup"
-      description="If you’re using a lab computer, you must reconfigure Code Composer Studio each session."
-      href="/guides/ccs/setupguide/"
-      icon="cpu"
-   />
-   <LinkCard
       title="Back to Lab Summary"
       description="Return to the list of all labs."
       href="/guides/labtimeline/"
       icon="right-arrow"
-   />
+   /> 
 </CardGrid>
-
 ---
-
 ## Overview
- 
-In Lab 1, you’ll expand your previous project to include multiple screens, sound feedback, and a modular code structure.  
-You will begin with a base project that already includes:
+In Lab 1, you will transition your single-threaded application to run on **FreeRTOS**. First, read the FreeRTOS guide, then complete the project setup and verify that the scheduler runs with multiple tasks. Finally, you will implement a full **Stopwatch** using FreeRTOS tasks, delays, and inter-task communication.
 
-* Two template screens:  
-  – **Screen 1:** Ambient Light (LUX)  
-  – **Screen 2:** Microphone (MIC)
-* Circular navigation between screens using buttons S1 and S2
-* LCD header bar and screen-switching framework
-
-Your goal is to progressively:
-
-1. Add **sound feedback** using PWM.  
-2. Split code into **modular source files**.  
-3. Add **sensor functionality** for the LUX and MIC screens.
-
-This lab focuses on organizing your code and building it step by step, instead of trying to finish everything at once.
+For this lab, you will not be provided with a starter template. You must create your own workspace and project in Code Composer Studio (CCS) by following the FreeRTOS setup guide.
 
 ---
 
 <Aside type="caution" title="Lab Requirements">
 To complete this lab successfully, you must:
 <Steps>
-1. Demonstrate **sound feedback** working when pressing S1 and S2.  
-2. Organize your code into **separate C/C++ files** (buzzer, lux, microphone).  
-3. Implement the **sensor functionality** for each screen.
+1. Set up your CCS project and demonstrate the FreeRTOS scheduler running with the provided example.
+2. Implement a FreeRTOS-based stopwatch that updates time and UI responsively, without blocking delays.
+3. Use proper task structure and inter-task communication for handling buzzer feedback on button events.
 </Steps>
-Each stage will be checked and graded individually.
+Each stage is graded separately; partial progress earns partial credit.
 </Aside>
 
 ---
@@ -84,13 +57,12 @@ Each stage will be checked and graded individually.
 
 | Step | Task | Description | Points |
 | :--- | :--- | :----------- | :----: |
-| 1 | Add Sound Feedback | Use PWM buzzer to play tones on S1/S2 press | 15 |
-| 2.1 | Buzzer Module | All buzzer logic separated into `buzzer.cpp` | 10 |
-| 2.3 | Microphone Module | `screen_mic.cpp` created and integrated | 10 |
-| 3 | MIC Functionality | ADC reads, level calculation and vertical bar with color display | 30 |
-| 4 | Joystick Screen | Moving dot and coordinate display | 5 |
-| 4.2 | Accelerometer Ball | Bouncing ball affected by tilt | 5 |
-|   | Lab report | Written lab report (See Lab report guidelines on canvas) | 25 |
+| 1 | FreeRTOS Setup + Example | Integrate FreeRTOS and run a simple two-task periodic example | 15 |
+| 2 | Stopwatch Time Task | Stable 10 ms or less base | 15 |
+| 3 | Button Handling | Debounced S1 Start/Pause and S2 Reset | 15 |
+| 4 | UI Task | Non-blocking UI rendering HH:MM:SS:MS and state | 15 |
+| 5 | Buzzer via Queue | Dedicated buzzer task consuming a queue; audible feedback on button events | 15 |
+|   | Lab report | Written lab report (see Canvas guidelines) | 25 |
 |   | **Total** |  | **100 points** |
 
 
@@ -98,732 +70,310 @@ Each stage will be checked and graded individually.
 
 By the end of this lab:
 
-* Pressing S1/S2 plays a tone and changes the screen.  
-* The program compiles and runs cleanly with modular files.  
-* The **LUX** screen shows a horizontal brightness bar.  
-* The **MIC** screen shows a vertical audio-level bar.  
-* The **Joystick** screen shows a dot moving inside a circle.  
-* The **Accelerometer Ball** screen shows a bouncing ball affected by tilt.
-* Code is cleanly organized and easy to expand.
+- The project builds and launches the FreeRTOS scheduler without faults.
+- Run testing example with two LEDs toggling at different rates to verify multitasking.
+- Stopwatch displays time in HH:MM:SS:MS with smooth updates.
+- S1 toggles Start/Pause; S2 performs Reset; UI reflects state text.
+- Button events produce short audible feedback via a dedicated buzzer task using a queue.
+- No blocking delays in the UI task; timing is driven by tasks or timers.
+- Code is modular and organized around FreeRTOS tasks and drivers.
+
 ---
 
 ## Learning Objectives
 
 After completing this lab, you will be able to:
 
-* Generate audio tones using **PWM** on the buzzer.
-* Implement **multi-screen navigation** with hardware buttons.
-* Organize large embedded projects into multiple source files.
-* Integrate and visualize sensor data (light and microphone) in real time.
-* Understand circular state-machine navigation between screens.
+- Integrate and configure **FreeRTOS** in a TM4C1294XL project.
+- Create tasks with proper **priorities**, **stack sizes**, and **periodic scheduling**.
+- Use **vTaskDelay/vTaskDelayUntil** for non-blocking timing.
+- Communicate across tasks using **queues**, **direct-to-task notifications**.
+- Convert a bare-metal loop into a **task-based** architecture.
 
 ---
 
 ## Required Materials
 
-* TI EK-TM4C1294XL LaunchPad  
-* BOOSTXL-EDUMKII BoosterPack  
-* Micro USB cable for programming and power  
-* Code Composer Studio workspace (from Lab 1)
+- TI EK-TM4C1294XL LaunchPad  
+- BOOSTXL-EDUMKII BoosterPack  
+- Micro USB cable for programming and power  
+- FreeRTOS kernel sources and config (from guide)
 
 ---
+## Part 1 - Read Guide and Set Up FreeRTOS
 
-## Project Starting Point
+Start by carefully reading the FreeRTOS guide and performing the project setup steps.
 
-You will receive a base project containing:
-
-* `main.cpp` — Initializes the LCD, buttons, and navigation logic.  
-* Two placeholder screens with basic structure:  
-  – `ScreenLux_Draw()` and `ScreenMic_Draw()` 
-* A functional navigation system that cycles screens in a **circular carousel**.  
-  Pressing S1 goes left, S2 goes right.
-
-At first, the screens only show headers and black backgrounds — they don’t display any sensor data yet.
-
----
-
-## Part 1 — Add Audio Feedback
-
-Your first task is to add **sound feedback** when changing screens.
-
-* Configure the **PWM module** to generate a square-wave tone.
-* Use the PWM Sound Generation Guide (available in the course materials) for step-by-step help.
-* Play one short tone when S1 is pressed, and a different tone when S2 is pressed.
-
-
-**Grading (Step 1 – 15 points):**
-- PWM configured correctly and audible sound generated (8 pts).
-- Distinct tone for each button S1 / S2 (4 pts).
-- Non-blocking implementation and UI remains responsive (3 pts).
+- Study the concepts in the FreeRTOS Guide: tasks, priorities, delays, queues.
+- Follow the FreeRTOS Project Setup checklist to integrate the kernel in CCS.
+- Confirm that the project compiles, links, and reaches `vTaskStartScheduler()`.
 
 <LinkCard
-  title="PWM Buzzer Configuration Guide"
-  description="Learn how to generate tones using PWM0 on the TM4C1294XL."
-  href="/reference/tivaware/pwmsignals/"
+  title="FreeRTOS Guide"
+  description="Concepts: tasks, scheduling, timing, communication."
+  href="/guides/freertos/freertos/"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+<LinkCard
+  title="FreeRTOS Project Setup"
+  description="Checklist to add FreeRTOS to your CCS project."
+  href="/guides/freertos/freertosproyects/"
   icon="right-arrow"
   target="_blank"
   rel="noopener noreferrer"
 />
 
 ---
+## Part 2 - Implement Stopwatch in FreeRTOS
 
-## Part 2 — Organize the Project into Modules
-
-As projects grow, keeping all your code in one file becomes confusing. In this part, you’ll learn how to organize your program into separate source files.
-To create new source files in Code Composer Studio:
-1. Right-click on the project folder in the **Project Explorer**.
-2. Select **New > Source File**.
-
-<p align="center">
-  <img src="/assets/images/new_source_file.png" alt="How to create a new source file in Code Composer Studio" width="500"/>
-    <br />
-  <sub><span style="color:#4ec9b0; font-weight:bold;"> How to create a new source file in Code Composer Studio</span></sub>
-</p>
-
-### Step 2.1 — Create `buzzer.cpp`
-
-Move all buzzer-related code (setup and functions) into its own file:
-
-```text
-/src
- ├── main.cpp
- ├── buzzer.cpp      ← new file
-```
-
-Include:
-
-* `Buzzer_Init()`
-* `Buzzer_Beep(freq, duration_ms)`
-
-Then call these functions from `main.cpp`.  
-Make sure everything compiles and the sound still works.
-
-Here is an example structure for `buzzer.cpp`:
-
-```cpp
-//All buzzer-dependent includes
-#include <stdint.h>
-#include <stdbool.h>
-#include "inc/hw_memmap.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/gpio.h"
-#include "driverlib/pwm.h"
-#include "driverlib/pin_map.h"
-
-// Buzzer configuration and functions
-#define BUZZER_PWM_BASE    PWM0_BASE
-#define BUZZER_GEN         PWM_GEN_0
-#define BUZZER_OUTNUM      PWM_OUT_1
-#define BUZZER_OUTBIT      PWM_OUT_1_BIT
-
-//Variables externally defined
-extern uint32_t gSysClk; // defined in main.cpp
-
-
-void Buzzer_Init(void)
-{
-      //Buzzer initialization code
-}
-
-// ---------------------------------------------------------------------------
-// Generates a beep with frequency and duration
-// ---------------------------------------------------------------------------
-void Buzzer_Beep(uint32_t freq_hz, uint32_t duration_ms)
-{
-      //Buzzer beep code   
-}
-
-```
-
-and in `main.cpp`, include the buzzer header and call the functions:
-
-```cpp
-// include as extern the buzzer functions needed
-extern void Buzzer_Init(void);
-extern void Buzzer_Beep(uint32_t, uint32_t);
-
-// In main(), initialize the buzzer
-int main(void)
-{
-    // Other initializations...  
-    Buzzer_Init();
-      while (1)
-      {
-         ...
-      }
-}
-
-// When S1 or S2 is pressed, call Buzzer_Beep() with appropriate parameters
-void onS1Press()
-{
-    Buzzer_Beep(440, 100); // Example: A4 note for 100 ms
-}
-...
-```
-<Aside type="tip"> 
-Remember to remove the old buzzer functions definitions from main.cpp after moving them.
+<Aside type="caution" title="Important">
+For this lab, you need to include the timing, button, joystick, and display libraries yourself. Remember to download them and follow the guide to add them to your project.
 </Aside>
 
-**Grading (Step 2.1 – 8 points):**
-- All buzzer logic moved to `buzzer.cpp` and exposed via header (4 pts).
-- `Buzzer_Init()` and `Buzzer_Beep()` compile and link with `main.cpp` (3 pts).
-- No duplicate includes or unresolved symbols (1 pt).
+<LinkCard
+   title="Download Libraries"
+   description="Download libraries needed for the lab."
+   href="/assets/libraries/libraries.zip"
+   icon="right-arrow"
+/>
+<LinkCard
+   title="Importing External Libraries"
+   description="Instructions for importing external libraries into your project."
+   href="/guides/ccs/external_libraries/"
+   icon="right-arrow"
+/>
 
----
+<Aside type="tip" title="Overflow Issues">
+If your previous stopwatch implementation had overflow issues (for example, only counting up to 35), check out this guide for an easy solution. It explains how to fix overflow problems by using hierarchical accumulators and appropriate data types.
+</Aside>
 
-### Step 2.2 — Create `screen_lux.cpp`
+<LinkCard
+   title="Fixing the Stopwatch Overflow"
+   description="Using hierarchical accumulators to prevent overflow in stopwatch timing."
+   href="/reference/example-projects/stopwatchoverflow/"
+   icon="right-arrow"
+/>
 
-```text
-/src
- ├── main.cpp
- ├── buzzer.cpp 
- ├── screen_lux.cpp  ← to be added next
+### 2.1 Procedure
+
+Implement the stopwatch as four focused tasks: timekeeping, display, buttons, and a dedicated buzzer for audible feedback.
+
+<Steps>
+1. In `main`, initialize peripherals (system clock, display, buttons, etc.) as usual.
+2. Create four FreeRTOS tasks: buttons, display, timekeeping, and buzzer.
+3. Use a 512-word stack per task; assign higher priority to timekeeping, then display; buttons and buzzer can be lower.
+4. Start the scheduler and verify periodic execution without blocking delays.
+5. Structure each task as an infinite loop: one-time setup, then periodic work using RTOS delays.
+</Steps>
+for more details you can refer to freertos API reference web page or the task creation and management guide.
+<LinkCard
+  title="FreeRTOS API Reference"
+  description="Official index of RTOS API functions."
+  href="https://www.freertos.org/a00106.html"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+<LinkCard
+  title="Task Creation and Management"
+  description="How to create and manage tasks in FreeRTOS."
+  href="/guides/freertos/tasks/"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
+/>
+
+<Aside type="tip" title="Priority Plan">
+Assign priorities to respect timing: timekeeping should not slip, display should remain responsive, and input/audio can be lower. Suggested baseline:
+
+- Time: `tskIDLE_PRIORITY + 3`
+- Display: `tskIDLE_PRIORITY + 2`
+- Buttons: `tskIDLE_PRIORITY + 1`
+- Buzzer: `tskIDLE_PRIORITY + 1`
+</Aside>
+
+Here’s a minimal task creation example (rename and tune as needed):
+
+```c
+xTaskCreate(ButtonsTask,
+            "Buttons",
+            512,        // stack in words
+            NULL,
+            tskIDLE_PRIORITY + 1,
+            NULL);
 ```
 
-Add a new file dedicated to the **ambient light** screen.  
-For now, this file only needs:
+<Aside type="note" title="Include FreeRTOS headers">
+If you compile as C++, include FreeRTOS headers inside an `extern "C"` block to avoid name mangling. In C files, include the headers normally.
 
-* `ScreenLux_Init()` — empty  
-* `ScreenLux_Draw()` — clears screen and displays header
-* `DrawBar()` - draws horizontal bar based on lux value
-
-Your screen_lux.cpp might look like this:
-
-```cpp
-//Include dependencies
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include "inc/hw_memmap.h"
-#include "driverlib/sysctl.h"
-#include "grlib/grlib.h"
-#include "Crystalfontz128x128_ST7735.h"
-#include "OPT3001.h"
-
-// ============================================================================
-// External references Used for drawing
-// ============================================================================
-// These symbols are defined in main.cpp and shared across all screens.
-extern tContext gContext;  // Global graphics context (LCD drawing object)
-extern bool btnLeft_isPressed();
-extern bool btnRight_isPressed();
-extern void DrawHeader(const char *title, bool leftActive, bool rightActive);
-
-// ============================================================================
-// Global variable (local to this file)
-// ============================================================================
-static float luxValue = 0.0f;  // Stores the most recent lux reading
-
-// ============================================================================
-// ScreenLux_Init()
-// ============================================================================
-// Initializes the OPT3001 ambient light sensor.
-// This function is called once at startup (from main.cpp).
-// ============================================================================
-void ScreenLux_Init(void)
-{
-    // Sensor initialization code here
-}
-
-// ============================================================================
-// ScreenLux_Draw()
-// ============================================================================
-void ScreenLux_Draw(void)
-{
-   // Drawing code here
+```c++
+// ===================== FreeRTOS =====================
+extern "C" {
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
 }
 ```
+</Aside>
 
-Your main.cpp should include the new header and call the functions:
+Start FreeRTOS after creating all tasks:
 
+```c
+/* Start scheduler (never returns) */
+vTaskStartScheduler();
 
-```cpp
-//Include as extern the lux screen functions needed in main.cpp
-extern void ScreenLux_Init(void);
-extern void ScreenLux_Draw(void);
+/* If we get here, scheduler failed */
+while (1) { }
+```
 
-void main(void)
-{
-    // Other initializations...
-    ScreenLux_Init();
-    while (1)
-    {
-        // Call ScreenLux_Draw() when the lux screen is active every 50 ms
-        ScreenLux_Draw();
+Every task should look like this at a high level:
+
+```c
+void DisplayTask(void *arg) {
+    // one-time setup
+    // ... init local buffers, precompute layouts, etc.
+
+    const TickType_t period = pdMS_TO_TICKS(DISPLAY_REFRESH_MS);
+    for (;;) {
+        // periodic work
+        // ... render current time/state ...
+        vTaskDelay(period);   // non-blocking, gives time to other tasks
     }
 }
 ```
 
-After adding the new files, make sure screen navigation still works, even if the screens are still empty.
+<Aside type="tip" title="Ticks 101">
+FreeRTOS schedules work on a system “tick” defined by `configTICK_RATE_HZ` (in `FreeRTOSConfig.h`). Convert milliseconds to ticks using `pdMS_TO_TICKS(...)`. Example for display refresh:
 
----
-
-### Step 2.3 — Create `screen_mic.cpp`
-```text
-/src
- ├── main.cpp
- ├── buzzer.cpp 
- ├── screen_lux.cpp
- ├── screen_mic.cpp  ← to be added next
+```c
+const TickType_t period = pdMS_TO_TICKS(DISPLAY_REFRESH_MS);
 ```
-Add another file for the **microphone** screen.  
-Include the same placeholder structure:
 
-* `ScreenMic_Init()` — empty  
-* `ScreenMic_Draw()` — clears screen and displays header
-* `DrawBar()` - draws vertical bar based on mic level
-
-Your screen_mic.cpp might look like this:
-
-```cpp
-
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <math.h>
-#include "inc/hw_memmap.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/adc.h"
-#include "driverlib/gpio.h"
-#include "grlib/grlib.h"
-#include "Crystalfontz128x128_ST7735.h"
-
-// ============================================================================
-// External references (shared from main.cpp)
-// ============================================================================
-extern tContext gContext;
-extern bool btnLeft_isPressed();
-extern bool btnRight_isPressed();
-extern void DrawHeader(const char *title, bool leftActive, bool rightActive);
-
-// ============================================================================
-// Microphone input configuration
-// ----------------------------------------------------------------------------
-// The microphone output on the BoosterPack MKII is connected to PE5  AIN8.
-// We use ADC0, Sample Sequencer 3 (single channel, manual trigger).
-// ============================================================================
-#define MIC_ADC_BASE      ADC0_BASE
-#define MIC_ADC_SEQ       3
-#define MIC_ADC_CHANNEL   ADC_CTL_CH8
-
-
-static void Mic_Init(void)
-{
-   
-}
-
-static uint16_t Mic_Read(void)
-{
-      return 0;
-}
-
-
-static float Mic_Level(void)
-{
-      return 0.0f;
-}
-
-// ============================================================================
-// ScreenMic_Init()
-// ============================================================================
-// Called once at program start. Initializes the ADC channel for the microphone.
-// ============================================================================
-void ScreenMic_Init(void)
-{
-    Mic_Init();
-}
-
-// ============================================================================
-// ScreenMic_Draw()
-// ============================================================================
-// Called periodically from main.cpp (every ~50 ms).
-// Reads microphone level and updates the bar meter on screen.
-//
-// Visualization:
-//   - Green = low volume
-//   - Yellow = medium volume
-//   - Red = high volume
-// ============================================================================
-void ScreenMic_Draw(void)
-{
-}
-```
-**Grading (Step 2.2 – 6 points):**
-- `screen_lux.cpp` created and contains `ScreenLux_Init()` and `ScreenLux_Draw()` (3 pts).
-- Drawing helpers (e.g., `DrawBar()`) present and callable from `main.cpp` (2 pts).
-- Project compiles and navigation remains functional (1 pt).
-
-**Grading (Step 2.3 – 6 points):**
-- `screen_mic.cpp` created and contains `ScreenMic_Init()` and `ScreenMic_Draw()` (3 pts).
-- ADC placeholders / ADC init stubs are present and compile (2 pts).
-- Project compiles and navigation remains functional (1 pt).
----
-
-## Part 3 — Add Screen Functionality
-
-Now that your code is modular, you will give meaning to each screen.
-
-### Screen 1 — Ambient Light (LUX)
-
-<Aside type="danger" title="Attention">
-**Screen 1 — Ambient Light (LUX)** is **not required for lab submission**, as some development boards may have issues with the light sensor (OPT3001).
+Prefer `vTaskDelay(period)` for simple periodic loops. For tighter, exact cadence, consider `vTaskDelayUntil(&lastWakeTime, period)`.
 </Aside>
 
+<Aside type="caution" title="No Blocking Delays">
+Avoid busy waits and vendor/HAL delay calls inside tasks. Only use the RTOS delay primitives (e.g., `vTaskDelay(period)` or `vTaskDelayUntil`) so other tasks can run.
+</Aside>
 
+<Aside type="note" title="Shared State: use volatile">
+Globals read/written by tasks or ISRs should be declared `volatile`. Because FreeRTOS runs with interrupts, the compiler may optimize away reads/writes unless told otherwise. Soon you’ll learn to protect access using semaphores, queues, and mutexes.
 
-* Initialize and read data from the **OPT3001** light sensor.
-* Convert the lux reading to a percentage of a defined maximum (e.g. 1000 lx).
-* Display a **horizontal bar** whose length corresponds to brightness.
-* Show the numeric lux value on screen.
+```c
+/* Hierarchical accumulators (stopwatch time) */
+volatile bool     gRunning = false;
+volatile uint16_t g_ms  = 0;
+volatile uint8_t  g_sec = 0;
+volatile uint8_t  g_min = 0;
+volatile uint8_t  g_hr  = 0;
+```
+</Aside>
 
-Example:
+<Aside type="tip" title="Keep ISRs tiny">
+Do the bare minimum in button ISRs and notify tasks to do the real work. Use `xTaskNotifyFromISR` or a queue to send events like PLAY_PAUSE or RESET to the timekeeping task.
+</Aside>
 
-<video autoplay loop muted playsinline width={400}>
-  <source src="/assets/videos/lux.mp4" type="video/mp4"/>
-</video>
+### Buzzer Task with Queue (Audible Feedback)
+
+To add clear, non-blocking audio feedback on button events, implement a dedicated buzzer task and a queue. This pattern ensures ISRs remain short, the UI stays responsive, and multiple beeps are handled in order.
+
+<Aside type="tip" title="Why a queue?">
+- ISRs must be brief: enqueue a small command and return immediately.
+- Tasks can block cooperatively: the buzzer task starts PWM, delays for the duration, and stops—without stalling other tasks.
+- Queues add ordering and buffering: concurrent requests are serialized safely.
+</Aside>
 
 <LinkCard
-  title="LUX Sensor Integration Guide"
-  description="How to interface with the OPT3001 ambient light sensor using I2C."
-  href="/reference/libraries/otp3001/"
+  title="FreeRTOS Queues"
+  description="How queues work and when to use them."
+  href="/guides/freertos/queues/"
   icon="right-arrow"
   target="_blank"
   rel="noopener noreferrer"
 />
----
 
-### Screen 2 — Microphone (MIC)
-
-* Configure the **ADC** to read microphone input (PE5 → AIN8).
-* Calculate a simple average level or RMS amplitude.
-* Draw a **vertical bar** that grows and changes in color with sound intensity.
-
-Example:
-
-<video autoplay loop muted playsinline width={400}>
-  <source src="/assets/videos/mic.mp4" type="video/mp4"/>
-</video>
+<Aside type="note" title="More Reading">
+Refer to the official FreeRTOS documentation for detailed guidance on tasks, delays, notifications, and queues.
+</Aside>
 
 <LinkCard
-   title="MIC Sensor Integration Guide"
-   description="How to interface with the microphone using the ADC on the TM4C1294XL."
-   href="/reference/tivaware/mic_adc/"
-   icon="right-arrow"
-   target="_blank"
-   rel="noopener noreferrer"
+  title="FreeRTOS Queues API Reference"
+  description="Official index of RTOS API functions."
+  href="https://www.freertos.org/Documentation/02-Kernel/04-API-references/06-Queues/01-xQueueCreate"
+  icon="right-arrow"
+  target="_blank"
+  rel="noopener noreferrer"
 />
 
-**Grading (Step 3 – 30 points):**
-- Microphone (MIC) functionality — 13 points total:
-  - ADC configured and reads microphone channel AIN8 / PE5 (12 pts).
-  - Level computed (average or RMS) and displayed numerically if required (7 pts).
-  - Vertical bar visual responds to sound intensity and updates smoothly (7 pts).
-  - Non-blocking sampling and UI responsiveness (4 pts).
-
----
-## Part 4 - Additional Screens 
-You will now add two more screens to the project:
-- **Joystick Screen** — Display the real-time position of the joystick inside a circular region.
-- **Accelerometer Ball Screen** — Simulate a bouncing ball affected by gravity from the accelerometer readings.
-
-Both screens should follow the same pattern as before, each having an _Init() and _Draw() function.
-
-<Aside type="tip">
-In this section, the code snippets are provided for you. Simply create the source files and paste the code.
-and make sure to include the necessary headers and extern declarations in main.cpp.
-</Aside>
-
-
-## Joystick Screen
-
-The joystick outputs two analog voltages (X and Y axes) that are read using the **ADC**. The goal is to represent the joystick’s position as a moving dot inside a circular zone.
-
-<video autoplay loop muted playsinline width={400}>
-  <source src="/assets/videos/joy.mp4" type="video/mp4"/>
-</video>
-
-### Features
-- A **white circle** defines the joystick’s movement boundary.
-- A **cyan dot** shows the current position.
-- **X/Y numeric values** are displayed below.
-
-### Implementation Example
+Prefer sending a compact structure by value (the queue copies it). If you instead send pointers, carefully manage the object's lifetime and immutability.
 
 ```c
+// ----------------------------------------------------
+// Buzzer via PWM using task + queue (non-blocking)
+// ----------------------------------------------------
+typedef struct {
+    uint32_t freq_hz;
+    uint32_t duration_ms;
+} BuzzerCmd;
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include "inc/hw_memmap.h"
-#include "driverlib/sysctl.h"
-#include "grlib/grlib.h"
-#include "Crystalfontz128x128_ST7735.h"
-#include "joystick.h"
+static QueueHandle_t gBuzzerQ;
+```
 
-// ============================================================================
-// External references (from main.cpp)
-// ============================================================================
-extern tContext gContext;  // global LCD drawing context
-extern bool btnLeft_isPressed();
-extern bool btnRight_isPressed();
-extern void DrawHeader(const char *title, bool leftActive, bool rightActive);
+Post commands from button callbacks or tasks without blocking:
 
-// ============================================================================
-// Local variables and objects
-// ----------------------------------------------------------------------------
-// Joystick object: handles analog reading and optional button input.
-//  - JSX: analog input pin for X-axis
-//  - JSY: analog input pin for Y-axis
-//  - JS1: digital input pin for joystick button
-// ============================================================================
-static Joystick js(JSX, JSY, JS1);
-static float joyX = 0.0f;   // normalized X-axis value (-1.0  +1.0)
-static float joyY = 0.0f;   // normalized Y-axis value (-1.0  +1.0)
-
-
-void ScreenJoystick_Init(void)
+```c
+// ----------------------------------------------------
+// Button callbacks (update UI and request beep)
+// ----------------------------------------------------
+static inline void buzzer_post(uint32_t f, uint32_t ms)
 {
-    js.begin();             // Initialize joystick ADC inputs
-    js.calibrateCenter(32); // Calibrate to remove offset
-}
-
-void ScreenJoystick_Draw(void)
-{
-    js.tick();
-    float joyX = js.x();  // −1.0 → +1.0
-    float joyY = js.y();  // −1.0 → +1.0
-
-    tRectangle bg = {0, 21, 127, 127};
-    GrContextForegroundSet(&gContext, ClrBlack);
-    GrRectFill(&gContext, &bg);
-
-    DrawHeader("Joystick", btnLeft_isPressed(), btnRight_isPressed());
-
-    int cx = 64, cy = 75, radius = 40;
-    GrContextForegroundSet(&gContext, ClrWhite);
-    GrCircleDraw(&gContext, cx, cy, radius);
-
-    int px = cx + (int)(joyX * radius);
-    int py = cy - (int)(joyY * radius);
-    GrContextForegroundSet(&gContext, ClrCyan);
-    GrCircleFill(&gContext, px, py, 3);
-
-    char buf[32];
-    snprintf(buf, sizeof(buf), "X=%.2f  Y=%.2f", joyX, joyY);
-    GrContextForegroundSet(&gContext, ClrYellow);
-    GrStringDrawCentered(&gContext, buf, -1, 64, 115, false);
-
-    GrFlush(&gContext);
+    if (!gBuzzerQ) return;
+    BuzzerCmd cmd = { f, ms };
+    (void)xQueueSend(gBuzzerQ, &cmd, 0); // do not block
 }
 ```
 
-<Aside type="tip" title="Coordinate System">
-The joystick values are normalized between **−1.0 and +1.0**. The center of the circle (0,0) corresponds to the joystick in its neutral position.
-</Aside>
-
----
-
-## Accelerometer Ball Screen
-
-This visualization treats the accelerometer’s X/Y readings as a **gravity vector**. When the board is tilted, the virtual ball accelerates and bounces around the screen.
-
-<video autoplay loop muted playsinline width={400}>
-  <source src="/assets/videos/bouncing.mp4" type="video/mp4"/>
-</video>
-
-### Features
-- Reads **accelerometer X and Y axes**.
-- Simulates **gravity, friction, and bounce**.
-- The **yellow ball** moves and rebounds inside the LCD boundaries.
-
-### Implementation Example
+Create the queue and implement the buzzer task to consume commands and drive PWM for the requested duration:
 
 ```c
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <math.h>
-#include "inc/hw_memmap.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/adc.h"
-#include "driverlib/gpio.h"
-#include "grlib/grlib.h"
-#include "Crystalfontz128x128_ST7735.h"
+// Create the buzzer queue (e.g., before vTaskStartScheduler)
+gBuzzerQ = xQueueCreate(4, sizeof(BuzzerCmd));
 
-// ============================================================================
-// External references (defined in main.cpp)
-// ============================================================================
-extern tContext gContext;  // Global LCD drawing context
-extern bool btnLeft_isPressed();
-extern bool btnRight_isPressed();
-extern void DrawHeader(const char *title, bool leftActive, bool rightActive);
-
-// ============================================================================
-// Accelerometer ADC configuration
-// ----------------------------------------------------------------------------
-// The accelerometer outputs three analog signals (X, Y, Z).
-// Only X and Y are used for this demo.
-// Channels: PE0  AIN3, PE1  AIN2, PE2  AIN1
-// ============================================================================
-#define ACC_ADC_BASE     ADC0_BASE
-#define ACC_ADC_SEQ      2
-#define ACC_CH_X         ADC_CTL_CH3
-#define ACC_CH_Y         ADC_CTL_CH2
-#define ACC_CH_Z         ADC_CTL_CH1
-
-// ---------------------------------------------------------------------------
-// Accel_Init()
-// ---------------------------------------------------------------------------
-// Configures ADC0 to read the accelerometer inputs.
-// ---------------------------------------------------------------------------
-static void Accel_Init(void)
+// Buzzer task: consumes queue and generates PWM for requested time
+static void vBuzzerTask(void *arg)
 {
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
-    GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2);
+    (void)arg;
+    Buzzer_HWInit();
 
-    ADCSequenceConfigure(ACC_ADC_BASE, ACC_ADC_SEQ, ADC_TRIGGER_PROCESSOR, 0);
-    ADCSequenceStepConfigure(ACC_ADC_BASE, ACC_ADC_SEQ, 0, ACC_CH_X);
-    ADCSequenceStepConfigure(ACC_ADC_BASE, ACC_ADC_SEQ, 1, ACC_CH_Y);
-    ADCSequenceStepConfigure(ACC_ADC_BASE, ACC_ADC_SEQ, 2, ACC_CH_Z | ADC_CTL_IE | ADC_CTL_END);
-    ADCSequenceEnable(ACC_ADC_BASE, ACC_ADC_SEQ);
-    ADCIntClear(ACC_ADC_BASE, ACC_ADC_SEQ);
-}
-
-// ---------------------------------------------------------------------------
-// Accel_Read()
-// ---------------------------------------------------------------------------
-// Reads X and Y accelerometer channels using ADC0 and converts them
-// to normalized values in the range [-1.0, +1.0].
-// ---------------------------------------------------------------------------
-static void Accel_Read(float *x, float *y)
-{
-    uint32_t raw[3];
-    ADCProcessorTrigger(ACC_ADC_BASE, ACC_ADC_SEQ);
-    while (!ADCIntStatus(ACC_ADC_BASE, ACC_ADC_SEQ, false));
-    ADCIntClear(ACC_ADC_BASE, ACC_ADC_SEQ);
-    ADCSequenceDataGet(ACC_ADC_BASE, ACC_ADC_SEQ, raw);
-
-    // Convert raw 0-4095 ADC values  normalized -1.0 to +1.0 range
-    *x = ((float)raw[0] - 2048.0f) / 2048.0f;
-    *y = ((float)raw[1] - 2048.0f) / 2048.0f;
-}
-
-// ============================================================================
-// Ball state variables
-// ----------------------------------------------------------------------------
-// posX, posY  position of the ball on the LCD
-// velX, velY  velocity components (pixels per frame)
-// ============================================================================
-static float posX = 0.0f;
-static float posY = 0.0f;
-static float velX = 0.0f;
-static float velY = 0.0f;
-
-
-void ScreenAccel_Init(void)
-{
-    Accel_Init();
-    posX = rand() % 128;
-    posY = 25 + rand() % 100;
-    velX = velY = 0.0f;
-}
-
-void ScreenAccel_Draw(void)
-{
-    float ax, ay;
-    Accel_Read(&ax, &ay);
-
-    velX += ax * 0.9f;
-    velY += -ay * 0.9f;
-
-    posX += velX;
-    posY += velY;
-
-    if (posX < 5)   { posX = 5;   velX *= -0.8f; }
-    if (posX > 122) { posX = 122; velX *= -0.8f; }
-    if (posY < 25)  { posY = 25;  velY *= -0.8f; }
-    if (posY > 122) { posY = 122; velY *= -0.8f; }
-
-    velX *= 0.99f;
-    velY *= 0.99f;
-
-    tRectangle bg = {0, 21, 127, 127};
-    GrContextForegroundSet(&gContext, ClrBlack);
-    GrRectFill(&gContext, &bg);
-
-    DrawHeader("Accelerometer Ball", btnLeft_isPressed(), btnRight_isPressed());
-
-    GrContextForegroundSet(&gContext, ClrYellow);
-    GrCircleFill(&gContext, (int)posX, (int)posY, 5);
-    GrFlush(&gContext);
+    BuzzerCmd cmd;
+    for (;;)
+    {
+        if (xQueueReceive(gBuzzerQ, &cmd, portMAX_DELAY) == pdTRUE)
+        {
+            if (cmd.freq_hz > 0 && cmd.duration_ms > 0)
+            {
+                Buzzer_Start(cmd.freq_hz);
+                vTaskDelay(pdMS_TO_TICKS(cmd.duration_ms));
+                Buzzer_Stop();
+            }
+        }
+    }
 }
 ```
 
-<Aside type="note" title="Physics Parameters">
-- **Gravity strength:** 0.9f multiplier controls how sensitive the motion is to tilt.  
-- **Friction:** 0.99f reduces velocity slightly each frame.  
-- **Bounce factor:** −0.8f simulates energy loss on collisions.
-</Aside>
+Call `buzzer_post(...)` when handling S1/S2 (e.g., after debouncing or within the task that processes button events). Use short durations (e.g., 20–50 ms) and moderate frequencies (e.g., 2–5 kHz) for crisp feedback.
 
----
 
-**Grading (Part 4 – 10 points):**
-- Joystick Screen: 5 points — visual dot and numeric X/Y, draws inside boundary and updates smoothly.
-- Accelerometer Ball Screen: 5 points — ball responds to accelerometer, bounces correctly and remains stable.
-
-## Integration Tip
-
-To integrate these screens into your main program remember to include their headers and extern declarations in `main.cpp`:
-```c
-extern void ScreenJoystick_Init(void);
-extern void ScreenJoystick_Draw(void);
-extern void ScreenAccel_Init(void);
-extern void ScreenAccel_Draw(void);
-
-// Helper wrappers so other modules can easily check button state
-bool btnLeft_isPressed()  { return btnLeft.isPressed(); }
-bool btnRight_isPressed() { return btnRight.isPressed(); }
-```
-And add to the `ScreenID` enum and the main screen switch statement:
-
-```c
-
-// ============================================================================
-// Screen management and navigation
-// ============================================================================
-// Each screen is identified by an enum ID. The system cycles through them.
-enum ScreenID {
-    SCREEN_LUX = 0,
-    SCREEN_MIC,
-    SCREEN_JOYSTICK,
-    SCREEN_ACCEL,   // New accelerometer screen
-    SCREEN_COUNT
-};
-```
-
-and finally in the main loop's screen drawing section:
-```c
-switch (currentScreen) {
-  case SCREEN_JOYSTICK:
-    ScreenJoystick_Draw();
-    break;
-  case SCREEN_ACCEL:
-    ScreenAccel_Draw();
-    break;
-}
-```
-
-Update each screen about 20–50 times per second (every 20–50 ms) to keep animations smooth.
-
----
-
-### Submitting Source Code
+## Submitting Source Code
 
 **Exporting project:**
 
-1. Make sure your project is named `ece3849_lab1_<username>`.
+1. Make sure your project is named `ece3849_lab2_<username>`.
 2. Right‑click the project → `Export...` → `General` → `Archive File`.
-3. Choose the output path and filename equal to the project name (`ece3849_lab1_<username>.zip`).
+3. Choose the output path and filename equal to the project name (`ece3849_lab2_<username>.zip`).
 4. Upload `.zip` to Canvas.
 ---

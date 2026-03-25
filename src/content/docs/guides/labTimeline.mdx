@@ -34,7 +34,7 @@ import {
 <CardGrid stagger>
 
   <Card title="Lab 0 – Stopwatch & Graphical Menu" icon="seti:clock">
-    <Badge text="Due Oct 29" variant="success" size="medium" />
+    <Badge text="Due Mar 26" variant="success" size="medium" />
     <p><strong>Objective:</strong> Familiarize with the TM4C1294XL LaunchPad, Code Composer Studio,
     and basic peripheral programming.</p>
     <p><strong>Highlights:</strong> System clock setup, LCD initialization, timer ISR, button debouncing,
@@ -42,46 +42,30 @@ import {
   <LinkButton href="/labs/lab0/" target="_blank">View Lab 0 →</LinkButton>
   </Card>
 
-  <Card title="Lab 1 – Sensor Hub (Light, Temp, Sound)" icon="sun">
-    <Badge text="Due Nov 5" variant="success" size="medium" />
-    <p><strong>Objective:</strong> Interface and read light, temperature, and microphone sensors in real time.</p>
-    <p><strong>Highlights:</strong> ADC/I2C interfacing, ISR-driven sampling, PWM feedback,
-    and data display integration.</p>
-  <LinkButton href="/labs/lab1/" target="_blank">View Lab 1 →</LinkButton>
-  </Card>
-
-  <Card title="Lab 2 – FreeRTOS Stopwatch" icon="seti:audio">
-    <Badge text="Due Nov 12" variant="note" size="medium" />
+  <Card title="Lab 1 – FreeRTOS Stopwatch" icon="seti:audio">
     <p><strong>Objective:</strong> Implement a real-time stopwatch using FreeRTOS tasks and queues.</p>
     <p><strong>Highlights:</strong> Task creation, queue management, and timer synchronization.</p>
-    <LinkButton href="/labs/lab2/" target="_blank">View Lab 2 →</LinkButton>
   </Card>
 
   <Card title="Lab 3 – Snake Game Part 1 " icon="document">
-    <Badge text="Due Nov 19" variant="note" size="medium" />
     <p><strong>Objective:</strong> Implement the core architecture for the Snake game: create FreeRTOS
     tasks for game logic, input handling, and display updates; protect shared LCD access with a mutex;
     use message queues for inter-task communication; and apply priority tuning plus runtime profiling
     to observe and optimize real-time behavior.</p>
     <p><strong>Highlights:</strong> Task creation, mutexes, message queues, priority tuning,
     and runtime profiling.</p>
-    <LinkButton href="/labs/lab3/" target="_blank">View Lab 3 →</LinkButton> 
   </Card>
 
   <Card title="Lab 4 – Snake Game Part 2" icon="rocket">
-    <Badge text="Due Dec 3" variant="caution" size="medium" />
     <small>Due to Thanksgiving break, there is no rush on Nov 25.</small>
     <p><strong>Objective:</strong> Enhance your Snake game with advanced FreeRTOS timing, synchronization, and performance analysis: precise periodic tasks, buffered input, real-time metrics, and robustness.</p>
     <p><strong>Highlights:</strong> Hardware timer jitter measurement; vTaskDelay vs vTaskDelayUntil comparison; counting semaphore joystick buffer; 10ms chronometer (software timer); wall collisions & game-over animation; stack usage display, optimization & overflow detection.</p>
-  <LinkButton href="/labs/lab4/" target="_blank">View Lab 4 →</LinkButton>
   </Card>
 
   <Card title="Lab 5 – Final System Integration" icon="laptop">
-    <Badge text="Due Dec 10" variant="danger" size="medium" />
     <p><strong>Objective:</strong> Integrate all previous modules into a single multitasking system.</p>
     <p><strong>Highlights:</strong> FreeRTOS task coordination, inter-task communication, performance monitor,
     and adaptive Snake gameplay.</p>
-  <LinkButton href="/labs/lab5/" target="_blank">View Lab 5 →</LinkButton>
   </Card>
 
 </CardGrid>

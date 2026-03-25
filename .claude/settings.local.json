@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/Edwin/Documents/GitHub/lab-wpi-ece3849/src/content/docs/guides/FreeRTOS -type f -name *.mdx)"
+    ]
+  }
+}

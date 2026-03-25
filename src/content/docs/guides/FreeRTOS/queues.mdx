@@ -1,116 +1,379 @@
 ---
 title: "Queues: Task-to-Task and ISR Communication"
-description: "Send values or structs between tasks and from ISRs using FreeRTOS queues."
+description: "Send values or structs between tasks and from ISRs using FreeRTOS queues — the safe way to share data."
 tags:
   - freertos
 links:
   - "/guides/freertos/"
 ---
 import { Aside } from '@astrojs/starlight/components';
+import { Steps } from '@astrojs/starlight/components';
 
-## Overview
-Queues are thread-safe FIFO buffers managed by the kernel. Use them to:
-- Pass sensor samples from an ISR to a processing task
-- Decouple producers and consumers with buffering
-- Send typed data (e.g., structs) safely
+## 1. The Problem: Sharing Data Between Tasks
 
-Key APIs:
-- `xQueueCreate(length, item_size)`
-- `xQueueSend()` / `xQueueReceive()`
-- `xQueueSendFromISR()` for interrupts
-- `xQueuePeek()` to inspect without removing
-- `uxQueueMessagesWaiting()` to see backlog size
+You have two tasks: one reads the ADC, another updates the display. The ADC task writes a sample to a global variable. The display task reads it. What could go wrong?
 
-## Create a Queue
+```c
+// DON'T DO THIS
+volatile int16_t gLatestSample;  // shared global
+
+void ADCTask(void *p) {
+    for (;;) {
+        gLatestSample = readADC();       // write
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+void DisplayTask(void *p) {
+    for (;;) {
+        int16_t val = gLatestSample;     // read — but WHEN?
+        drawValue(val);
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
+```
+
+<Aside type="tip" title="Think About This">
+The scheduler can preempt the ADC task **mid-write** if the data type is wider than one atomic operation (e.g., a struct). The display task then reads a half-updated value. This is a **data race** — intermittent, hard to reproduce, and painful to debug. Even with `volatile`, the timing is unpredictable: you might miss samples, read stale data, or see torn values.
+</Aside>
+
+A **queue** solves this. It's a thread-safe FIFO buffer managed by the kernel. The producer *sends* data into it; the consumer *receives* data from it. FreeRTOS handles all the locking internally — you never touch a mutex or worry about atomicity.
+
+---
+
+## 2. How Queues Work
+
+A queue is a fixed-size buffer that stores **copies** of your data (not pointers — actual copies). When you send, the data is copied *into* the queue. When you receive, it's copied *out*.
+
+```
+Producer  ──send──▶  [ slot 0 | slot 1 | slot 2 | ... | slot N-1 ]  ──receive──▶  Consumer
+                              ▲                            ▲
+                          head (oldest)               tail (newest)
+```
+
+Key properties:
+
+| Property | Detail |
+|:---------|:-------|
+| **FIFO order** | First item sent is the first item received |
+| **Fixed length** | Set at creation time — cannot grow |
+| **Fixed item size** | Every slot holds exactly `sizeof(YourType)` bytes |
+| **Copy semantics** | Data is copied in/out — the original variable is safe to reuse |
+| **Thread-safe** | Multiple tasks can send/receive concurrently without corruption |
+| **Blocking** | A task can sleep until the queue has data (or space) — zero CPU while waiting |
+
+<Aside type="tip" title="Think About This">
+Because queues copy data, the producer can immediately overwrite its local variable after sending — the queue has its own copy. This is fundamentally different from passing a pointer, where the data must remain valid until the consumer reads it.
+</Aside>
+
+---
+
+## 3. Creating a Queue
+
 ```c
 #include "FreeRTOS.h"
 #include "queue.h"
 
-typedef struct {
-  uint32_t timestamp;
-  int16_t value;
-} Sample;
+QueueHandle_t xQueueSamples;
 
-QueueHandle_t qSamples;
+// In main(), before vTaskStartScheduler():
+xQueueSamples = xQueueCreate(
+    16,                  // length: how many items the queue can hold
+    sizeof(int16_t)      // item size: bytes per item
+);
 
-void app_init(void){
-  qSamples = xQueueCreate(16, sizeof(Sample));
+if (xQueueSamples == NULL) {
+    // Creation failed — not enough heap memory
+    // Light an LED, halt, or handle the error
+    while (1) {}
 }
 ```
 
-## Producer (Task)
-```c
-static void Producer(void *arg){
-  (void)arg; Sample s; TickType_t t0;
-  for(;;){
-    t0 = xTaskGetTickCount();
-    s.timestamp = t0; s.value = read_adc();
-    xQueueSend(qSamples, &s, pdMS_TO_TICKS(5)); // short wait if full
-    vTaskDelay(pdMS_TO_TICKS(2));
-  }
-}
-```
+**How to choose the length:**
+- Think about the **worst-case burst** from the producer before the consumer catches up.
+- A sensor sampling at 100 Hz into a task that processes every 50 ms? The consumer handles ~5 samples per cycle — a queue of 16 gives comfortable headroom.
+- Larger queues use more heap (`length × item_size + overhead`). Don't allocate 1000 slots "just in case."
 
-## Consumer (Task)
-```c
-static void Consumer(void *arg){
-  (void)arg; Sample s;
-  for(;;){
-    if (xQueueReceive(qSamples, &s, portMAX_DELAY) == pdTRUE){
-      process(s);
-    }
-  }
-}
-```
-
-## Producer (ISR)
-```c
-void ADC_IRQHandler(void){
-  BaseType_t higher = pdFALSE;
-  Sample s = { .timestamp = xTaskGetTickCountFromISR(), .value = HW_ADC_RESULT() };
-  xQueueSendFromISR(qSamples, &s, &higher);
-  portYIELD_FROM_ISR(higher);
-}
-```
-
-<Aside type="caution">
-Inside ISRs use `xQueueSendFromISR()` and `xTaskGetTickCountFromISR()`.
+<Aside type="caution" title="Queue Memory">
+Each queue slot holds a full copy of your item. A queue of 32 structs of 20 bytes each uses 640 bytes of FreeRTOS heap, plus ~80 bytes of internal overhead. Keep this in mind when you have limited `configTOTAL_HEAP_SIZE`.
 </Aside>
 
-## Peek Without Removing
+---
+
+## 4. Sending to a Queue (from a Task)
+
+```c
+BaseType_t xQueueSend(
+    QueueHandle_t xQueue,       // the queue
+    const void *pvItemToQueue,  // pointer to the data to copy in
+    TickType_t xTicksToWait     // how long to wait if the queue is full
+);
+```
+
+Returns `pdTRUE` if the item was sent, `errQUEUE_FULL` if the timeout expired.
+
+### Example: Sending a Simple Value
+
+```c
+void ADCTask(void *pvParameters) {
+    (void)pvParameters;
+
+    for (;;) {
+        int16_t sample = readADC();
+        xQueueSend(xQueueSamples, &sample, pdMS_TO_TICKS(5));
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+```
+
+### Example: Sending a Struct
+
+```c
+typedef struct {
+    uint32_t timestamp;
+    int16_t  value;
+} Sample;
+
+QueueHandle_t xQueueSamples;
+// Created with: xQueueCreate(16, sizeof(Sample));
+
+void ADCTask(void *pvParameters) {
+    (void)pvParameters;
+
+    for (;;) {
+        Sample s;
+        s.timestamp = xTaskGetTickCount();
+        s.value = readADC();
+
+        if (xQueueSend(xQueueSamples, &s, pdMS_TO_TICKS(5)) != pdTRUE) {
+            // Queue full — sample dropped. Consider logging this.
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+```
+
+### The Timeout Parameter
+
+| Value | Behavior |
+|:------|:---------|
+| `0` | Don't wait — return immediately if the queue is full |
+| `pdMS_TO_TICKS(N)` | Wait up to N ms for space to open |
+| `portMAX_DELAY` | Wait forever (blocks until space is available) |
+
+<Aside type="tip" title="Think About This">
+Using `portMAX_DELAY` on a send means your producer task will freeze if the queue is full. This is safe if you trust the consumer to always drain the queue. But if the consumer crashes or gets suspended, the producer hangs too. For robustness, use a short timeout and handle the "queue full" case.
+</Aside>
+
+---
+
+## 5. Receiving from a Queue (from a Task)
+
+```c
+BaseType_t xQueueReceive(
+    QueueHandle_t xQueue,       // the queue
+    void *pvBuffer,             // where to copy the received item
+    TickType_t xTicksToWait     // how long to wait if the queue is empty
+);
+```
+
+Returns `pdTRUE` if an item was received, `pdFALSE` if the timeout expired.
+
+### Example: Blocking Consumer
+
+```c
+void DisplayTask(void *pvParameters) {
+    (void)pvParameters;
+    Sample s;
+
+    for (;;) {
+        // Block forever until a sample arrives — uses zero CPU while waiting
+        if (xQueueReceive(xQueueSamples, &s, portMAX_DELAY) == pdTRUE) {
+            drawValue(s.value, s.timestamp);
+        }
+    }
+}
+```
+
+This is the most common pattern: the consumer blocks on the queue with `portMAX_DELAY`. It wakes up **only** when data arrives — no polling, no wasted CPU cycles.
+
+<Aside type="tip" title="Think About This">
+Compare this to the bare-metal approach where you'd check a flag in a loop: `while (!dataReady) {}`. That busy-wait burns 100% CPU doing nothing. A blocking `xQueueReceive` uses **zero** CPU. The scheduler runs other tasks (or the idle task) while this one waits.
+</Aside>
+
+---
+
+## 6. Sending from an ISR
+
+Inside an interrupt handler, you **must** use the `FromISR` variant. The regular `xQueueSend` calls scheduler functions that are not safe inside ISRs — using them will corrupt the kernel.
+
+```c
+BaseType_t xQueueSendFromISR(
+    QueueHandle_t xQueue,
+    const void *pvItemToQueue,
+    BaseType_t *pxHigherPriorityTaskWoken  // output: was a task woken?
+);
+```
+
+### The Full ISR Pattern
+
+```c
+void ADC0SS0_IRQHandler(void) {
+    // 1. Clear the interrupt flag
+    ADCIntClear(ADC0_BASE, 0);
+
+    // 2. Prepare the data
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    Sample s = {
+        .timestamp = xTaskGetTickCountFromISR(),
+        .value = ADCSequenceDataGet(ADC0_BASE, 0)
+    };
+
+    // 3. Send to queue (FromISR variant!)
+    xQueueSendFromISR(xQueueSamples, &s, &xHigherPriorityTaskWoken);
+
+    // 4. Yield if we woke a higher-priority task
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+```
+
+<Aside type="caution" title="Why portYIELD_FROM_ISR?">
+When you send to a queue from an ISR, a task blocked on that queue might wake up. If that task has **higher priority** than the task that was interrupted, you want to switch to it **immediately** — not wait for the next tick. `portYIELD_FROM_ISR(xHigherPriorityTaskWoken)` does exactly this: it triggers a context switch at the end of the ISR if needed. **Always include this line.**
+</Aside>
+
+### ISR Rules Summary
+
+| Do | Don't |
+|:---|:------|
+| `xQueueSendFromISR()` | `xQueueSend()` |
+| `xQueueReceiveFromISR()` | `xQueueReceive()` |
+| `xTaskGetTickCountFromISR()` | `xTaskGetTickCount()` |
+| Always call `portYIELD_FROM_ISR()` | Forget the yield (causes delayed wakeup) |
+| Keep ISRs short — send data, get out | Process data inside the ISR |
+
+---
+
+## 7. Peeking Without Removing
+
+Sometimes you want to inspect the next item without consuming it:
+
 ```c
 Sample head;
-if (xQueuePeek(qSamples, &head, 0) == pdTRUE) {
-  // inspect earliest item but keep it in the queue
+if (xQueuePeek(xQueueSamples, &head, 0) == pdTRUE) {
+    // head contains a copy of the oldest item
+    // the item is STILL in the queue
 }
 ```
 
-## Backpressure and Sizing
-- Use `uxQueueMessagesWaiting(q)` to monitor backlog and tune length.
-- If producers outpace consumers, increase queue length or reduce production rate.
-- Prefer bounded waits (short timeouts) instead of `portMAX_DELAY` for robustness.
+Use this when multiple consumers need to see the same data, or when you need to decide whether to process an item before committing to removing it.
 
-## Pattern: Command Queue
+---
+
+## 8. Monitoring Queue Health
+
 ```c
-typedef enum { CMD_LED_ON, CMD_LED_OFF, CMD_SET_PWM } CmdId;
-typedef struct { CmdId id; uint16_t arg; } Cmd;
-QueueHandle_t qCmd;
-
-void LedTask(void *p){
-  Cmd c;
-  for(;;){
-    if (xQueueReceive(qCmd, &c, portMAX_DELAY)){
-      switch(c.id){
-        case CMD_LED_ON:  led_on();  break;
-        case CMD_LED_OFF: led_off(); break;
-        case CMD_SET_PWM: set_pwm(c.arg); break;
-      }
-    }
-  }
-}
-
-// elsewhere
-Cmd c = { .id = CMD_SET_PWM, .arg = 50 };
-xQueueSend(qCmd, &c, pdMS_TO_TICKS(10));
+UBaseType_t pending = uxQueueMessagesWaiting(xQueueSamples);
+UBaseType_t free    = uxQueueSpacesAvailable(xQueueSamples);
 ```
 
+These are useful for debugging and tuning:
+- If `pending` is consistently close to the queue length, your consumer is too slow — increase priority, reduce work, or increase queue length.
+- If `pending` is always 0, the consumer is faster than the producer — the queue length could be smaller.
+
+<Aside type="tip" title="Think About This">
+Monitoring queue depth is one of the simplest ways to diagnose system performance. If you see the queue filling up during heavy load, that's your bottleneck — the consumer can't keep up. In later labs, you'll use this technique to tune task priorities and timing.
+</Aside>
+
+---
+
+## 9. Pattern: Command Queue
+
+Instead of sending raw data, you can send **commands** — a very useful pattern for tasks that control hardware or manage state:
+
+```c
+// Define the command vocabulary
+typedef enum {
+    CMD_BUZZER_ON,
+    CMD_BUZZER_OFF,
+    CMD_SET_FREQUENCY
+} CommandId;
+
+typedef struct {
+    CommandId id;
+    uint16_t  arg;    // meaning depends on the command
+} Command;
+
+QueueHandle_t xQueueCommands;
+// Created with: xQueueCreate(8, sizeof(Command));
+```
+
+**The receiver task** acts as a command dispatcher:
+
+```c
+void BuzzerTask(void *pvParameters) {
+    (void)pvParameters;
+    Command cmd;
+
+    for (;;) {
+        if (xQueueReceive(xQueueCommands, &cmd, portMAX_DELAY) == pdTRUE) {
+            switch (cmd.id) {
+                case CMD_BUZZER_ON:
+                    buzzerEnable();
+                    break;
+                case CMD_BUZZER_OFF:
+                    buzzerDisable();
+                    break;
+                case CMD_SET_FREQUENCY:
+                    buzzerSetFreq(cmd.arg);
+                    break;
+            }
+        }
+    }
+}
+```
+
+**Any other task** can send commands:
+
+```c
+// Turn on the buzzer at 440 Hz
+Command c1 = { .id = CMD_SET_FREQUENCY, .arg = 440 };
+xQueueSend(xQueueCommands, &c1, pdMS_TO_TICKS(10));
+
+Command c2 = { .id = CMD_BUZZER_ON, .arg = 0 };
+xQueueSend(xQueueCommands, &c2, pdMS_TO_TICKS(10));
+```
+
+<Aside type="tip" title="Why Use Command Queues?">
+This pattern keeps all hardware access in **one task**. No mutexes needed — only the buzzer task touches the buzzer hardware. Other tasks just send requests. This is the "one task, one job" golden rule in action.
+</Aside>
+
+---
+
+## 10. Common Mistakes
+
+| Mistake | What happens | Fix |
+|:--------|:-------------|:----|
+| Using `xQueueSend` in an ISR | Scheduler corruption, random crashes | Use `xQueueSendFromISR` |
+| Forgetting `portYIELD_FROM_ISR` | Woken task waits until next tick instead of running immediately | Always call it after `FromISR` operations |
+| Queue item size mismatch | Sends partial data or reads garbage | `sizeof(YourType)` must match at creation and at send/receive |
+| Passing a pointer instead of a value | Queue copies the pointer, not the data — data may be gone when consumer reads | Send the actual struct, not a pointer to it |
+| Queue too short for burst traffic | Items dropped during peaks | Monitor with `uxQueueMessagesWaiting`, increase length |
+| `portMAX_DELAY` on send without checking return | Producer blocks forever if consumer is stuck | Use bounded timeouts and check return value |
+
+---
+
+## 11. Quick Reference
+
+| Function | Context | Purpose |
+|:---------|:--------|:--------|
+| `xQueueCreate(len, size)` | Task (before scheduler) | Create a queue |
+| `xQueueSend(q, &item, timeout)` | Task | Add item to back of queue |
+| `xQueueSendToFront(q, &item, timeout)` | Task | Add item to front (high priority) |
+| `xQueueReceive(q, &buf, timeout)` | Task | Remove and copy oldest item |
+| `xQueuePeek(q, &buf, timeout)` | Task | Copy oldest item without removing |
+| `xQueueSendFromISR(q, &item, &woken)` | ISR | Add item from interrupt |
+| `xQueueReceiveFromISR(q, &buf, &woken)` | ISR | Remove item from interrupt |
+| `uxQueueMessagesWaiting(q)` | Any | Items currently in queue |
+| `uxQueueSpacesAvailable(q)` | Any | Empty slots remaining |
+| `xQueueReset(q)` | Task | Empty the queue |
