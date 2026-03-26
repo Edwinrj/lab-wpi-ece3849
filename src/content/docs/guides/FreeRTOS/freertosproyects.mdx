@@ -113,13 +113,12 @@ To add FreeRTOS to your project, follow these steps:
     Link the FreeRTOS kernel sources into your project (do not copy): drag-and-drop the FreeRTOS folder from your file explorer into CCS Project Explorer. In the popup:
     - Choose <strong>Link to files</strong>.
     - Recreate folder structure with <strong>virtual folders</strong> relative to <code>PROJECT_LOC</code>.
+    - When prompted, allow CCS to adjust include paths automatically. Check the option “Do this for all header files…”.
     <br/>
     <strong>Do not copy these files into the project.</strong>
-    <img src="/assets/images/link_freertos.png" alt="Adding FreeRTOS files to CCS project" width={300}/>
-    </li>
-    <li>
-    When prompted, allow CCS to adjust include paths automatically. Check the option “Do this for all header files…”.
-    <img src="/assets/images/compiler_path.png" alt="Adjusting include paths in CCS" width={400}/>
+    <video autoplay loop muted playsinline width={600}>
+    <source src="/assets/videos/dragndrop.mp4" type="video/mp4"/>
+    </video>
     </li>
     <li>
     Open <code>Project &gt; Properties &gt; ARM Linker &gt; Basic Options</code> and set <em>C system stack size</em> to <code>2048</code>.
