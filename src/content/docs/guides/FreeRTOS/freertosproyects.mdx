@@ -145,7 +145,8 @@ To add FreeRTOS to your project, follow these steps:
 </Steps>
 
 ## First Test Project
-Create a simple <code>main.cpp</code> (Right-click the project &gt; New &gt; Source File) and add the following code:
+Create a simple <code>main.cpp</code> (Right-click the project &gt; New &gt; Source File) and add the following code to verify that FreeRTOS compiles, links, and the scheduler starts correctly.
+
 <Aside type="note">
   FreeRTOS is a C library, so we need to wrap the includes in <code>extern "C"</code> when using C++.
 </Aside>
@@ -157,82 +158,89 @@ Create a simple <code>main.cpp</code> (Right-click the project &gt; New &gt; Sou
   icon="code"
 />
 
+This minimal example creates a **single task** that increments a counter on the LCD once per second. If you see the number counting up, FreeRTOS is working.
+
 ```cpp
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 extern "C" {
 #include "driverlib/fpu.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/sysctl.h"
-#include "driverlib/gpio.h"
-#include "driverlib/pin_map.h"
 #include "inc/hw_memmap.h"
+#include "grlib/grlib.h"
 #include "FreeRTOS.h"
 #include "task.h"
 }
 
-// LED1: PN0 (D1 Green) - LED2: PN1 (D2 Blue)
-#define LED1_PORT GPIO_PORTN_BASE
-#define LED1_PIN  GPIO_PIN_0
+#include "Crystalfontz128x128_ST7735.h"
 
-#define LED2_PORT GPIO_PORTN_BASE
-#define LED2_PIN  GPIO_PIN_1
+static tContext sContext;
 
-void LED1_Task(void *pvParameters) {
-    while (1) {
-        GPIOPinWrite(LED1_PORT, LED1_PIN, LED1_PIN);  // On
-        vTaskDelay(pdMS_TO_TICKS(2000));
-        GPIOPinWrite(LED1_PORT, LED1_PIN, 0);         // Off
-        vTaskDelay(pdMS_TO_TICKS(2000));
-    }
-}
+// A single task: count up on the LCD every second
+void CounterTask(void *pvParameters) {
+    (void)pvParameters;
+    uint32_t count = 0;
+    char buf[16];
 
-void LED2_Task(void *pvParameters) {
-    while (1) {
-        GPIOPinWrite(LED2_PORT, LED2_PIN, LED2_PIN);  // On
-        vTaskDelay(pdMS_TO_TICKS(200));
-        GPIOPinWrite(LED2_PORT, LED2_PIN, 0);         // Off
-        vTaskDelay(pdMS_TO_TICKS(200));
+    for (;;) {
+        // Clear screen
+        tRectangle rect = {0, 0, 127, 127};
+        GrContextForegroundSet(&sContext, ClrBlack);
+        GrRectFill(&sContext, &rect);
+
+        // Draw title
+        GrContextForegroundSet(&sContext, ClrGreen);
+        GrStringDrawCentered(&sContext, "FreeRTOS OK", -1, 64, 40, false);
+
+        // Draw counter
+        snprintf(buf, sizeof(buf), "%lu", count);
+        GrContextForegroundSet(&sContext, ClrWhite);
+        GrStringDrawCentered(&sContext, buf, -1, 64, 70, false);
+
+        count++;
+        vTaskDelay(pdMS_TO_TICKS(1000));  // sleep 1 second
     }
 }
 
 int main(void) {
-
-    /* Disable interrupts during low-level setup */
     IntMasterDisable();
     FPUEnable();
     FPULazyStackingEnable();
 
-    // Configure system clock to 120 MHz
     uint32_t sysClock = SysCtlClockFreqSet(
         SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
         120000000
     );
 
-    // Enable GPIO peripherals
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
-    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION));
+    // Initialize the LCD display
+    Crystalfontz128x128_Init();
+    Crystalfontz128x128_SetOrientation(LCD_ORIENTATION_UP);
+    GrContextInit(&sContext, &g_sCrystalfontz128x128);
+    GrContextFontSet(&sContext, &g_sFontFixed6x8);
 
-    // Configure pins as outputs
-    GPIOPinTypeGPIOOutput(LED1_PORT, LED1_PIN | LED2_PIN);
-
-    /* Now enable interrupts globally (FreeRTOS will manage nesting later) */
     IntMasterEnable();
 
-    // Create tasks
-    xTaskCreate(LED1_Task, "LED1", 128, NULL, 1, NULL);
-    xTaskCreate(LED2_Task, "LED2", 128, NULL, 1, NULL);
+    // Create a single task — just enough to prove the scheduler works
+    xTaskCreate(CounterTask, "Counter", 512, NULL, 1, NULL);
 
-    // Start scheduler
+    // Start scheduler (never returns)
     vTaskStartScheduler();
 
-    // Should never reach here
     while (1);
 }
 ```
 
-Compile and flash the project to your EK-TM4C1294XL board. You should see the green LED (D1) blinking every 2 seconds and the blue LED (D2) blinking every 200 ms, demonstrating that FreeRTOS is running multiple tasks concurrently.
+Compile and flash the project to your EK-TM4C1294XL board. You should see **"FreeRTOS OK"** on the LCD with a number counting up every second. This confirms:
+- The project compiles and links with FreeRTOS
+- The scheduler starts successfully
+- `vTaskDelay()` works (the counter increments at a steady 1-second rate)
+
+<Aside type="caution" title="This is just a smoke test">
+This example uses a single task — it does not demonstrate multitasking. The purpose here is only to verify your project setup. You will create multi-task applications starting in Lab 1.
+</Aside>
 
 <Aside type="note">
   If you see unresolved symbols (e.g., <code>vPortSVCHandler</code>), verify you are using the provided <code>startup_ccs.c</code> and that the ARM_CM4F port sources are linked into the project.
