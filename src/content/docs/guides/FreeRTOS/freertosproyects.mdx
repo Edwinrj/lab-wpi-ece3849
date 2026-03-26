@@ -158,50 +158,29 @@ Create a simple <code>main.cpp</code> (Right-click the project &gt; New &gt; Sou
   icon="code"
 />
 
-This minimal example creates a **single task** that increments a counter on the LCD once per second. If you see the number counting up, FreeRTOS is working.
+This minimal example creates a **single task** that toggles LED D1 (PN1) once per second. If you see the LED blinking, FreeRTOS is working. No external libraries are needed — only TivaWare driverlib and FreeRTOS.
 
 ```cpp
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>
 
 extern "C" {
 #include "driverlib/fpu.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
 #include "inc/hw_memmap.h"
-#include "grlib/grlib.h"
 #include "FreeRTOS.h"
 #include "task.h"
 }
 
-#include "Crystalfontz128x128_ST7735.h"
-
-static tContext sContext;
-
-// A single task: count up on the LCD every second
-void CounterTask(void *pvParameters) {
-    (void)pvParameters;
-    uint32_t count = 0;
-    char buf[16];
-
+// A single task: blink LED D1 every 1 second
+void HeartbeatTask(void *pvParameters) {
     for (;;) {
-        // Clear screen
-        tRectangle rect = {0, 0, 127, 127};
-        GrContextForegroundSet(&sContext, ClrBlack);
-        GrRectFill(&sContext, &rect);
-
-        // Draw title
-        GrContextForegroundSet(&sContext, ClrGreen);
-        GrStringDrawCentered(&sContext, "FreeRTOS OK", -1, 64, 40, false);
-
-        // Draw counter
-        snprintf(buf, sizeof(buf), "%lu", count);
-        GrContextForegroundSet(&sContext, ClrWhite);
-        GrStringDrawCentered(&sContext, buf, -1, 64, 70, false);
-
-        count++;
-        vTaskDelay(pdMS_TO_TICKS(1000));  // sleep 1 second
+        GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, GPIO_PIN_1); // LED ON
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, 0);          // LED OFF
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
@@ -210,21 +189,21 @@ int main(void) {
     FPUEnable();
     FPULazyStackingEnable();
 
-    uint32_t sysClock = SysCtlClockFreqSet(
-        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN | SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
+    SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
+        SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
         120000000
     );
 
-    // Initialize the LCD display
-    Crystalfontz128x128_Init();
-    Crystalfontz128x128_SetOrientation(LCD_ORIENTATION_UP);
-    GrContextInit(&sContext, &g_sCrystalfontz128x128);
-    GrContextFontSet(&sContext, &g_sFontFixed6x8);
+    // Enable GPIO Port N and configure PN1 (LED D1) as output
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION)) {}
+    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_1);
 
     IntMasterEnable();
 
     // Create a single task — just enough to prove the scheduler works
-    xTaskCreate(CounterTask, "Counter", 512, NULL, 1, NULL);
+    xTaskCreate(HeartbeatTask, "HB", 128, NULL, 1, NULL);
 
     // Start scheduler (never returns)
     vTaskStartScheduler();
@@ -233,10 +212,10 @@ int main(void) {
 }
 ```
 
-Compile and flash the project to your EK-TM4C1294XL board. You should see **"FreeRTOS OK"** on the LCD with a number counting up every second. This confirms:
+Compile and flash the project to your EK-TM4C1294XL board. You should see **LED D1 blinking every second**. This confirms:
 - The project compiles and links with FreeRTOS
 - The scheduler starts successfully
-- `vTaskDelay()` works (the counter increments at a steady 1-second rate)
+- `vTaskDelay()` works (the LED toggles at a steady 1-second rate)
 
 <Aside type="caution" title="This is just a smoke test">
 This example uses a single task — it does not demonstrate multitasking. The purpose here is only to verify your project setup. You will create multi-task applications starting in Lab 1.
