@@ -146,7 +146,7 @@ void DisplayTask(void *pvParams) {
         }
 
         GrFlush(&gContext);    // this should happen once per frame, here only
-        vTaskDelay(pdMS_TO_TICKS(33));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
@@ -165,6 +165,10 @@ int main(void) {
     while (1) {}
 }
 ```
+
+<Aside type="tip" title="Recommended display delay">
+Start with `vTaskDelay(pdMS_TO_TICKS(100))` in `DisplayTask`. That slower refresh is the best choice for this lab version of the screen code. If you want noticeably faster refresh rates, you will need to optimize the drawing path first.
+</Aside>
 
 ### Sharing variables across files
 
@@ -373,13 +377,17 @@ void DisplayTask(void *pvParams) {
         }
 
         GrFlush(&gContext);   // only here
-        vTaskDelay(pdMS_TO_TICKS(33));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 ```
 
 <Aside type="tip" title="Rule to remember">
 `ScreenX_Draw()` functions build the frame. `DisplayTask` flushes the frame. Do not call `GrFlush()` anywhere else in the project.
+</Aside>
+
+<Aside type="note" title="Refresh-rate recommendation">
+For Lab 2, run the display loop with a `100 ms` delay unless you have already optimized your drawing code. The screen works more reliably this way, and pushing for higher refresh rates too early usually causes unnecessary performance problems.
 </Aside>
 
 ### Step 3 - Add `JoystickTask`
