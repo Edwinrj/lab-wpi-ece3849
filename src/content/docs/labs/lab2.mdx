@@ -263,17 +263,6 @@ The better pattern is:
 2. The ISR gives a **binary semaphore**.
 3. `ButtonTask` wakes up immediately, processes the buttons, and blocks again.
 
-If you want a refresher first:
-
-<CardGrid>
-  <LinkCard
-    title="Semaphores and Mutexes"
-    description="Binary semaphore patterns, ISR-safe APIs, and common mistakes."
-    href="/guides/freertos/semaphores-mutexes/"
-    icon="right-arrow"
-  />
-</CardGrid>
-
 #### Setup checklist
 
 - Include `semphr.h`
@@ -602,17 +591,6 @@ The callback is the **metronome**. `MicTask` is the **worker**. Keep those roles
 Do not let the callback overwrite samples while `MicTask` is still processing the same window. A simple solution is to use two buffers, or copy the completed buffer before doing the RMS calculation.
 </Aside>
 
-For more context and additional patterns:
-
-<CardGrid>
-  <LinkCard
-    title="Software Timers Guide"
-    description="Detailed explanation of create, start, callback rules, and task handoff patterns."
-    href="/guides/freertos/software-timers/"
-    icon="right-arrow"
-  />
-</CardGrid>
-
 ### Step 3 - Understand the microphone input path
 
 Before thinking about RMS or dB, make sure the hardware path is clear.
@@ -879,7 +857,7 @@ s_i   = x[i] / 4095
 a_i   = s_i - 0.5
 RMS   = sqrt((1/N) * sum(a_i^2))
 dB    = 20 * log10(RMS / 0.25)
-level = clamp((db + 60) / 60, 0, 1)
+level = clamp((dB + 60) / 60, 0, 1)
 ```
 
 Store the result in shared variables such as:
