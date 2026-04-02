@@ -267,7 +267,9 @@ The better pattern is:
 
 - Include `semphr.h`
 - Create the semaphore before enabling the GPIO interrupt
-- Configure Port J for falling-edge interrupts on **PJ0** and **PJ1**
+- Configure falling-edge GPIO interrupts for the physical pins used by **S1** and **S2**
+- If your project maps `S1` and `S2` to the LaunchPad user switches, those pins will be **PJ0** and **PJ1**
+- If your project maps `S1` and `S2` to BoosterPack buttons, use the corresponding GPIO ports and pins from your board mapping instead
 - In the ISR, clear the interrupt flag, give the semaphore, and yield if needed
 - In `ButtonTask`, block on `xSemaphoreTake()` and call `btnS1.tick()` / `btnS2.tick()` after wake-up
 
@@ -281,7 +283,7 @@ extern "C" {
 static SemaphoreHandle_t xBtnSem = NULL;
 
 void ButtonISR(void) {
-    GPIOIntClear(GPIO_PORTJ_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+    GPIOIntClear(BTN_PORT_BASE, BTN_PIN_MASK);
 
     BaseType_t woken = pdFALSE;
     xSemaphoreGiveFromISR(xBtnSem, &woken);
@@ -299,14 +301,16 @@ void ButtonTask(void *pvParams) {
 void Stopwatch_Init(void) {
     xBtnSem = xSemaphoreCreateBinary();
 
-    GPIOIntRegister(GPIO_PORTJ_BASE, ButtonISR);
-    GPIOIntTypeSet(GPIO_PORTJ_BASE,
-                   GPIO_PIN_0 | GPIO_PIN_1,
+    GPIOIntRegister(BTN_PORT_BASE, ButtonISR);
+    GPIOIntTypeSet(BTN_PORT_BASE,
+                   BTN_PIN_MASK,
                    GPIO_FALLING_EDGE);
-    GPIOIntEnable(GPIO_PORTJ_BASE, GPIO_PIN_0 | GPIO_PIN_1);
-    IntEnable(INT_GPIOJ);
+    GPIOIntEnable(BTN_PORT_BASE, BTN_PIN_MASK);
+    IntEnable(BTN_INT_NUM);
 }
 ```
+
+In this example, `BTN_PORT_BASE`, `BTN_PIN_MASK`, and `BTN_INT_NUM` stand for the GPIO port, pin mask, and interrupt number that match your actual `S1` and `S2` wiring. If both buttons are on the same GPIO port, one mask can cover both pins. If they are on different ports, configure each port separately and point both interrupts to the same ISR.
 
 <Aside type="caution" title="Order matters">
 Create the semaphore before you enable the interrupt. Otherwise the ISR can fire first and try to signal a null handle.
