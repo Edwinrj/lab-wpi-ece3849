@@ -261,26 +261,37 @@ The better pattern is:
 
 1. A GPIO interrupt fires when S1 or S2 is pressed.
 2. The ISR gives a **binary semaphore**.
-3. `ButtonTask` wakes up immediately, processes the buttons, and blocks again.
+3. `ButtonTask` wakes up immediately, lets the input settle, calls `tick()`, and uses the Button driver event flags such as `wasPressed()`.
 
 #### Setup checklist
 
 - Include `semphr.h`
 - Create the semaphore before enabling the GPIO interrupt
-- Configure falling-edge GPIO interrupts for the physical pins used by **S1** and **S2**
-- If your project maps `S1` and `S2` to the LaunchPad user switches, those pins will be **PJ0** and **PJ1**
-- If your project maps `S1` and `S2` to BoosterPack buttons, use the corresponding GPIO ports and pins from your board mapping instead
+- In this project, use the BoosterPack buttons:
+- `S1 = PL1`
+- `S2 = PL2`
+- `BTN_PORT_BASE = GPIO_PORTL_BASE`
+- `BTN_PIN_MASK = GPIO_PIN_1 | GPIO_PIN_2`
+- `BTN_INT_NUM = INT_GPIOL`
+- If you use `wasPressed()` or `wasReleased()`, configure **both edges** so the Button driver sees both the press and the release
 - In the ISR, clear the interrupt flag, give the semaphore, and yield if needed
-- In `ButtonTask`, block on `xSemaphoreTake()` and call `btnS1.tick()` / `btnS2.tick()` after wake-up
+- In `ButtonTask`, block on `xSemaphoreTake()`, call `btnS1.tick()` / `btnS2.tick()` after wake-up, and act on `wasPressed()` rather than manually spinning on `isPressed()`
 
 ```cpp
 extern "C" {
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "task.h"
+#include "driverlib/gpio.h"
+#include "driverlib/interrupt.h"
+#include "inc/hw_ints.h"
 }
 
 static SemaphoreHandle_t xBtnSem = NULL;
+
+#define BTN_PORT_BASE GPIO_PORTL_BASE
+#define BTN_PIN_MASK  (GPIO_PIN_1 | GPIO_PIN_2)
+#define BTN_INT_NUM   INT_GPIOL
 
 void ButtonISR(void) {
     GPIOIntClear(BTN_PORT_BASE, BTN_PIN_MASK);
@@ -293,8 +304,20 @@ void ButtonISR(void) {
 void ButtonTask(void *pvParams) {
     for (;;) {
         xSemaphoreTake(xBtnSem, portMAX_DELAY);
+
+        // Short delay so the driver sees a stable level after the edge.
+        vTaskDelay(pdMS_TO_TICKS(15));
+
         btnS1.tick();
         btnS2.tick();
+
+        if (btnS1.wasPressed()) {
+            // toggle play/pause
+        }
+
+        if (btnS2.wasPressed()) {
+            // reset stopwatch
+        }
     }
 }
 
@@ -304,13 +327,15 @@ void Stopwatch_Init(void) {
     GPIOIntRegister(BTN_PORT_BASE, ButtonISR);
     GPIOIntTypeSet(BTN_PORT_BASE,
                    BTN_PIN_MASK,
-                   GPIO_FALLING_EDGE);
+                   GPIO_BOTH_EDGES);
     GPIOIntEnable(BTN_PORT_BASE, BTN_PIN_MASK);
     IntEnable(BTN_INT_NUM);
 }
 ```
 
-In this example, `BTN_PORT_BASE`, `BTN_PIN_MASK`, and `BTN_INT_NUM` stand for the GPIO port, pin mask, and interrupt number that match your actual `S1` and `S2` wiring. If both buttons are on the same GPIO port, one mask can cover both pins. If they are on different ports, configure each port separately and point both interrupts to the same ISR.
+This lab setup uses one GPIO port for both buttons, so one mask covers both pins and one ISR handles both events.
+
+The practical reason for `GPIO_BOTH_EDGES` is simple: when you use the Button driver event flags, the driver must observe both the press transition and the release transition. If you only interrupt on the press edge, consecutive presses of the same button may not re-arm cleanly.
 
 <Aside type="caution" title="Order matters">
 Create the semaphore before you enable the interrupt. Otherwise the ISR can fire first and try to signal a null handle.
