@@ -43,8 +43,14 @@ import freertos from '../../assets/freertos.png';
 
   <LinkCard
     title="Lab 1 – FreeRTOS Stopwatch"
-    description="Implement a real-time stopwatch using FreeRTOS tasks and queues."
+    description="Build your first FreeRTOS application by converting the Lab 0 stopwatch into multiple tasks with queue-based communication."
     href="/labs/lab1/"
+  />
+
+  <LinkCard
+    title="Lab 2 – Multi-Screen Dashboard"
+    description="Refactor the stopwatch into a modular multi-screen system with binary semaphores, joystick navigation, microphone sampling, and software timers."
+    href="/labs/lab2/"
   />
 
 </CardGrid>
@@ -52,6 +58,22 @@ import freertos from '../../assets/freertos.png';
 <Aside type="tip" title="What is an RTOS?">
 Real-time operating systems let embedded programs run multiple tasks with predictable timing and low latency. In these labs you’ll use FreeRTOS on the TI EK-TM4C1294XL to manage tasks, timers, and inter-task communication while building real hardware projects with sensors, ADC, and PWM.
 </Aside>
+
+## Current Lab Sequence
+
+<CardGrid stagger>
+  <Card title="Lab 0 – Stopwatch & Setup" icon="seti:clock">
+    Set up Code Composer Studio, verify the board and LCD, and build a bare-metal stopwatch with buttons and a graphical interface.
+  </Card>
+
+  <Card title="Lab 1 – FreeRTOS Stopwatch" icon="seti:audio">
+    Take the Lab 0 stopwatch and rebuild it as a multitasking FreeRTOS application with manually integrated kernel files, scheduled tasks, and queue-based communication.
+  </Card>
+
+  <Card title="Lab 2 – Multi-Screen Dashboard" icon="document">
+    Refactor the stopwatch into multiple source files, replace button polling with a binary semaphore, add joystick-driven screen navigation, and build a microphone screen using ADC sampling and a software timer.
+  </Card>
+</CardGrid>
 
 ## Course Overview
 

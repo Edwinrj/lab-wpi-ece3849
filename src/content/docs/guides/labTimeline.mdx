@@ -4,6 +4,7 @@ description: "Timeline, due dates, and summaries for all ECE3849 labs."
 links:
 - /labs/lab0/
 - /labs/lab1/
+- /labs/lab2/
 ---
 
 import {
@@ -39,8 +40,17 @@ import {
   </Card>
 
   <Card title="Lab 1 – FreeRTOS Stopwatch" icon="seti:audio">
-    <p><strong>Objective:</strong> Implement a real-time stopwatch using FreeRTOS tasks and queues.</p>
-    <p><strong>Highlights:</strong> Task creation, queue management, and timer synchronization.</p>
+    <Badge text="Due Apr 2" variant="success" size="medium" />
+    <p><strong>Objective:</strong> Move the stopwatch from a bare-metal super-loop into a FreeRTOS application built from scratch.</p>
+    <p><strong>Highlights:</strong> Manual FreeRTOS integration, task creation, queues, periodic scheduling, and RTOS-based stopwatch design.</p>
+  <LinkButton href="/labs/lab1/" target="_blank">View Lab 1 →</LinkButton>
+  </Card>
+
+  <Card title="Lab 2 – Multi-Screen Dashboard" icon="document">
+    <Badge text="Due Apr 9" variant="success" size="medium" />
+    <p><strong>Objective:</strong> Refactor the Lab 1 stopwatch into a modular multi-screen application with interrupt-driven buttons, joystick navigation, and microphone level monitoring.</p>
+    <p><strong>Highlights:</strong> Multiple source files, binary semaphores, software timers, ADC microphone sampling, and true multitasking across screens.</p>
+  <LinkButton href="/labs/lab2/" target="_blank">View Lab 2 →</LinkButton>
   </Card>
 
   <Card title="Lab 3 – Snake Game Part 1 " icon="document">

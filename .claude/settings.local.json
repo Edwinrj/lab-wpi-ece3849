@@ -9,7 +9,8 @@
       "Bash(find node_modules/starlight-site-graph -name schema* -type f)",
       "Bash(npx astro:*)",
       "Bash(ls src/pages/404*)",
-      "Bash(ls src/content/docs/404*)"
+      "Bash(ls src/content/docs/404*)",
+      "Bash(unzip -l libraries.zip)"
     ]
   }
 }

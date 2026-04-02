@@ -1,78 +1,265 @@
 ---
 title: "Software Timers"
-description: "Create one-shot and periodic timers to run callbacks without dedicating a task."
+description: "Use FreeRTOS software timers to trigger periodic or delayed work without dedicating a task loop."
 tags:
   - freertos
 links:
   - "/guides/freertos/"
+  - "/labs/lab2/"
 ---
 import { Aside } from '@astrojs/starlight/components';
 
-## Why Software Timers?
-Software timers let you run a function later or periodically without writing a dedicated task loop. The callback runs in the context of the FreeRTOS timer service task.
+## Overview
 
-Key APIs:
-- `xTimerCreate()` — define a timer
-- `xTimerStart()` / `xTimerStop()` — control running state
-- `xTimerReset()` — restart count from now
-- `xTimerChangePeriod()` — change the interval
+A **software timer** lets FreeRTOS call a function later or at a fixed interval without forcing you to create a dedicated polling task just to wait.
 
-Enable timers in `FreeRTOSConfig.h`:
+This is useful when the problem is:
+
+- "do something every 500 ms"
+- "run this timeout once after 2 s"
+- "generate a periodic event, then wake a worker task"
+
+The callback runs in the context of the **FreeRTOS timer service task**, not in an interrupt and not in your application task.
+
+## When To Use One
+
+Use a software timer when:
+
+- you need a **periodic trigger** but not a full task loop
+- the periodic work is **short**
+- you want to **wake another task** at regular intervals
+
+Do **not** use a software timer callback for:
+
+- long computations
+- blocking waits
+- drawing to the screen for a long time
+- anything that would stall other timer callbacks
+
+<Aside type="tip" title="Good mental model">
+Think of a software timer as a precise scheduler for a **small callback**, not as a replacement for an application task.
+</Aside>
+
+## Enable Timers
+
+Before using software timers, enable them in `FreeRTOSConfig.h`:
+
 ```c
-#define configUSE_TIMERS           1
-#define configTIMER_TASK_PRIORITY  2
-#define configTIMER_QUEUE_LENGTH   8
-#define configTIMER_TASK_STACK_DEPTH  256
+#define configUSE_TIMERS             1
+#define configTIMER_TASK_PRIORITY    2
+#define configTIMER_QUEUE_LENGTH     8
+#define configTIMER_TASK_STACK_DEPTH 256
 ```
 
-## Basic Example
+What these settings mean:
+
+- `configUSE_TIMERS`: turns the feature on
+- `configTIMER_TASK_PRIORITY`: priority of the internal timer service task
+- `configTIMER_QUEUE_LENGTH`: how many pending timer commands FreeRTOS can queue
+- `configTIMER_TASK_STACK_DEPTH`: stack size for the timer service task
+
+## Core API
+
+The most common timer functions are:
+
+- `xTimerCreate()` - create a timer object
+- `xTimerStart()` - start it
+- `xTimerStop()` - stop it
+- `xTimerReset()` - restart its countdown from now
+- `xTimerChangePeriod()` - change the interval
+
+The callback type is:
+
+```c
+void MyTimerCallback(TimerHandle_t xTimer);
+```
+
+## Periodic Timer Pattern
+
+This is the basic pattern you will use most often:
+
 ```c
 #include "FreeRTOS.h"
 #include "timers.h"
 
-static void HeartbeatCb(TimerHandle_t xTimer){
-  (void)xTimer;
-  // toggle LED or log heartbeat
+static void HeartbeatCb(TimerHandle_t xTimer)
+{
+    (void)xTimer;
+    // short, non-blocking work here
 }
 
-TimerHandle_t tHeartbeat;
+static TimerHandle_t xHeartbeatTimer;
 
-void app_init(void){
-  tHeartbeat = xTimerCreate(
-    "hb",
-    pdMS_TO_TICKS(500),    // period
-    pdTRUE,                // auto-reload (periodic)
-    NULL,                  // timer ID (optional user data)
-    HeartbeatCb);
+void App_Init(void)
+{
+    xHeartbeatTimer = xTimerCreate(
+        "heartbeat",
+        pdMS_TO_TICKS(500),
+        pdTRUE,
+        NULL,
+        HeartbeatCb);
 
-  xTimerStart(tHeartbeat, 0);
+    xTimerStart(xHeartbeatTimer, 0);
 }
 ```
 
-## One-Shot Timer
+What each argument means:
+
+- `"heartbeat"`: debug name
+- `pdMS_TO_TICKS(500)`: timer period
+- `pdTRUE`: auto-reload, so it repeats
+- `NULL`: optional user data
+- `HeartbeatCb`: callback to run
+
+## One-Shot Timer Pattern
+
+Use a one-shot timer when something should happen once after a delay:
+
 ```c
-static void TimeoutCb(TimerHandle_t xTimer){ /* handle timeout */ }
-TimerHandle_t tTimeout = xTimerCreate("tmo", pdMS_TO_TICKS(2000), pdFALSE, NULL, TimeoutCb);
-// start when needed
-xTimerStart(tTimeout, 0);
+static void TimeoutCb(TimerHandle_t xTimer)
+{
+    (void)xTimer;
+    // timeout action
+}
+
+static TimerHandle_t xTimeoutTimer;
+
+void InitTimeout(void)
+{
+    xTimeoutTimer = xTimerCreate(
+        "timeout",
+        pdMS_TO_TICKS(2000),
+        pdFALSE,
+        NULL,
+        TimeoutCb);
+}
 ```
 
-## Reset and Change Period
-```c
-// restart countdown (useful for inactivity timers)
-xTimerReset(tTimeout, 0);
+`pdFALSE` means the timer does **not** reload automatically.
 
-// change period on the fly
-xTimerChangePeriod(tHeartbeat, pdMS_TO_TICKS(1000), 0);
+## The Lab 2 Pattern
+
+In Lab 2, the timer is not doing the full microphone processing. Instead, it is used as a **regular sample trigger**.
+
+The pattern is:
+
+```text
+software timer callback
+    -> read one sample
+    -> store it in a buffer
+    -> when buffer is full, signal MicTask
+
+MicTask
+    -> waits for the signal
+    -> computes RMS
+    -> updates shared display values
 ```
 
-## Notes and Best Practices
-- The callback runs in the timer service task; keep it short and non-blocking.
-- Do not call blocking APIs from the callback. If substantial work is required, notify/queue to a worker task.
-- The timer API is thread-safe; you can start/stop from tasks and from callbacks.
-- For ISR context, use `xTimerPendFunctionCallFromISR()` to defer work to the timer task.
+That is a very typical FreeRTOS design:
 
-<Aside type="tip">
-Use timers for periodic maintenance (LED heartbeat, watchdog kick, sensor polling) instead of creating extra tasks.
+- the timer callback does the **small time-critical step**
+- the task does the **heavier work**
+
+## Example: Timer Wakes A Task
+
+```c
+#include "FreeRTOS.h"
+#include "timers.h"
+#include "semphr.h"
+
+#define WINDOW_SIZE 128
+
+static TimerHandle_t xMicTimer;
+static SemaphoreHandle_t xMicReadySem;
+static uint16_t gMicSamples[WINDOW_SIZE];
+static uint16_t gMicIndex = 0;
+
+static void MicSampleCb(TimerHandle_t xTimer)
+{
+    (void)xTimer;
+
+    gMicSamples[gMicIndex++] = Mic_Read();
+
+    if (gMicIndex >= WINDOW_SIZE) {
+        gMicIndex = 0;
+        xSemaphoreGive(xMicReadySem);
+    }
+}
+
+void Mic_InitTasking(void)
+{
+    xMicReadySem = xSemaphoreCreateBinary();
+
+    xMicTimer = xTimerCreate(
+        "mic",
+        pdMS_TO_TICKS(1),
+        pdTRUE,
+        NULL,
+        MicSampleCb);
+
+    xTimerStart(xMicTimer, 0);
+}
+
+void MicTask(void *pvParams)
+{
+    for (;;) {
+        xSemaphoreTake(xMicReadySem, portMAX_DELAY);
+        // process the completed sample window here
+    }
+}
+```
+
+<Aside type="caution" title="Important design note">
+If the callback fills a buffer while `MicTask` is reading that same buffer, you can corrupt the data. A common fix is to use two buffers or copy the completed window before processing it.
 </Aside>
 
+## Callback Rules
+
+Inside a timer callback:
+
+- keep the code short
+- do not call `vTaskDelay()`
+- do not block on queues, semaphores, or mutexes
+- avoid heavy math if a task can do it instead
+
+Why? Because all timer callbacks share the same timer service task. If one callback takes too long, every other software timer is delayed too.
+
+## Changing Or Restarting A Timer
+
+```c
+xTimerReset(xTimeoutTimer, 0);
+xTimerChangePeriod(xHeartbeatTimer, pdMS_TO_TICKS(1000), 0);
+xTimerStop(xHeartbeatTimer, 0);
+```
+
+These are useful for:
+
+- inactivity timeouts
+- game delays
+- changing update rates at runtime
+
+## Choosing Between A Task And A Software Timer
+
+Use a **task** when:
+
+- the code is long-running
+- the code may block
+- the work has its own complex state machine
+
+Use a **software timer** when:
+
+- you need a short callback at a known interval
+- you just want to trigger or notify another task
+- the timing relationship matters more than the amount of work
+
+## Common Pitfalls
+
+- Forgetting to enable `configUSE_TIMERS`
+- Doing too much work inside the callback
+- Assuming the callback runs in interrupt context
+- Reading and processing the same buffer concurrently without a handoff strategy
+- Using a timer when a regular task with `vTaskDelay()` would be simpler and sufficient
+
+## Summary
+
+Software timers are best when you need a **small, regular trigger**. In Lab 2, the timer is not the whole microphone subsystem; it is the piece that creates a consistent sampling rhythm and wakes the real processing task when enough data has been collected.

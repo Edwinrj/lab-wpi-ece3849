@@ -1,0 +1,967 @@
+---
+title: "Lab 2: Multi-Screen Dashboard"
+description: "Refactor your FreeRTOS stopwatch into a modular multi-screen dashboard. Add joystick navigation and a live microphone level screen."
+links:
+- /labs/lab1/
+- /guides/labtimeline/
+- /guides/freertos/semaphores-mutexes/
+- /guides/freertos/software-timers/
+- /reference/tivaware/mic_adc/
+tags:
+  - freertos
+---
+import { Aside } from '@astrojs/starlight/components';
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { FileTree } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+<CardGrid>
+   <LinkCard
+      title="Complete Lab 1"
+      description="Your FreeRTOS stopwatch from Lab 1 is the starting point."
+      href="/labs/lab1/"
+      icon="setting"
+   />
+   <LinkCard
+      title="Lab Sequence"
+      description="Review where this lab fits in the course."
+      href="/guides/labtimeline/"
+      icon="right-arrow"
+   />
+   <LinkCard
+      title="Download Libraries"
+      description="Joystick and display support files used in this lab."
+      href="/assets/libraries/libraries.zip"
+      icon="right-arrow"
+   />
+</CardGrid>
+
+---
+
+## Overview
+
+<Aside type="note" title="How this lab fits the sequence">
+Lab 0 gave you a working bare-metal stopwatch. Lab 1 moved that idea into FreeRTOS with multiple tasks and a queue. Lab 2 is the next step: keep the stopwatch working, but turn it into a project that can grow without collapsing into one giant `main.cpp`.
+</Aside>
+
+This lab is about scaling a working design. By the end, your project should feel like a small embedded product instead of a demo:
+
+- The code is split across multiple files with clear ownership.
+- Button input is interrupt-driven using a **binary semaphore**.
+- The joystick changes screens while the stopwatch buttons keep their old behavior.
+- A microphone screen uses a **software timer** to drive regular sampling.
+- The stopwatch keeps running even when the user is looking at another screen.
+
+What stays the same:
+- **S1** still toggles Play/Pause.
+- **S2** still resets the stopwatch.
+- The stopwatch remains Screen 0.
+
+<Aside type="caution" title="Multitasking requirement">
+If the stopwatch is running and the user changes to the microphone screen, the stopwatch must **continue advancing in the background**. When the user comes back to Screen 0, the time should reflect everything that elapsed while the other screen was active. This is one of the behaviors that will be evaluated, because it demonstrates real multitasking rather than a single foreground loop.
+</Aside>
+
+### Suggested Build Order
+
+1. Refactor first and make sure behavior is unchanged.
+2. Replace button polling with a GPIO interrupt plus binary semaphore.
+3. Add a second placeholder screen and joystick navigation.
+4. Add microphone sampling, RMS processing, and the final display.
+
+---
+
+## Learning Objectives
+
+- Organize an embedded project into multiple `.h` and `.cpp` files
+- Use `extern` and `volatile` correctly when state is shared across files and tasks
+- Replace polling with a **GPIO interrupt + binary semaphore**
+- Keep the LCD stable by making **one task own all drawing**
+- Build a simple multi-screen state machine driven by a joystick task
+- Explain why task delays are not enough for fixed-rate sampling
+- Use a **FreeRTOS software timer** to trigger regular ADC work
+- Compute and display an RMS-based microphone level
+
+---
+
+## Grading Rubric
+
+| Step | Description | Points |
+| :--- | :----------- | :----: |
+| 1 | Code refactored into `buzzer.h/.cpp` and `stopwatch.h/.cpp` | 10 |
+| 1 | Button polling replaced with GPIO interrupt + binary semaphore | 15 |
+| 2 | `JoystickTask` navigates between screens; S1/S2 still control stopwatch and the stopwatch keeps running across screen changes | 15 |
+| 2 | `DisplayTask` in `main.cpp` owns all drawing and calls `GrFlush()` | 10 |
+| 3 | Software timer enabled and drives ADC sampling at a fixed rate | 10 |
+| 3 | Microphone screen with RMS level bar and dB value | 15 |
+|   | Lab report | 25 |
+|   | **Total** | **100** |
+
+---
+
+## Part 1 - Refactor and Interrupt-Driven Buttons (25 pts)
+
+Before you add any new features, make the Lab 1 code easier to reason about. The goal of this part is simple: **same behavior, better structure**.
+
+### Design rule
+
+> **Modules own feature logic. `main.cpp` owns system startup and task wiring.**
+
+That means:
+- `BuzzerTask`, `TimeTask`, `ButtonTask`, private helpers, and feature state live in their own modules.
+- `main.cpp` initializes shared hardware, creates tasks, and starts the scheduler.
+- `DisplayTask` stays in `main.cpp` because it coordinates the whole system, not one feature.
+
+Start by splitting your project like this:
+
+<FileTree>
+- main.cpp              # hardware init + DisplayTask + task creation + scheduler start
+- buzzer.h              # BuzzerTask, Buzzer_Init, BuzzerCmd, shared queue declarations
+- buzzer.cpp            # PWM setup, buzzer logic, queue handling
+- stopwatch.h           # TimeTask, ButtonTask, Stopwatch_Init, shared stopwatch state
+- stopwatch.cpp         # stopwatch logic, button handling, shared time state
+- FreeRTOS.h
+- FreeRTOSConfig.h
+- startup_ccs.c
+</FileTree>
+
+### Why `DisplayTask` stays in `main.cpp`
+
+`BuzzerTask` only cares about the buzzer. `TimeTask` only cares about timekeeping. `DisplayTask` is different because it must know about **every screen** in the project.
+
+If you hide `DisplayTask` inside one feature module, that module suddenly depends on all the others. At that point it is not really a module anymore; it has become a second `main.cpp`.
+
+```cpp
+// main.cpp
+#include "buzzer.h"
+#include "stopwatch.h"
+#include "joystick.h"      // added in Part 2
+#include "screen_mic.h"    // added in Part 3
+
+void DisplayTask(void *pvParams) {
+    for (;;) {
+        switch (gCurrentScreen) {
+            case SCREEN_STOPWATCH: Stopwatch_Draw(); break;
+            case SCREEN_MIC:       ScreenMic_Draw(); break;
+        }
+
+        GrFlush(&gContext);    // this should happen once per frame, here only
+        vTaskDelay(pdMS_TO_TICKS(33));
+    }
+}
+
+int main(void) {
+    // hardware init...
+
+    Buzzer_Init();
+    Stopwatch_Init();
+
+    xTaskCreate(TimeTask,     "Time",  512, NULL, 3, NULL);
+    xTaskCreate(ButtonTask,   "Btn",   256, NULL, 2, NULL);
+    xTaskCreate(DisplayTask,  "Disp",  512, NULL, 2, NULL);
+    xTaskCreate(BuzzerTask,   "Buzz",  256, NULL, 1, NULL);
+
+    vTaskStartScheduler();
+    while (1) {}
+}
+```
+
+### Sharing variables across files
+
+Once the project is split, some state needs to cross file boundaries. The core rule is:
+
+> **Define once in a `.cpp`. Declare everywhere else with `extern`.**
+
+```cpp
+// buzzer.cpp
+QueueHandle_t gBuzzerQ;   // definition: memory lives here
+```
+
+```cpp
+// buzzer.h
+extern QueueHandle_t gBuzzerQ;   // declaration only
+```
+
+Use this test:
+
+| Make it shared | Keep it local |
+| :------------- | :------------ |
+| State used by more than one task or file | Loop counters and temporary variables |
+| Queue and semaphore handles that other modules need | Helper functions marked `static` |
+| Screen state read in one file and written in another | Scratch buffers used by one function |
+
+Typical shared state for this lab looks like this:
+
+```cpp
+// stopwatch.cpp -> define here, declare in stopwatch.h
+volatile bool     gRunning;
+volatile uint8_t  gHours, gMinutes, gSeconds;
+volatile uint16_t gMillis;
+
+// buzzer.cpp -> define here, declare in buzzer.h
+QueueHandle_t gBuzzerQ;
+
+// main.cpp -> define here, declare where needed with extern
+volatile uint8_t gCurrentScreen;
+```
+
+### A quick note on `volatile`
+
+If one task writes a variable and another task reads it, or if an ISR updates it, declare it `volatile`:
+
+```cpp
+volatile bool gRunning = false;
+```
+
+`volatile` tells the compiler not to cache the value in a register and assume it never changes.
+
+<Aside type="caution" title="Important">
+`volatile` is not a lock. It prevents incorrect compiler optimization, but it does not protect multi-step updates. For simple scalar values such as `bool`, `uint8_t`, and `uint32_t` on Cortex-M4, this lab is fine. For larger shared objects, you will need proper synchronization in later labs.
+</Aside>
+
+### Refactor checkpoint
+
+Before changing how button input works, stop here and verify that your **refactored** project still behaves exactly like Lab 1.
+
+At this point:
+
+- The project should compile successfully.
+- The stopwatch should still start, stop, reset, and update correctly.
+- The buzzer behavior should still match your Lab 1 design.
+- The only major change so far should be **code organization**, not user-visible behavior.
+
+If the refactored version is not fully working yet, fix that first. Do **not** begin the interrupt/semaphore portion until the modular version is stable.
+
+### Replace button polling with a binary semaphore
+
+<Aside type="caution" title="First, read this before continuing">
+Before you implement this part, you must read the **Semaphores and Mutexes** guide. Do not skip ahead to the code first.
+
+When you finish reading, you should be able to answer these two questions without guessing:
+
+- Why is a **binary semaphore** a better fit than polling for the pushbuttons in this lab?
+- Why do we use `xSemaphoreGiveFromISR()` in the interrupt instead of `xSemaphoreGive()`?
+</Aside>
+
+<CardGrid>
+  <LinkCard
+    title="Read This First: Semaphores and Mutexes"
+    description="Required reading before replacing button polling."
+    href="/guides/freertos/semaphores-mutexes/"
+    icon="right-arrow"
+  />
+</CardGrid>
+
+In Lab 1, your button task probably woke up every 20 ms, called `btn.tick()`, and went back to sleep. That works, but it has two weaknesses:
+
+- Input latency can be as high as the polling period.
+- The task still wakes up even when nothing happened.
+
+The better pattern is:
+
+1. A GPIO interrupt fires when S1 or S2 is pressed.
+2. The ISR gives a **binary semaphore**.
+3. `ButtonTask` wakes up immediately, processes the buttons, and blocks again.
+
+If you want a refresher first:
+
+<CardGrid>
+  <LinkCard
+    title="Semaphores and Mutexes"
+    description="Binary semaphore patterns, ISR-safe APIs, and common mistakes."
+    href="/guides/freertos/semaphores-mutexes/"
+    icon="right-arrow"
+  />
+</CardGrid>
+
+#### Setup checklist
+
+- Include `semphr.h`
+- Create the semaphore before enabling the GPIO interrupt
+- Configure Port J for falling-edge interrupts on **PJ0** and **PJ1**
+- In the ISR, clear the interrupt flag, give the semaphore, and yield if needed
+- In `ButtonTask`, block on `xSemaphoreTake()` and call `btnS1.tick()` / `btnS2.tick()` after wake-up
+
+```cpp
+extern "C" {
+#include "FreeRTOS.h"
+#include "semphr.h"
+#include "task.h"
+}
+
+static SemaphoreHandle_t xBtnSem = NULL;
+
+void ButtonISR(void) {
+    GPIOIntClear(GPIO_PORTJ_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+    BaseType_t woken = pdFALSE;
+    xSemaphoreGiveFromISR(xBtnSem, &woken);
+    portYIELD_FROM_ISR(woken);
+}
+
+void ButtonTask(void *pvParams) {
+    for (;;) {
+        xSemaphoreTake(xBtnSem, portMAX_DELAY);
+        btnS1.tick();
+        btnS2.tick();
+    }
+}
+
+void Stopwatch_Init(void) {
+    xBtnSem = xSemaphoreCreateBinary();
+
+    GPIOIntRegister(GPIO_PORTJ_BASE, ButtonISR);
+    GPIOIntTypeSet(GPIO_PORTJ_BASE,
+                   GPIO_PIN_0 | GPIO_PIN_1,
+                   GPIO_FALLING_EDGE);
+    GPIOIntEnable(GPIO_PORTJ_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+    IntEnable(INT_GPIOJ);
+}
+```
+
+<Aside type="caution" title="Order matters">
+Create the semaphore before you enable the interrupt. Otherwise the ISR can fire first and try to signal a null handle.
+</Aside>
+
+**Checkpoint:** After Part 1, the project should compile and behave exactly like Lab 1, but the code is cleaner and button events are interrupt-driven.
+
+---
+
+## Part 2 - Joystick Navigation and Multi-Screen Display (25 pts)
+
+Now turn the stopwatch into a dashboard with two screens:
+
+```text
+Screen 0: Stopwatch   <---->   Screen 1: Microphone
+```
+
+The joystick moves left and right between screens. The stopwatch buttons do not change roles.
+
+The important behavioral rule is this: **screen navigation must not pause the stopwatch**. `DisplayTask` only changes what the user sees. `TimeTask` must continue running independently in the background.
+
+### Step 1 - Create screen state
+
+Use an enum instead of raw integers. That keeps the code readable and makes it easy to add more screens later.
+
+```cpp
+// main.cpp
+enum ScreenID : uint8_t {
+    SCREEN_STOPWATCH = 0,
+    SCREEN_MIC,
+    SCREEN_COUNT
+};
+
+volatile uint8_t gCurrentScreen = SCREEN_STOPWATCH;
+```
+
+Any file that needs access can declare it with `extern`:
+
+```cpp
+extern volatile uint8_t gCurrentScreen;
+```
+
+### Step 2 - Keep one owner for the LCD
+
+Only **one** task should call GRLIB drawing functions. In this lab, that owner is `DisplayTask`.
+
+- `JoystickTask` updates `gCurrentScreen`
+- `TimeTask` updates stopwatch state
+- `MicTask` updates `gMicLevel`
+- `DisplayTask` reads those values and draws the active screen
+
+This single-owner rule prevents two tasks from drawing on top of each other and producing a corrupted frame.
+
+```cpp
+void DisplayTask(void *pvParams) {
+    for (;;) {
+        switch (gCurrentScreen) {
+            case SCREEN_STOPWATCH: Stopwatch_Draw(); break;
+            case SCREEN_MIC:       ScreenMic_Draw(); break;
+        }
+
+        GrFlush(&gContext);   // only here
+        vTaskDelay(pdMS_TO_TICKS(33));
+    }
+}
+```
+
+<Aside type="tip" title="Rule to remember">
+`ScreenX_Draw()` functions build the frame. `DisplayTask` flushes the frame. Do not call `GrFlush()` anywhere else in the project.
+</Aside>
+
+### Step 3 - Add `JoystickTask`
+
+Add `joystick.h` and `joystick.cpp`, then create a task that polls the joystick at a fixed interval. Unlike the pushbuttons, the joystick library is designed around periodic `tick()` calls, so polling is appropriate here.
+
+<CardGrid>
+  <LinkCard
+    title="Joystick Library Reference"
+    description="Review `begin()`, `tick()`, `x()`, `y()`, and `direction8()`."
+    href="/reference/libraries/joystick/"
+    icon="right-arrow"
+  />
+</CardGrid>
+
+Your task should:
+
+- Call `js.tick()` regularly
+- Detect left and right motion
+- Update `gCurrentScreen` with wrap-around behavior
+- Avoid repeated screen changes while the joystick is still being held to one side
+
+```cpp
+void JoystickTask(void *pvParams) {
+    js.begin();
+    js.calibrateCenter(32);
+    bool readyForNextMove = true;
+
+    for (;;) {
+        js.tick();
+
+        // Replace these tests with whatever your joystick library exposes.
+        if (/* joystick returned near center */) {
+            readyForNextMove = true;
+        } else if (readyForNextMove && /* moved right */) {
+            gCurrentScreen =
+                (gCurrentScreen + 1u < SCREEN_COUNT) ? (gCurrentScreen + 1u) : 0u;
+            readyForNextMove = false;
+        } else if (readyForNextMove && /* moved left */) {
+            gCurrentScreen =
+                (gCurrentScreen > 0u) ? (gCurrentScreen - 1u) : (SCREEN_COUNT - 1u);
+            readyForNextMove = false;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(30));
+    }
+}
+```
+
+This pattern is often easier to debug than a time-based cooldown. The rule is simple: one movement changes one screen, and the next movement is ignored until the joystick comes back near the center.
+
+### Step 4 - Add a shared header
+
+Both screens should look like part of the same application. A simple header bar helps a lot.
+
+```cpp
+void DrawHeader(const char *title) {
+    tRectangle header = {0, 0, 127, 20};
+    GrContextForegroundSet(&gContext, ClrDarkBlue);
+    GrRectFill(&gContext, &header);
+
+    GrContextForegroundSet(&gContext, ClrYellow);
+    GrStringDraw(&gContext, "<", -1, 4, 6, false);
+    GrStringDraw(&gContext, ">", -1, 118, 6, false);
+
+    GrContextForegroundSet(&gContext, ClrWhite);
+    GrStringDrawCentered(&gContext, title, -1, 64, 7, false);
+}
+```
+
+Draw the rest of each screen **below `y = 20`** so the content never overlaps the header.
+
+**Checkpoint:** Tilting the joystick left and right should switch between the stopwatch screen and a blank placeholder screen. S1 and S2 should still control the stopwatch exactly as before.
+
+**Multitasking checkpoint:** Start the stopwatch, switch to the other screen for a few seconds, then come back. The elapsed time should have continued advancing the entire time.
+
+---
+
+## Part 3 - Microphone Screen with a Software Timer (25 pts)
+
+This part introduces the other big idea of the lab: a **software timer**. The goal is not high-fidelity audio. The goal is to sample regularly enough to compute a stable microphone level meter.
+
+<Aside type="caution" title="First, read this before continuing">
+Before you start Part 3, you must read the **Software Timers** guide. This section assumes you already understand what a timer callback is, where it runs, and why it must stay short.
+
+When you finish reading, you should be able to answer these questions:
+
+- What is the difference between a **periodic** timer and a **one-shot** timer?
+- Why should the timer callback in this lab collect samples and wake a task, instead of doing the full RMS calculation itself?
+</Aside>
+
+<CardGrid>
+  <LinkCard
+    title="Read This First: Software Timers"
+    description="Required reading before you implement microphone sampling."
+    href="/guides/freertos/software-timers/"
+    icon="right-arrow"
+  />
+  <LinkCard
+    title="Microphone ADC Reference"
+    description="ADC setup and microphone hardware notes."
+    href="/reference/tivaware/mic_adc/"
+    icon="right-arrow"
+  />
+</CardGrid>
+
+### Step 1 - Enable software timers
+
+Add these lines to `FreeRTOSConfig.h`:
+
+```c
+#define configUSE_TIMERS             1
+#define configTIMER_TASK_PRIORITY    (configMAX_PRIORITIES - 1)
+#define configTIMER_QUEUE_LENGTH     10
+#define configTIMER_TASK_STACK_DEPTH 256
+```
+
+<Aside type="caution" title="Do not duplicate configuration defines">
+If any of these `#define` values already exist in your `FreeRTOSConfig.h`, do **not** add a second copy.
+
+Instead:
+
+- modify the existing definition if it needs a new value, or
+- delete the older version and keep only one definition
+
+These configuration macros must appear **once only**. Repeating the same definition in the file will cause compile problems or confusing behavior.
+</Aside>
+
+FreeRTOS will automatically create the timer service task when the scheduler starts. Timer callbacks run in that task's context, so they must stay short and non-blocking.
+
+### Step 2 - Learn the software timer pattern for this lab
+
+<Aside type="note" title="Do not continue until this is clear">
+If you cannot explain the role of `xTimerCreate(...)`, `xTimerStart(...)`, the timer callback, and `MicTask`, stop here and re-read the software timer guide before writing code.
+</Aside>
+
+In this lab, the software timer is used as a **regular sample trigger**. That is the key idea students need to implement.
+
+The sequence is:
+
+1. Create a timer handle.
+2. Create the synchronization object that will wake `MicTask`.
+3. Create the timer with `xTimerCreate(...)`.
+4. Start it with `xTimerStart(...)`.
+5. Let the callback collect one sample each time it fires.
+6. When a full window is ready, signal `MicTask`.
+7. Let `MicTask` do the RMS calculation and update the display variables.
+
+The basic skeleton looks like this:
+
+```cpp
+extern "C" {
+#include "FreeRTOS.h"
+#include "timers.h"
+#include "semphr.h"
+}
+
+#define WINDOW_SIZE 128
+
+static TimerHandle_t xMicTimer = NULL;
+static SemaphoreHandle_t xMicReadySem = NULL;
+static uint16_t gMicSamples[WINDOW_SIZE];
+static uint16_t gMicIndex = 0;
+
+static void MicSampleCb(TimerHandle_t xTimer)
+{
+    (void)xTimer;
+
+    gMicSamples[gMicIndex++] = Mic_Read();
+
+    if (gMicIndex >= WINDOW_SIZE) {
+        gMicIndex = 0;
+        xSemaphoreGive(xMicReadySem);
+    }
+}
+
+void ScreenMic_Init(void)
+{
+    Mic_Init();
+
+    xMicReadySem = xSemaphoreCreateBinary();
+    xMicTimer = xTimerCreate("mic",
+                             pdMS_TO_TICKS(1),
+                             pdTRUE,
+                             NULL,
+                             MicSampleCb);
+
+    xTimerStart(xMicTimer, 0);
+}
+
+void MicTask(void *pvParams)
+{
+    for (;;) {
+        xSemaphoreTake(xMicReadySem, portMAX_DELAY);
+        // process the completed sample window here
+    }
+}
+```
+
+What each part is doing:
+
+- `xMicTimer` stores the software timer object.
+- `pdMS_TO_TICKS(1)` sets a 1 ms period.
+- `pdTRUE` makes the timer periodic instead of one-shot.
+- `MicSampleCb()` runs once every timer period.
+- `MicTask` stays blocked until a complete sample window is ready.
+
+<Aside type="tip" title="Why this split is important">
+The callback is the **metronome**. `MicTask` is the **worker**. Keep those roles separate. The callback should handle timing and sample capture; the task should handle math and display-state updates.
+</Aside>
+
+<Aside type="caution" title="Buffer ownership">
+Do not let the callback overwrite samples while `MicTask` is still processing the same window. A simple solution is to use two buffers, or copy the completed buffer before doing the RMS calculation.
+</Aside>
+
+For more context and additional patterns:
+
+<CardGrid>
+  <LinkCard
+    title="Software Timers Guide"
+    description="Detailed explanation of create, start, callback rules, and task handoff patterns."
+    href="/guides/freertos/software-timers/"
+    icon="right-arrow"
+  />
+</CardGrid>
+
+### Step 3 - Understand the microphone input path
+
+Before thinking about RMS or dB, make sure the hardware path is clear.
+
+In the BoosterPack MKII, the microphone signal reaches the microcontroller through:
+
+- **PE5**
+- **ADC0**
+- **Channel AIN8**
+- **Sample Sequencer 3**
+
+The simplest ADC arrangement for this lab looks like this:
+
+```cpp
+#define MIC_ADC_BASE      ADC0_BASE
+#define MIC_ADC_SEQ       3
+#define MIC_ADC_CHANNEL   ADC_CTL_CH8
+
+static void Mic_Init(void)
+{
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+    GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_5);
+
+    ADCSequenceConfigure(MIC_ADC_BASE, MIC_ADC_SEQ, ADC_TRIGGER_PROCESSOR, 0);
+    ADCSequenceStepConfigure(MIC_ADC_BASE,
+                             MIC_ADC_SEQ,
+                             0,
+                             MIC_ADC_CHANNEL | ADC_CTL_IE | ADC_CTL_END);
+    ADCSequenceEnable(MIC_ADC_BASE, MIC_ADC_SEQ);
+    ADCIntClear(MIC_ADC_BASE, MIC_ADC_SEQ);
+}
+
+static uint16_t Mic_Read(void)
+{
+    uint32_t value;
+
+    ADCProcessorTrigger(MIC_ADC_BASE, MIC_ADC_SEQ);
+    while (!ADCIntStatus(MIC_ADC_BASE, MIC_ADC_SEQ, false)) {}
+    ADCIntClear(MIC_ADC_BASE, MIC_ADC_SEQ);
+    ADCSequenceDataGet(MIC_ADC_BASE, MIC_ADC_SEQ, &value);
+
+    return (uint16_t)value;
+}
+```
+
+What this code is doing:
+
+1. Configure **PE5** as an analog input.
+2. Configure **ADC0 SS3** to read exactly one channel: **AIN8**.
+3. Trigger one conversion in software.
+4. Wait until the conversion is complete.
+5. Read the 12-bit result from the ADC FIFO.
+
+So each microphone sample is a number in the range:
+
+```text
+0 <= x[n] <= 4095
+```
+
+where `x[n]` is the raw ADC sample at time index `n`.
+
+For this lab, that is enough. You do not need DMA, double buffering, or a complex ADC pipeline. The main conceptual goal is to connect:
+
+- a **periodic event** from the software timer
+- to **one ADC sample**
+- to a **window of samples**
+- to one displayed loudness estimate
+
+### Step 4 - Understand why task delays are the wrong tool
+
+This looks tempting:
+
+```cpp
+void MicTask(void *pvParams) {
+    for (;;) {
+        // collect one sample
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+}
+```
+
+But that does **not** give you a true 1000 Hz sample clock. The real interval becomes:
+
+```text
+loop execution time + delay time + scheduler jitter
+```
+
+Even `vTaskDelayUntil()` only gives you **tick-level** timing, and it still ties sampling to a task loop. At a 1000 Hz RTOS tick, the finest interval available to a task-based delay is 1 ms.
+
+For this lab, a periodic software timer is a better fit because the sampling event is driven by the RTOS timer service, while the heavier RMS computation happens elsewhere.
+
+### Step 5 - Split sampling from processing
+
+Use this pipeline:
+
+```text
+xMicTimer (periodic software timer, 1 ms)
+    |
+    +--> MicSampleCb()
+            - trigger / read one ADC sample
+            - store it in a buffer
+            - count samples
+            - when WINDOW_SIZE samples are ready, signal MicTask
+
+MicTask
+    - waits for the signal
+    - computes RMS on the completed window
+    - updates gMicLevel and gMicDb
+```
+
+<Aside type="caution" title="Callback rule">
+Do not block inside `MicSampleCb()`. No `vTaskDelay()`, no long loops, no waiting on queues or semaphores. The callback should do a tiny amount of work and return quickly.
+</Aside>
+
+### Step 6 - Choose how to wake `MicTask`
+
+When a full sample window is ready, the callback needs to wake `MicTask`. You have at least two reasonable tools available:
+
+- A **binary semaphore** if you only need to say "a window is ready"
+- A **queue** if you want to send extra data along with the event
+
+Choose one, use it consistently, and be ready to justify that choice in your report.
+
+### Step 7 - Convert raw samples into a level estimate
+
+The point of this step is not just "apply formulas." Each operation fixes a specific problem in the raw microphone signal.
+
+#### 1. Raw ADC sample
+
+Each conversion gives you a 12-bit unsigned sample:
+
+```text
+x[n] in [0, 4095]
+```
+
+This is not centered around zero, so it is awkward for amplitude calculations.
+
+#### 2. Normalize the sample
+
+Convert the raw integer to a fractional value:
+
+```text
+s[n] = x[n] / 4095
+```
+
+Now the sample lives approximately in:
+
+```text
+0 <= s[n] <= 1
+```
+
+This makes the next operations easier to reason about.
+
+#### 3. Remove the DC bias
+
+The microphone front-end is biased around mid-supply, so "silence" is usually not near 0. It is near the middle of the ADC range. That means the waveform is riding on top of a constant offset.
+
+To center it, subtract the midpoint:
+
+```text
+a[n] = s[n] - 0.5
+```
+
+Why do this?
+
+- Positive and negative swings should be measured around zero.
+- If you skip this step, the constant bias will look like signal energy.
+- RMS would be dominated by the offset instead of the sound itself.
+
+#### 4. Square the centered samples
+
+```text
+a[n]^2
+```
+
+Why square them?
+
+- Negative and positive excursions should both count as energy.
+- Larger excursions should contribute more than smaller ones.
+- Squaring is the standard first step toward energy or power-like measurements.
+
+#### 5. Average over a window
+
+For a window of `N` samples:
+
+```text
+mean_square = (1 / N) * sum from n=0 to N-1 of a[n]^2
+```
+
+Why average?
+
+- A single sample says almost nothing about loudness.
+- A short window smooths the fast oscillations of the waveform.
+- The display becomes more stable and easier to read.
+
+#### 6. Take the square root
+
+```text
+RMS = sqrt(mean_square)
+```
+
+Why the square root?
+
+- Squaring changed the units of the signal.
+- The square root brings the result back to the same scale as the original amplitude.
+- RMS is a standard way to summarize the effective amplitude of an AC signal.
+
+#### 7. Convert amplitude to decibels
+
+Choose a reference amplitude `A_ref` and compute:
+
+```text
+dB = 20 * log10(RMS / A_ref)
+```
+
+In the example project, the reference is:
+
+```text
+A_ref = 0.25
+```
+
+Why use dB?
+
+- Human perception of loudness is closer to logarithmic than linear.
+- dB values spread small and large amplitudes more usefully on the screen.
+- A bar graph based directly on RMS often feels too compressed near quiet sounds.
+
+#### 8. Clamp the display range
+
+Because the display only needs a practical range, clamp the result:
+
+```text
+-60 <= dB <= 0
+```
+
+Why clamp?
+
+- Very small values would run toward negative infinity in theory.
+- The display only needs a useful range, not every mathematically possible value.
+- Clamping prevents outliers from making the bar unreadable.
+
+#### 9. Map dB to a 0 to 1 display level
+
+Finally, convert the clamped dB value to a normalized bar height:
+
+```text
+level = (dB + 60) / 60
+```
+
+This gives:
+
+```text
+level = 0   when dB = -60
+level = 1   when dB = 0
+```
+
+That `level` value is what your drawing function should use for the bar height and color.
+
+One reasonable processing flow is:
+
+```text
+s_i   = x[i] / 4095
+a_i   = s_i - 0.5
+RMS   = sqrt((1/N) * sum(a_i^2))
+dB    = 20 * log10(RMS / 0.25)
+level = clamp((db + 60) / 60, 0, 1)
+```
+
+Store the result in shared variables such as:
+
+```cpp
+volatile float gMicLevel;
+volatile float gMicDb;
+```
+
+`ScreenMic_Draw()` will read those values and render the result.
+
+### Step 8 - Draw the microphone screen
+
+Add these files:
+
+<FileTree>
+- screen_mic.h
+- screen_mic.cpp
+</FileTree>
+
+Your screen should include:
+
+- The shared header bar
+- A level bar that fills according to `gMicLevel`
+- A dB readout below the bar
+
+Reference video:
+
+<video autoplay loop muted playsinline width={400}>
+  <source src="/assets/videos/mic.mp4" type="video/mp4"/>
+</video>
+
+Suggested color mapping:
+
+| `gMicLevel` | Color |
+| :---------- | :---- |
+| `0.00 - 0.40` | Green |
+| `0.40 - 0.75` | Yellow |
+| `0.75 - 1.00` | Red |
+
+**Checkpoint:** When you switch to the microphone screen, speaking or tapping near the microphone should move the bar and change the displayed dB value.
+
+**Important:** If the stopwatch was already running before you entered the microphone screen, it must still be running while the microphone screen is active.
+
+---
+
+## Final Project Structure
+
+By the end of the lab, your project should look like this:
+
+<FileTree>
+- main.cpp
+- buzzer.h / buzzer.cpp
+- stopwatch.h / stopwatch.cpp
+- joystick.h / joystick.cpp
+- screen_mic.h / screen_mic.cpp
+- FreeRTOS.h
+- FreeRTOSConfig.h
+- startup_ccs.c
+- FreeRTOS/
+  - ...
+</FileTree>
+
+`main.cpp` should mostly read like system glue: shared hardware init, task creation, and `vTaskStartScheduler()`.
+
+---
+
+## Lab Report Questions
+
+1. **Refactoring benefit:** After splitting into modules, describe one concrete change you could make to `BuzzerTask` that would require zero changes to any other file. Why was that harder when everything lived in `main.cpp`?
+2. **Shared state:** `gCurrentScreen` is read by `DisplayTask` and written by `JoystickTask`. Why is that acceptable in this lab, and when would it become risky?
+3. **Binary semaphore:** Why is a binary semaphore a better fit than polling for the pushbuttons in this design?
+4. **Multitasking behavior:** Why should the stopwatch continue running even while the microphone screen is active? Which tasks are still executing, and which task is only changing what is shown on the LCD?
+5. **`vTaskDelay` vs software timer:** Explain specifically why `vTaskDelay(1)` does not create a stable 1000 Hz sample rate.
+6. **Maximum sample rate:** If `configTICK_RATE_HZ = 1000`, what is the highest software-timer event rate you can achieve? What does that imply about the highest frequency you could analyze using Nyquist?
+7. **Window size trade-off:** If you double `WINDOW_SIZE`, what happens to display update rate, RMS stability, and memory usage?
+
+---
+
+## Submitting Source Code
+
+1. Name your project `ece3849_lab2_<username>`.
+2. Right-click -> `Export...` -> `General` -> `Archive File`.
+3. Filename: `ece3849_lab2_<username>.zip`.
+4. Upload to Canvas.
