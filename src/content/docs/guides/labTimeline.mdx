@@ -5,6 +5,7 @@ links:
 - /labs/lab0/
 - /labs/lab1/
 - /labs/lab2/
+- /labs/lab3/
 ---
 
 import {
@@ -40,26 +41,24 @@ import {
   </Card>
 
   <Card title="Lab 1 – FreeRTOS Stopwatch" icon="seti:audio">
-    <Badge text="Due Apr 2" variant="success" size="medium" />
+    <Badge text="Due Apr 16" variant="success" size="medium" />
     <p><strong>Objective:</strong> Move the stopwatch from a bare-metal super-loop into a FreeRTOS application built from scratch.</p>
     <p><strong>Highlights:</strong> Manual FreeRTOS integration, task creation, queues, periodic scheduling, and RTOS-based stopwatch design.</p>
   <LinkButton href="/labs/lab1/" target="_blank">View Lab 1 →</LinkButton>
   </Card>
 
   <Card title="Lab 2 – Multi-Screen Dashboard" icon="document">
-    <Badge text="Due Apr 9" variant="success" size="medium" />
+    <Badge text="Due Apr 23" variant="success" size="medium" />
     <p><strong>Objective:</strong> Refactor the Lab 1 stopwatch into a modular multi-screen application with interrupt-driven buttons, joystick navigation, and microphone level monitoring.</p>
     <p><strong>Highlights:</strong> Multiple source files, binary semaphores, software timers, ADC microphone sampling, and true multitasking across screens.</p>
   <LinkButton href="/labs/lab2/" target="_blank">View Lab 2 →</LinkButton>
   </Card>
 
-  <Card title="Lab 3 – Snake Game Part 1 " icon="document">
-    <p><strong>Objective:</strong> Implement the core architecture for the Snake game: create FreeRTOS
-    tasks for game logic, input handling, and display updates; protect shared LCD access with a mutex;
-    use message queues for inter-task communication; and apply priority tuning plus runtime profiling
-    to observe and optimize real-time behavior.</p>
-    <p><strong>Highlights:</strong> Task creation, mutexes, message queues, priority tuning,
-    and runtime profiling.</p>
+  <Card title="Lab 3 – Snake Game" icon="puzzle">
+    <Badge text="Due Apr 30" variant="success" size="medium" />
+    <p><strong>Objective:</strong> Complete a Snake game on FreeRTOS by adding game mechanics, synchronization, and event-driven coordination between tasks.</p>
+    <p><strong>Highlights:</strong> Mutex for shared game state, task notifications for event-driven rendering, event group for FOOD_EATEN and GAME_OVER audio feedback, collision detection, score and speed scaling.</p>
+  <LinkButton href="/labs/lab3/" target="_blank">View Lab 3 →</LinkButton>
   </Card>
 
   <Card title="Lab 4 – Snake Game Part 2" icon="rocket">
