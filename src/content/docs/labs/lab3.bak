@@ -1,16 +1,19 @@
 ---
-title: "Lab 3: RTOS Snake Game Part 1"
-description: "Build a complete Snake game using FreeRTOS on the TM4C1294XL LaunchPad. Learn modular task design, mutex synchronization, and queue-based communication."
+title: "Lab 3: RTOS Snake Game"
+description: "Complete a Snake game on FreeRTOS. Learn mutex synchronization, task notifications, and event groups through real game mechanics."
 links:
 - /labs/lab2/
 - /guides/labtimeline/
-- /guides/FreeRTOS/freertos/
+- /guides/freertos/semaphores-mutexes/
+- /guides/freertos/task-notifications/
+- /guides/freertos/event-groups/
 tags:
   - freertos
 ---
 
 import { Aside } from '@astrojs/starlight/components';
 import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { FileTree } from '@astrojs/starlight/components';
 
 ## Prerequisites
 
@@ -32,25 +35,33 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
       description="Return to the list of all labs."
       href="/guides/labtimeline/"
       icon="right-arrow"
-   /> 
+   />
 </CardGrid>
 
 ---
 
 ## Objective
 
-In this lab, you will build a complete **Snake game** on the TM4C1294XL LaunchPad using FreeRTOS. Starting from a basic working snake implementation, you'll add game features like fruit collection, scoring, collision detection, and audio feedback. The focus is on **modular task design**, **mutex synchronization**, and **queue-based communication**.
+In this lab, you will complete a **Snake game** on the TM4C1294XL LaunchPad using FreeRTOS. Starting from a basic working snake implementation, you will add game mechanics, proper synchronization, and event-driven coordination between tasks.
+
+Three FreeRTOS primitives you have not used before appear in this lab:
+
+| Primitive | Purpose in this lab |
+| :-------- | :------------------ |
+| **Mutex** | Protect shared game state from concurrent access |
+| **Task Notifications** | Signal `vRenderTask` only when there is something new to draw |
+| **Event Groups** | Coordinate game events (food eaten, game over) for audio feedback |
 
 ---
 
 ## Learning Goals
 
-- Organize a real-time application into modular, concurrent tasks
-- Use a **mutex** to protect shared resources (LCD display and game state)
-- Implement **queue-based communication** between tasks (for audio events)
-- Understand task synchronization and timing in FreeRTOS
-- **Design and implement game logic** by thinking through requirements
-- Build a complete game incrementally following best practices
+- Use a **mutex** to protect shared resources from concurrent access
+- Explain the difference between a mutex and a binary semaphore
+- Use **task notifications** to build event-driven rendering instead of polling
+- Use an **event group** to signal multiple types of game events from one object
+- Design and implement game logic by reasoning through requirements
+- Build a complete embedded game incrementally
 
 ---
 
@@ -58,14 +69,14 @@ In this lab, you will build a complete **Snake game** on the TM4C1294XL LaunchPa
 
 | Step | Task | Description | Points |
 | :--- | :--- | :----------- | :----: |
-| 1 | Run Snake Base | Build and run the provided Snake starter; verify snake moves with joystick | 8 |
-| 2 | LCD Mutex Protection | Guard all LCD drawing with a mutex; avoid blocking while mutex is held | 12 |
-| 3 | Buzzer via Queue + Buttons | Implement buzzer task with queue; button events trigger tones | 12 |
-| 4 | Random Fruit Spawn | Place fruit at random grid locations; avoid spawning on snake body | 5 |
-| 5 | **Design Score System** | **Think through and implement** score increment and fruit lifecycle | 14 |
-| 6 | **Design Audio Feedback** | **Analyze requirements and implement** eating sound logic | 9 |
-| 7 | **Design Game Rules** | **Reason about and implement** movement constraints and collision detection | 15 |
-|   | Lab report | Written lab report with design decisions and reflection | 25 |
+| 1 | Run Snake Base | Build and run the starter; document the race conditions present | 5 |
+| 2 | Mutex Protection | Guard all shared game state with a mutex | 15 |
+| 3 | Task Notifications | Replace render polling with event-driven wake-up from Snake task | 12 |
+| 4 | Random Fruit Spawn | Place fruit at random empty grid positions | 8 |
+| 5 | **Design Score System** | **Think through and implement** score, growth, and speed scaling | 10 |
+| 6 | Event Groups | Use an event group to coordinate FOOD_EATEN and GAME_OVER events | 10 |
+| 7 | **Design Game Rules** | **Reason about and implement** direction reversal and collision detection | 15 |
+|   | Lab report | Written report with design decisions and analysis | 25 |
 |   | **Total** |  | **100 points** |
 
 ---
@@ -75,12 +86,12 @@ In this lab, you will build a complete **Snake game** on the TM4C1294XL LaunchPa
 By the end of this lab:
 
 - Snake moves smoothly with joystick control
-- All LCD operations are mutex-protected (no visual corruption)
-- Button presses trigger audible buzzer feedback
+- All shared game state is mutex-protected (no visual corruption)
+- Rendering only happens when the game state changes
 - Fruit spawns randomly and never on the snake body
-- Score increases when eating fruit; new fruit appears
-- Eating fruit plays a distinct sound
-- Cannot reverse direction instantly; self-collision ends game
+- Score increases when eating fruit; snake grows; speed increases
+- Events (eating, game over) trigger distinct buzzer tones via an event group
+- Cannot reverse direction instantly; self-collision ends the game
 - Code is modular with separate files for each subsystem
 
 ---
@@ -102,37 +113,33 @@ Create a new CCS project with FreeRTOS support, similar to Lab 2.
 
 ### Step 2: Add required libraries
 
-Add the LCD driver, graphics library, and FreeRTOS libraries to your project.
-
+<CardGrid>
 <LinkCard
      title="Download Libraries"
      description="Download libraries needed for the lab."
      href="/assets/libraries/libraries.zip"
      icon="right-arrow"
 />
-
 <LinkCard
      title="Importing External Libraries"
      description="Instructions for importing external libraries into CCS."
      href="/guides/ccs/external_libraries/"
      icon="right-arrow"
 />
+</CardGrid>
 
 ### Step 3: Import starter code
 
 Download and extract the starter code, then drag and drop all files into your CCS project.
 
-Starter files structure:
-
-```
-snake_base_lab3/
-├─ app_objects.h    # Shared objects (mutex, graphics context)
-├─ display.cpp      # LCD initialization and drawing functions
-├─ display.h        # Display API declarations
-├─ game.cpp         # Snake movement logic and game state
-├─ game.h           # Game data structures and API
-└─ main.cpp         # System setup and FreeRTOS tasks
-```
+<FileTree>
+- app_objects.h    # Shared objects: gContext, gSysClk, xMutexLCD
+- display.cpp      # LCD initialization and drawing functions
+- display.h        # Display API declarations
+- game.cpp         # Snake movement logic and game state
+- game.h           # Game data structures and API
+- main.cpp         # System setup and FreeRTOS tasks
+</FileTree>
 
 ### Step 4: Build and verify
 
@@ -145,31 +152,32 @@ Build and run the project. You should see:
 - Snake wraps around screen edges
 
 <Aside type="tip">
-The starter code provides a fully functional snake with basic movement. Your job is to add game mechanics (fruit, scoring, collision) and proper synchronization!
+The starter compiles and runs, but it has deliberate gaps: the mutex is declared and never created, the game state is completely unprotected, and there is no food, scoring, or collision detection. Your job starts here.
 </Aside>
 
 ---
 
 ## Understanding the Starter Code
 
-Before adding features, let's understand what's already implemented:
+Read all source files before writing a single line of code. The questions at the end of this section are part of the lab report.
 
 ### Game Architecture
 
-The project uses three FreeRTOS tasks that run concurrently:
+The project uses three FreeRTOS tasks running concurrently:
 
 ```mermaid
 flowchart LR
     %% Tareas periódicas
-    Input[Input Task 10ms]
-    Snake[Snake Task 150ms]
-    Render[Render Task 33ms]
+    Input[Input Task\n10 ms]
+    Snake[Snake Task\n150 ms]
+    Render[Render Task\n33 ms polling]
 
     %% Estado y sincronización
-    GS[Game State]
-    Mx[LCD Mutex]
-    BQ[Buzzer Queue]
-    BuzTask[Buzzer Task]
+    GS[Game State\nshared - unprotected]
+    Mx[Mutex\ndeclared, not created]
+    EG[Event Group\nyou will add this]
+    BuzTask[Buzzer Task\nyou will add this]
+    TN[Task Notification\nyou will add this]
 
     %% Hardware
     Joy[Joystick]
@@ -183,1799 +191,609 @@ flowchart LR
     Input --> GS
     GS --> Snake
     Snake --> GS
-    Snake --> Render
+    Snake --> TN --> Render
     Render --> Mx --> LCD
 
     %% Eventos de sonido
-    Input --> BQ
-    Snake --> BQ
-    BQ --> BuzTask --> Buzzer
+    Snake --> EG
+    EG --> BuzTask --> Buzzer
 ```
 
-### File Structure Overview
+The grayed-out elements (mutex, event group, task notification, buzzer task) are what you will add. The arrows between them show the intended data flow when you are done.
 
-**app_objects.h** - Declares shared global objects:
-- `gContext` - Graphics library context for LCD
-- `gSysClk` - System clock frequency
-- `xMutexLCD` - Mutex for LCD access (declared but not yet created!)
+### File Structure
 
-**game.h / game.cpp** - Contains game state and logic:
-- `SnakeGameState` - Current direction, running status, reset flag
-- `Position` array for snake segments
-- `moveSnake()` - Updates snake position each game tick
-- `ResetGame()` - Initializes snake to starting position
+**`app_objects.h`** — Declares shared objects using `extern`. The mutex `xMutexLCD` is declared here but never defined or created anywhere in the starter. This is intentional.
 
-**display.h / display.cpp** - Handles LCD operations:
-- `LCD_Init()` - Configures LCD hardware
-- `DrawGame()` - Renders snake on black background
-- `drawCell()` - Helper to draw single grid cell
+**`game.h / game.cpp`** — Owns all snake state:
+- `SnakeGameState` — direction, `isRunning`, `needsReset`
+- `Position snake[MAX_LEN]` and `snakeLength`
+- `moveSnake()` — shifts body segments, updates head
+- `ResetGame()` — places the snake at starting position
 
-**main.cpp** - System initialization and tasks:
-- Clock configuration
-- Button and joystick setup
-- Three FreeRTOS tasks (Input, Snake, Render)
+**`display.h / display.cpp`** — Owns LCD operations:
+- `LCD_Init()` — configures the Crystalfontz driver
+- `DrawGame()` — clears screen, draws snake
+- `drawCell()` — maps a grid coordinate to an 8×8 pixel rectangle
 
-### How the Game Currently Works
+**`main.cpp`** — Wires everything together: clock, buttons, joystick, three tasks.
 
-**Grid System:**
-- Display is 128×128 pixels
-- Each cell is 8×8 pixels
-- Results in 16×16 grid (256 possible positions)
+### Grid System
+
+The LCD is 128×128 pixels. Each cell is 8×8 pixels, giving a 16×16 grid of 256 positions.
+
+```
+Cell (gx, gy) → top-left pixel at (gx × 8, gy × 8)
+```
+
+`drawCell()` in `display.cpp` performs this mapping for you.
 
 <p align="center">
   <img src="/assets/images/snakeGrid.png" alt="Snake Grid Representation" width="300"/>
-    <br />
-  <sub><span> Snake Grid Representation</span></sub>
+  <br />
+  <sub>Snake Grid — 16×16 cells, each 8×8 pixels</sub>
 </p>
 
-**Snake Representation:**
+### Snake Representation
 
 ```c
-Position snake[MAX_LEN];  // Array of {x, y} coordinates
-uint8_t snakeLength = 4;  // Current snake length
+Position snake[MAX_LEN];  // array of {x, y} grid coordinates
+uint8_t  snakeLength = 4; // number of active entries
 ```
 
-- `snake[0]` is the head (drawn in green)
-- `snake[1]` to `snake[snakeLength-1]` is the body (drawn in yellow)
+- `snake[0]` is the **head** (green)
+- `snake[1]` through `snake[snakeLength-1]` are body segments (yellow)
 
-**Movement Logic:**
+### Movement Logic
 
-1. Shift all body segments: each segment moves to the position of the one ahead
-2. Update head position based on current direction
-3. Wrap around screen edges (no wall collisions yet)
+`moveSnake()` does two things each game tick:
 
-**Current Limitations:**
+**1. Shift the body:** each segment copies the position of the one ahead of it.
 
-- No fruit or scoring system
-- No collision detection
-- No mutex protection (potential for display corruption)
-- Can reverse direction instantly (unrealistic)
-- No audio feedback
+```c
+for (uint8_t i = snakeLength; i > 0; i--) {
+    snake[i] = snake[i - 1];
+}
+// After this loop: snake[0] still holds the OLD head position.
+```
+
+**2. Move the head:** update `snake[0]` based on `currentDirection`. The starter wraps around edges (no wall collision yet).
+
+**How growth works:** if you increment `snakeLength` after the shift — before overwriting anything — the body-shift already copied data into `snake[snakeLength]`, so you get one extra segment for free on the next tick.
+
+### Current Limitations
+
+| Missing | Your task |
+| :------ | :-------- |
+| Mutex never created or used | Step 2 |
+| Render polls every 33 ms regardless of changes | Step 3 |
+| No food or fruit | Step 4 |
+| No score, growth, or speed scaling | Step 5 |
+| No audio feedback for game events | Step 6 |
+| No direction reversal prevention or self-collision | Step 7 |
+
+### Race Conditions in the Starter (report required)
+
+Study the source files and answer these questions in your lab report:
+
+1. `xMutexLCD` is declared in `app_objects.h`. Where is it **defined**? Where is `xSemaphoreCreateMutex()` called? What happens at runtime if `DrawGame()` executes before the mutex exists?
+
+2. `vSnakeTask` writes to `snake[]` and `snakeLength` while `vRenderTask` reads them at the same time. What ARM Cortex-M4 guarantee (if any) applies to multi-word struct accesses across tasks?
+
+3. `vSnakeTask` reads `gameState.currentDirection` while `vInputTask` writes it. Is `volatile` enough to make this safe? Explain why or why not.
+
+4. `vRenderTask` wakes every 33 ms even when the game is paused. How many unnecessary full redraws per second does this produce?
 
 ---
 
 ## Core Concepts
 
-### Common FreeRTOS Pitfalls (Read This First!)
+### Common FreeRTOS Pitfalls
 
-Before diving into implementation, be aware of these common mistakes that can cause hard-to-debug issues:
+Before coding, know these failure modes:
 
-**❌ Mistake 1: Forgetting to give back a mutex**
+**Forgetting to release a mutex:**
 ```c
-// WRONG - mutex never released if function returns early
+// WRONG — if you return early, the mutex is never released
 xSemaphoreTake(xMutexLCD, portMAX_DELAY);
-if (errorCondition) {
-    return;  // OOPS! Mutex still held
-}
+if (errorCondition) return;   // mutex leaked
+xSemaphoreGive(xMutexLCD);
+
+// CORRECT — check preconditions before taking
+if (errorCondition) return;
+xSemaphoreTake(xMutexLCD, portMAX_DELAY);
+// ... do work ...
 xSemaphoreGive(xMutexLCD);
 ```
 
-**✅ Solution: Always use structured patterns**
+**Delaying while holding a mutex:**
 ```c
-// CORRECT - mutex always released
-xSemaphoreTake(xMutexLCD, portMAX_DELAY);
-// Do work here
-xSemaphoreGive(xMutexLCD);  // Always reached
-```
-
-**❌ Mistake 2: Calling FreeRTOS functions from ISR without "FromISR" version**
-```c
-// WRONG - causes system crash
-void UART_ISR(void) {
-    xQueueSend(myQueue, &data, 0);  // Regular version in ISR!
-}
-```
-
-**✅ Solution: Use FromISR versions**
-```c
-// CORRECT
-void UART_ISR(void) {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xQueueSendFromISR(myQueue, &data, &xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
-```
-
-**❌ Mistake 3: Long delays or blocking while holding mutex**
-```c
-// WRONG - blocks other tasks unnecessarily
+// WRONG — blocks all other users for 1 second
 xSemaphoreTake(xMutexLCD, portMAX_DELAY);
 DrawGame();
-vTaskDelay(pdMS_TO_TICKS(1000));  // Still holding mutex!
+vTaskDelay(pdMS_TO_TICKS(1000));   // still holding the mutex!
 xSemaphoreGive(xMutexLCD);
-```
 
-**✅ Solution: Release mutex before delays**
-```c
-// CORRECT - minimize mutex hold time
+// CORRECT — release first, then delay
 xSemaphoreTake(xMutexLCD, portMAX_DELAY);
 DrawGame();
-xSemaphoreGive(xMutexLCD);  // Release first
-vTaskDelay(pdMS_TO_TICKS(1000));  // Then delay
+xSemaphoreGive(xMutexLCD);
+vTaskDelay(pdMS_TO_TICKS(1000));
 ```
 
-**❌ Mistake 4: Using wrong wait time for queue operations**
+**Calling regular FreeRTOS functions from an ISR:**
 ```c
-// WRONG - blocks forever if queue is full
-xQueueSend(xBuzzerQueue, &event, portMAX_DELAY);
-// If queue full, this task is stuck forever!
-```
+// WRONG — xQueueSend inside an ISR will corrupt the kernel
+void GPIO_ISR(void) {
+    xQueueSend(myQueue, &data, 0);
+}
 
-**✅ Solution: Use appropriate timeouts**
-```c
-// CORRECT - non-blocking for non-critical events
-if (xQueueSend(xBuzzerQueue, &event, 0) != pdPASS) {
-    // Queue full, sound dropped (acceptable for audio)
+// CORRECT — use the FromISR variants
+void GPIO_ISR(void) {
+    BaseType_t woken = pdFALSE;
+    xQueueSendFromISR(myQueue, &data, &woken);
+    portYIELD_FROM_ISR(woken);
 }
 ```
 
-<Aside type="caution">
-**Priority Inversion Warning:** If TaskA (priority 3) holds a mutex, and TaskB (priority 1) is waiting for it, TaskB effectively runs at priority 3 while waiting. FreeRTOS handles this with priority inheritance, but be aware of the concept!
+<Aside type="caution" title="Priority inversion">
+If a high-priority task waits for a mutex held by a low-priority task, a medium-priority task can preempt the low one and delay the high one indefinitely. FreeRTOS mutexes use **priority inheritance** to prevent this. Binary semaphores do not. This is one reason to use `xSemaphoreCreateMutex()` instead of `xSemaphoreCreateBinary()` for resource protection.
 </Aside>
-
----
 
 ### What is a Mutex?
 
-A **mutex (mutual exclusion)** prevents multiple tasks from accessing a shared resource simultaneously. Think of it as a lock that only one task can hold at a time.
+A mutex prevents two tasks from accessing a shared resource simultaneously. Unlike a binary semaphore, a mutex has **ownership** (only the taker can give it back) and supports **priority inheritance**.
 
-**Why do we need it?**
+Use a mutex when multiple tasks share: the LCD, a UART, an SPI bus, or any multi-field data structure that a task could read mid-update.
 
-The LCD display is a shared resource. If two tasks try to draw at the same time, the display will show corrupted graphics or SPI communication will fail.
-
-**Without mutex (WRONG - can cause corruption):**
-
-```c
-void TaskA() {
-    DrawSnake();  // Task A drawing...
-}
-
-void TaskB() {
-    DrawScore();  // Task B drawing at SAME TIME!
-}
-```
-
-**With mutex (CORRECT):**
-
-```c
-void TaskA() {
-    xSemaphoreTake(xMutexLCD, portMAX_DELAY);
-    DrawSnake();  // Only Task A can draw now
-    xSemaphoreGive(xMutexLCD);
-}
-
-void TaskB() {
-    xSemaphoreTake(xMutexLCD, portMAX_DELAY);  // Waits for Task A to finish
-    DrawScore();  // Now Task B can safely draw
-    xSemaphoreGive(xMutexLCD);
-}
-```
 For more details, see:
 <LinkCard
-     title="FreeRTOS Mutex Guide"
-     description="Learn how to use mutexes in FreeRTOS."
+     title="Semaphores and Mutexes Guide"
+     description="Mutex vs. binary semaphore, priority inheritance, and correct usage patterns."
      href="/guides/freertos/semaphores-mutexes/"
-     icon="right-arrow">
-</LinkCard>
+     icon="right-arrow"
+/>
 
-### What is a Queue?
+### What are Task Notifications?
 
-A **queue** is a FreeRTOS mechanism for sending data between tasks. It's **thread-safe** and allows tasks to communicate without directly accessing shared variables.
-
-**Example: Audio Events**
-
-Instead of playing sounds directly (which would block), we send "sound requests" to a dedicated buzzer task:
+A task notification is a lightweight signal sent directly to one specific task. Unlike a semaphore, it requires no kernel object — every task already has a built-in notification counter.
 
 ```c
-// From any task - non-blocking
-BuzzerEvent event = {1000, 100};  // 1000Hz for 100ms
-xQueueSend(xBuzzerQueue, &event, 0);
+// Sender (from another task)
+xTaskNotifyGive(xTargetTaskHandle);
 
-// Buzzer task receives and plays
-BuzzerEvent receivedEvent;
-xQueueReceive(xBuzzerQueue, &receivedEvent, portMAX_DELAY);
-PlayTone(receivedEvent.frequency, receivedEvent.duration);
+// Receiver — blocks until notified
+ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 ```
+
+Task notifications are faster and smaller than semaphores for 1:1 signaling. You will use them to wake `vRenderTask` exactly when the game state changes, instead of waking it every 33 ms regardless.
+
 For more details, see:
 <LinkCard
-     title="FreeRTOS Queue Guide"
-     description="Learn how to use queues in FreeRTOS."
-     href="/guides/freertos/queues/"
-     icon="right-arrow">
-</LinkCard>
+     title="Task Notifications Guide"
+     description="xTaskNotifyGive, ulTaskNotifyTake, and when to prefer notifications over semaphores."
+     href="/guides/freertos/task-notifications/"
+     icon="right-arrow"
+/>
 
-### Understanding Task Priorities
+### What are Event Groups?
 
-In FreeRTOS, **higher priority numbers mean higher priority**. The scheduler always runs the highest-priority task that is ready.
+An event group holds a set of boolean flags (bits). Any task can set or clear any bit. Any task can block until one or more specific bits are set.
 
-**Priority Rules:**
-- Tasks with the same priority are scheduled in **round-robin** fashion
-- A lower-priority task only runs when all higher-priority tasks are blocked
-- Priority 0 is the lowest (idle task priority)
+```c
+// Define named bits
+#define EVT_FOOD_EATEN  (1 << 0)
+#define EVT_GAME_OVER   (1 << 1)
 
-**For this lab, consider:**
+// Setter (from any task)
+xEventGroupSetBits(xGameEvents, EVT_FOOD_EATEN);
+
+// Consumer — blocks until ANY of the listed bits are set
+EventBits_t bits = xEventGroupWaitBits(
+    xGameEvents,
+    EVT_FOOD_EATEN | EVT_GAME_OVER,
+    pdTRUE,        // clear matched bits after returning
+    pdFALSE,       // wake on ANY bit (not all)
+    portMAX_DELAY
+);
+```
+
+One event group replaces multiple semaphores when a consumer cares about *which* event happened, not just *that* something happened.
+
+For more details, see:
+<LinkCard
+     title="Event Groups Guide"
+     description="xEventGroupCreate, xEventGroupSetBits, xEventGroupWaitBits — patterns and pitfalls."
+     href="/guides/freertos/event-groups/"
+     icon="right-arrow"
+/>
+
+### Task Priorities
 
 | Task | Suggested Priority | Reasoning |
-|------|-------------------|-----------|
-| Input | 3 | **Highest** - User input must be responsive |
-| Snake | 2 | **Medium** - Game logic is important but can wait for input |
-| Render | 2 | **Medium** - Visual updates happen at fixed rate |
-| Buzzer | 2 | **Medium** – Audio feedback is non-critical |
-
-**Why this works:**
-- **Input task** (priority 3) runs every 10ms, processes joystick/buttons quickly, then blocks
-- **Snake and Render** (priority 2) share CPU time in round-robin
-- **Buzzer task** (priority 2) plays sounds when nothing else needs CPU
-
-**Alternative configuration:** All tasks at priority 2 (pure round-robin)
-- Simpler to reason about
-- Fine for this application since all tasks block regularly
-- Good starting point for beginners
+|------|-------------------|-----------| 
+| Input | 3 | User input must never be delayed by game logic |
+| Snake | 2 | Game logic runs after input is processed |
+| Render | 2 | Draws whenever Snake notifies it |
+| Buzzer | 1 | Audio feedback is non-critical |
 
 <Aside type="tip">
-Start with all tasks at the same priority (2). Only adjust if you notice responsiveness issues!
+Start all tasks at priority 2 and adjust only if you observe responsiveness problems.
 </Aside>
 
 ---
 
 ## Implementation Steps
 
-### Step 1: Run Snake Base (8 points)
+### Step 1: Run Snake Base (5 points)
 
-**Goal:** Verify that the basic snake game works without modifications.
+Build and run the starter. Before doing anything else, confirm:
 
-Build and run the starter code. Test:
+- Snake moves with the joystick
+- S1 pauses and resumes
+- S2 resets
+- Snake wraps around edges
 
-- Snake moves smoothly with joystick
-- Pause/resume with S1 button
-- Reset game with S2 button
-- Snake wraps around screen edges
-
-<Aside type="caution">
-If you see display corruption or random crashes, it means multiple tasks are accessing the LCD simultaneously. This will be fixed in Step 2!
-</Aside>
-
----
-
-### Step 2: LCD Mutex Protection (12 points)
-
-**Goal:** Prevent multiple tasks from drawing to LCD simultaneously using a mutex.
-
-#### Understanding the Problem
-
-Right now, the Render task calls `DrawGame()` every 33ms, but other tasks might also want to draw (like showing text). Without protection, this causes display corruption.
-
-#### Implementation
-
-**Create the mutex in main():**
-
-```c
-int main(void)
-{
-    // ... existing initialization ...
-    
-    // Create mutex for LCD protection
-    xMutexLCD = xSemaphoreCreateMutex();
-    if (xMutexLCD == NULL) {
-        // Mutex creation failed - handle error
-        while(1);  // Halt system
-    }
-    
-    // ... create tasks ...
-}
-```
-
-**Protect LCD access in vRenderTask():**
-
-```c
-static void vRenderTask(void *pvParameters)
-{
-    (void)pvParameters;
-    LCD_Init();
-    TickType_t last = xTaskGetTickCount();
-    for(;;)
-    {
-        // Acquire mutex before drawing
-        xSemaphoreTake(xMutexLCD, portMAX_DELAY);
-        DrawGame(&gameState);
-        xSemaphoreGive(xMutexLCD);  // Release immediately after
-        
-        vTaskDelayUntil(&last, pdMS_TO_TICKS(33));
-    }
-}
-```
-
-**Testing:**
-- No visual corruption or crashes
-- Smooth graphics rendering
-
-<Aside type="tip">
-Always pair `xSemaphoreTake()` with `xSemaphoreGive()`! Think of it as opening and closing a door - you must close it when you're done.
-</Aside>
-
----
-
-### Step 3: Buzzer via Queue + Buttons (12 points)
-
-**Goal:** Design and implement a buzzer subsystem that plays sounds based on queue events.
+Then study the source files and write down your answers to the four race-condition questions from the "Understanding the Starter Code" section. You will include these in your lab report.
 
 <Aside type="caution">
-Note: Be careful with task priorities. Set the Buzzer task to priority 2. Try running it with priority 1 to observe the effects, then restore it to priority 2. Record your observations in your lab report.
-</Aside>
-
-#### 🔊 Design Questions
-
-Before implementing, consider these architectural questions:
-
-1. **Why would blocking for sound be bad?**
-   - What happens if Input task waits 100ms for a beep to finish?
-   - How does this affect joystick responsiveness?
-
-2. **What data needs to be passed between tasks?**
-   - What information defines a "sound event"?
-   - How many different sounds might be queued up?
-
-3. **Task responsibilities:**
-   - Which task should **produce** sound events?
-   - Which task should **consume/play** sound events?
-   - How should they communicate without shared variables?
-
-4. **Integration with existing architecture:**
-   - Where does buzzer initialization belong?
-   - Which task priority should the buzzer task have? Why?
-
-<Aside type="tip">
-You've used the buzzer in previous labs!
-</Aside>
-
-#### Provided Files
-
-**buzzer.h (Complete header - use as-is):**
-
-```c
-#pragma once
-#include <stdint.h>
-
-// Hardware mapping for the buzzer (PF1 -> M0PWM1 / Generator 0)
-#define BUZZER_PWM_BASE    PWM0_BASE
-#define BUZZER_GEN         PWM_GEN_0
-#define BUZZER_OUTNUM      PWM_OUT_1
-#define BUZZER_OUTBIT      PWM_OUT_1_BIT
-#define BUZZER_GPIO_BASE   GPIO_PORTF_BASE
-#define BUZZER_GPIO_PIN    GPIO_PIN_1
-
-// Buzzer event structure sent via queue
-typedef struct {
-    uint32_t frequency;  // Hz
-    uint32_t duration;   // milliseconds
-} BuzzerEvent;
-
-// Public API functions
-void Buzzer_Init(void);
-void Buzzer_Post(uint32_t freq, uint32_t durationMs);
-
-// Internal functions (implement these)
-static void vBuzzerTask(void* pvParameters);
-static void Buzzer_HWInit(void);
-static void Buzzer_Start(uint32_t freq_hz);
-static void Buzzer_Stop(void);
-```
-
-**buzzer.cpp (Function skeletons - implement the logic!):**
-
-```c
-#include "buzzer.h"
-#include "app_objects.h"
-
-extern "C" {
-#include "driverlib/pwm.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/pin_map.h"
-#include "driverlib/gpio.h"
-#include "inc/hw_memmap.h"
-#include "FreeRTOS.h"
-#include "task.h"
-#include "queue.h"
-}
-
-// TODO: Declare queue handle for buzzer events
-
-// TODO: Implement the buzzer task
-// This task should:
-// 1. Wait for events from the queue
-// 2. Start PWM with correct frequency  
-// 3. Wait for specified duration
-// 4. Stop PWM
-static void vBuzzerTask(void* pvParameters)
-{
-    // Your implementation here
-}
-
-// TODO: Implement hardware initialization
-// You've done this before! Set up GPIO pin and PWM peripheral
-static void Buzzer_HWInit(void)
-{
-    // Your implementation here
-}
-
-// TODO: Configure PWM to generate specific frequency
-// Calculate period from frequency and system clock
-static void Buzzer_Start(uint32_t freq_hz)
-{
-    // Your implementation here
-}
-
-// TODO: Disable PWM output
-static void Buzzer_Stop(void)
-{
-    // Your implementation here
-}
-
-// TODO: Initialize complete buzzer subsystem
-// 1. Initialize hardware (GPIO + PWM)
-// 2. Create queue for events
-// 3. Create and start buzzer task
-void Buzzer_Init(void)
-{
-    // Your implementation here
-}
-
-// TODO: Post sound event to queue (non-blocking)
-// Create event struct and send to queue
-void Buzzer_Post(uint32_t freq, uint32_t durationMs)
-{
-    // Your implementation here
-}
-```
-
-#### Your Implementation Tasks
-
-**Task 3A: Queue Communication Design**
-- **Queue size considerations:**
-  - Too small: Events get dropped when queue fills up
-  - Too large: Wastes RAM unnecessarily
-  - For audio events: 10 items is reasonable (unlikely to have 10 sounds queued)
-  - Each BuzzerEvent is 8 bytes (2 x uint32_t), so 10 items = 80 bytes
-  
-- **Blocking behavior:**
-  - Should `Buzzer_Post()` block if queue is full? **NO**
-  - Reason: Audio is non-critical feedback, better to drop a sound than freeze the game
-  - Use timeout of 0 (non-blocking) for `xQueueSend()`
-  
-- **Data structure design:**
-  ```c
-  typedef struct {
-      uint32_t frequency;  // Hz (e.g., 1000 = 1kHz)
-      uint32_t duration;   // milliseconds
-  } BuzzerEvent;
-  ```
-
-**Understanding queue behavior:**
-```c
-// Producer (any task) - non-blocking
-BuzzerEvent evt = {1000, 100};
-if (xQueueSend(queue, &evt, 0) == pdPASS) {
-    // Successfully queued
-} else {
-    // Queue full - sound dropped (acceptable)
-}
-
-// Consumer (buzzer task) - blocking wait
-BuzzerEvent evt;
-if (xQueueReceive(queue, &evt, portMAX_DELAY) == pdPASS) {
-    // Got event, play sound
-}
-```
-
-**Task 3B: Hardware Integration**  
-- Where should `Buzzer_Init()` be called in main()?
-- What PWM clock divider works well for audio frequencies?
-- How do you calculate PWM period from desired frequency?
-
-**Task 3C: Task Priority and Timing**
-- What priority should buzzer task have relative to Input/Snake/Render?
-- Should buzzer task have higher or lower priority than game logic? Why?
-
-**Task 3D: Button Feedback Integration**
-- Add `Buzzer_Post()` calls to button press handlers
-- Choose different frequencies for S1 vs S2 (make them distinguishable)
-- Test that sounds don't interfere with game responsiveness
-
-#### Implementation Strategy
-
-1. **Start with hardware functions** (you've done this before!)
-   - `Buzzer_HWInit()` - GPIO + PWM setup
-   - `Buzzer_Start()` - Configure PWM for frequency
-   - `Buzzer_Stop()` - Disable PWM output
-
-2. **Add FreeRTOS integration**
-   - Create queue in `Buzzer_Init()`
-   - Implement `vBuzzerTask()` with queue receive loop
-   - Connect `Buzzer_Post()` to queue send
-
-3. **Test incrementally**
-   - Test hardware functions first (direct PWM calls)
-   - Test queue communication (send/receive events)
-   - Test full integration (button press → queue → sound)
-
-#### 🤔 Need Help?
-
-<details>
-<summary>💡 Hint 1: Queue Size Reasoning (Click if unsure about queue size)</summary>
-
-Think about user behavior: How many buttons could someone press in quick succession? 
-- Typical user: 2-3 rapid presses maximum
-- Stressed player: Maybe 5-6 presses in a row
-- Safety margin: 10 events is plenty for audio feedback
-
-```c
-// Queue creation pattern:
-xBuzzerQueue = xQueueCreate(QUEUE_SIZE, sizeof(BuzzerEvent));
-//                          ^^^^^^^^^   ^^^^^^^^^^^^^^^^^^
-//                          How many?   What size each?
-```
-
-</details>
-
-<details>
-<summary>💡 Hint 2: Task Priority Logic (Click if stuck on priority decision)</summary>
-
-Ask yourself:
-- Should audio interruptions stop game logic? (No → Lower priority than Snake)
-- Should missing button presses stop audio? (No → Same or lower priority than Input)  
-- Audio priority 2 works well (same as game tasks, processed in round-robin)
-
-```c
-// Task creation pattern:
-xTaskCreate(vBuzzerTask, "Buzzer", STACK_SIZE, NULL, PRIORITY, NULL);
-//          ^^^^^^^^^^^            ^^^^^^^^^^        ^^^^^^^^
-//          Your function          512 is enough     2 works well
-```
-
-</details>
-
-<details>
-<summary>💡 Hint 3: Queue Operations (Click if queue communication isn't working)</summary>
-
-**Sending events (from any task):**
-```c
-void Buzzer_Post(uint32_t freq, uint32_t durationMs)
-{
-    if (!xBuzzerQueue) return;  // Safety check
-    
-    BuzzerEvent evt;
-    evt.frequency = freq;
-    evt.duration = durationMs;
-    
-    // Non-blocking send (returns immediately if full)
-    xQueueSend(xBuzzerQueue, &evt, 0);
-    //                              ^
-    //                              0 = don't wait if full
-}
-```
-
-**Receiving events (in buzzer task):**
-```c
-static void vBuzzerTask(void* pvParameters)
-{
-    BuzzerEvent evt;
-    for(;;) {
-        // Block until event arrives
-        if (xQueueReceive(xBuzzerQueue, &evt, portMAX_DELAY)) {
-            // Got event! Play the sound
-            if (evt.frequency > 0 && evt.duration > 0) {
-                Buzzer_Start(evt.frequency);
-                vTaskDelay(pdMS_TO_TICKS(evt.duration));
-                Buzzer_Stop();
-            }
-        }
-    }
-}
-```
-
-</details>
-
-<details>
-<summary>💡 Hint 4: PWM Integration (Click if no sound comes out)</summary>
-
-**Hardware initialization pattern:**
-```c
-static void Buzzer_HWInit(void)
-{
-    // Enable peripherals
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    
-    // Wait for ready
-    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_PWM0));
-    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF));
-    
-    // Configure pin
-    GPIOPinConfigure(GPIO_PF1_M0PWM1);  // PF1 -> PWM
-    GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_1);
-    
-    // Set PWM clock
-    PWMClockSet(PWM0_BASE, PWM_SYSCLK_DIV_64);  // Use from previous labs
-}
-```
-
-**PWM frequency calculation:**
-```c
-static void Buzzer_Start(uint32_t freq_hz)
-{
-    if (freq_hz == 0) {
-        Buzzer_Stop();
-        return;
-    }
-    
-    // Calculate period from frequency
-    uint32_t pwmClock = gSysClk / 64;  // Based on clock divider
-    uint32_t period = pwmClock / freq_hz;
-    if (period < 4) period = 4;  // Minimum safe value
-    
-    // Configure PWM generator
-    PWMGenConfigure(PWM0_BASE, PWM_GEN_0, 
-                    PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
-    PWMGenPeriodSet(PWM0_BASE, PWM_GEN_0, period);
-    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, period / 2);  // 50% duty cycle
-    
-    // Start PWM
-    PWMOutputState(PWM0_BASE, PWM_OUT_1_BIT, true);
-    PWMGenEnable(PWM0_BASE, PWM_GEN_0);
-}
-```
-
-</details>
-
-#### Testing Checklist
-
-- ✅ S1 button produces distinct beep sound
-- ✅ S2 button produces different beep sound  
-- ✅ Sounds don't block input processing
-- ✅ Multiple rapid button presses queue properly
-- ✅ Game remains responsive during sound playback
-- ✅ No crashes or system hangs
-
-#### Debug Tips
-
-**No sound at all:**
-- Check GPIO pin configuration
-- Verify PWM peripheral is enabled and ready
-- Test with simple PWM first (before queue)
-
-**Sounds play but input is sluggish:**
-- Check task priorities
-- Ensure `Buzzer_Post()` is non-blocking
-- Verify Input task isn't waiting for buzzer
----
-
-### Step 4: Random Fruit Spawn (5 points)
-
-**Goal:** Add a fruit that appears at random empty positions on the grid.
-
-#### Understanding the Context
-
-A Snake game without fruit is just a moving line! The fruit serves several purposes:
-- **Primary objective** for the player
-- **Growth trigger** for the snake
-- **Score mechanism** basis 
-- **Visual interest** on an otherwise empty grid
-
-But random placement has a critical constraint: **never spawn on the snake body** (that would be unfair to the player!).
-
-#### The Spawning Challenge
-
-**The Problem:**
-On a 16×16 grid (256 total positions), how do you find a random empty cell when the snake occupies some positions?
-
-**Naive Approach (DON'T DO):**
-```c
-// This could loop forever if snake fills most of the grid!
-do {
-    x = rand() % GRID_SIZE;
-    y = rand() % GRID_SIZE;
-} while (position_occupied);
-```
-
-**Better Approach:**
-The algorithm we'll implement is simple and works well for small-to-medium snake lengths:
-1. Generate random position
-2. Check if position is occupied by any snake segment  
-3. If occupied, try again
-4. If empty, place fruit there
-
-This works because early in the game, the snake is small and most positions are free. Later in the game (when snake is large), finding empty spots takes a few more attempts but still completes quickly.
-
-#### Understanding the Requirements
-
-The fruit should:
-- **Appear as a red cell** on the grid (visually distinct from green/yellow snake)
-- **Spawn at random positions** (not predictable patterns)
-- **Never spawn on snake body** (any of the snake segments)
-- **Only one fruit at a time** (not multiple fruits simultaneously)
-- **Persist until eaten** (doesn't disappear on its own)
-
-#### Implementation
-
-**Add fruit state variables to game.h:**
-
-```c
-// Add after snake declarations
-extern Position fruit;
-extern bool hasFruit;  // Track if fruit is currently placed
-```
-
-**Add necessary function declarations to game.h:**
-
-```c
-void SpawnFruit(void);
-```
-
-**Implement the collision detection helper in game.cpp:**
-
-This function checks if a given position (x,y) is occupied by any part of the snake:
-
-```c
-// Check if position collides with snake
-static bool IsPositionOnSnake(uint8_t x, uint8_t y)
-{
-    for (uint8_t i = 0; i < snakeLength; ++i) {
-        if (snake[i].x == x && snake[i].y == y) {
-            return true;
-        }
-    }
-    return false;
-}
-```
-
-**Implement the fruit spawning algorithm in game.cpp:**
-
-```c
-#include <stdlib.h>  // For rand()
-
-// Global fruit state (add near top of file with other globals)
-Position fruit;
-bool hasFruit = false;
-
-// Place fruit at random empty position
-void SpawnFruit(void)
-{
-    uint8_t x, y;
-    
-    // Keep trying random positions until we find an empty cell
-    do {
-        x = rand() % GRID_SIZE;
-        y = rand() % GRID_SIZE;
-    } while (IsPositionOnSnake(x, y));
-    
-    fruit.x = x;
-    fruit.y = y;
-    hasFruit = true;
-}
-```
-
-**Update ResetGame() to spawn initial fruit:**
-
-```c
-void ResetGame(void)
-{
-    // ... existing snake initialization ...
-    
-    // Reset score and spawn first fruit
-    score = 0;  // Note: you'll add this variable in Step 5
-    SpawnFruit();
-}
-```
-
-**Update DrawGame() to render fruit in display.cpp:**
-
-Add this code after drawing the snake but before the final GrFlush:
-
-```c
-void DrawGame(const SnakeGameState* state)
-{
-    // ... existing background and snake drawing ...
-    
-    // Draw fruit (if exists)
-    if (hasFruit) {
-        drawCell(fruit.x, fruit.y, ClrRed);
-    }
-    
-    // ... rest of function (score, game over text, etc.) ...
-}
-```
-
-#### Algorithm Analysis
-
-**Why this approach works:**
-- **Simple to understand** and implement
-- **Guaranteed to terminate** (there's always at least one empty cell early in game)
-- **Uniform distribution** across all empty cells
-- **Performance**: Average attempts = total_cells / empty_cells
-
-**Performance examples:**
-- Snake length 4 on 16×16 grid: ~1.02 attempts average
-- Snake length 50 on 16×16 grid: ~1.24 attempts average  
-- Snake length 200 on 16×16 grid: ~4.5 attempts average
-
-The algorithm only becomes slow when the snake fills most of the grid, but at that point the player has nearly won!
-
-#### Testing Checklist
-
-- ✅ Red fruit appears on grid at startup
-- ✅ Fruit never spawns on snake head or body segments
-- ✅ Each game reset creates fruit at different location
-- ✅ Fruit position is visually distinct (red vs green/yellow snake)
-- ✅ Only one fruit visible at any time
-
-#### Common Implementation Issues
-
-**Fruit spawns on snake body:**
-- Check that `IsPositionOnSnake()` loops through ALL snake segments (0 to snakeLength-1)
-- Verify snake position updates happen before fruit spawning
-
-**No fruit appears:**
-- Ensure `hasFruit` is set to true in `SpawnFruit()`
-- Check that `DrawGame()` includes fruit drawing logic
-- Verify fruit drawing happens after background clear but before GrFlush
-
-**Fruit appears at same location repeatedly:**
-- Make sure `rand()` is properly seeded (should be done in system initialization)
-- Check that modulo operation uses `GRID_SIZE` not hard-coded values
-
-<Aside type="tip">
-This step builds the foundation for the scoring system. Once fruit spawning works reliably, detecting when the snake "eats" it becomes straightforward position comparison!
+Display corruption or random crashes at this stage are expected — the mutex is not yet created. Record what you observe.
 </Aside>
 
 ---
 
-### Step 5: Design Score System (12 points) 
+### Step 2: Mutex Protection (15 points)
 
-**Goal:** Think through and implement the scoring mechanics when snake eats fruit.
+**Goal:** Create the mutex and guard every site where shared state is read or written by more than one task.
 
-#### 🤔 Design Questions
+#### What needs protection
 
-Before implementing, consider these questions:
+| Shared data | Written by | Read by |
+| :---------- | :--------- | :------ |
+| `snake[]`, `snakeLength` | `vSnakeTask` | `vRenderTask` |
+| `gameState.currentDirection` | `vInputTask` | `vSnakeTask` |
+| `gameState.isRunning`, `needsReset` | `vInputTask` | `vSnakeTask` |
+| food position (you add this) | `vSnakeTask` | `vRenderTask` |
+| score (you add this) | `vSnakeTask` | `vRenderTask` |
 
-1. **When should the score increase?**
-   - Every game tick? When snake moves? When fruit is eaten?
-   
-2. **What needs to happen when fruit is eaten?**
-   - Just increment score? Remove fruit? Spawn new fruit? Change snake?
-   
-3. **How do we detect that fruit was eaten?**
-   - What condition indicates the snake head touched the fruit?
-   
-4. **What's the lifecycle of a fruit?**
-   - Spawn → Exist → Get Eaten → ??? → Spawn New
+You decide: one mutex for all of this, or separate mutexes? Either choice is defensible — document and justify it.
 
-5. **Where should this logic live?**
-   - Input task? Snake task? Render task? Why?
+#### Requirements
 
-<Aside type="tip">
-Spend 5-10 minutes thinking about these questions and discussing with teammates before writing any code. The goal is to understand the problem before jumping to solutions!
+- Define `xMutexLCD` in `main.cpp` (the declaration in `app_objects.h` already exists).
+- Call `xSemaphoreCreateMutex()` **before** `vTaskStartScheduler()`.
+- Check the return value — if it is NULL, halt the system.
+- Wrap every access to shared data with `Take` / `Give`.
+- Never call `vTaskDelay()` while holding the mutex.
+- Never access shared data without the mutex, even for a "quick read."
+
+<Aside type="caution" title="Mutex cannot be used from an ISR">
+If you add a GPIO interrupt later, use `xSemaphoreGiveFromISR()` with a binary semaphore — not the mutex.
 </Aside>
 
-#### Implementation Requirements
+#### Verification
 
-Based on your design thinking, implement the following:
+After implementing the mutex, stress-test it: rapidly tilt the joystick and press buttons repeatedly. Display corruption should be gone. You can temporarily add `vTaskDelay(pdMS_TO_TICKS(50))` inside the critical section to confirm it blocks other tasks correctly — then remove it.
 
-**Add necessary variables to game.h:**
-- A score variable to track current points
-- Any other state you identified in your design
+---
 
-**Create game functions you identified:**
-- A function to check if fruit was eaten
-- A function to handle what happens when fruit is eaten
-- A function to increase snake size (since snake grows when eating)
+### Step 3: Task Notifications — Event-Driven Rendering (12 points)
 
-**Pseudocode for eating logic:**
+**Goal:** Replace the 33 ms polling timer in `vRenderTask` with a notification-driven wake-up from `vSnakeTask`.
+
+#### The problem with polling
+
+`vRenderTask` currently wakes every 33 ms using `vTaskDelayUntil`. When the game is paused this produces ~30 identical redraws per second with no new information. When the game is running, the render may show state that is up to 33 ms stale.
+
+#### What to implement
+
+`vSnakeTask` should notify `vRenderTask` each time it produces a new game state (after every tick, whether the snake moved or not). `vRenderTask` should block until notified, draw, then block again.
+
+To notify a specific task you need its `TaskHandle_t`. Save it at creation time:
+
+```cpp
+// main.cpp — declare before task creation
+static TaskHandle_t xRenderHandle = NULL;
+
+xTaskCreate(vRenderTask, "Render", 768, NULL, 2, &xRenderHandle);
 ```
-IF snake head position == fruit position AND fruit exists:
-    increase score by 1
-    mark fruit as eaten/removed
-    make snake grow by 1 segment
-    spawn new fruit at different location
+
+Then from inside `vSnakeTask`, after updating state:
+
+```cpp
+if (xRenderHandle != NULL) {
+    xTaskNotifyGive(xRenderHandle);
+}
 ```
 
-**Where to place the logic:**
-- Consider: Which task is responsible for moving the snake and checking game state?
-- Place your eating detection in the appropriate task's main loop
+Inside `vRenderTask`, replace `vTaskDelayUntil` with:
 
-**Testing checklist:**
-- Score starts at 0 and increments when eating fruit
-- Old fruit disappears when eaten
-- New fruit spawns immediately at different location
-- Snake grows by one segment each time
-- Score displays correctly on screen
+```cpp
+ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+// draw the current state
+```
 
-#### 🤔 Need Help?
+#### What changes
+
+- The render rate is now set by the Snake task's tick period (starts at 150 ms), not a fixed 33 ms timer.
+- When the game is paused and the Snake task still runs its loop, `vRenderTask` wakes each tick but draws the same frame — this is acceptable and still more efficient than polling.
+- As the snake speeds up (Step 5), the render rate increases automatically.
+
+**Report question:** Compare the polling approach with task notifications. When does the notification approach use less CPU? When might polling be the better design?
+
+---
+
+### Step 4: Random Fruit Spawn (8 points)
+
+**Goal:** Add a fruit that appears at a random empty grid position and disappears when eaten.
+
+#### Requirements
+
+- Add a `Position gFruit` variable and a `bool gHasFruit` flag.
+- `SpawnFruit()` places the fruit at a random grid cell that is not occupied by any snake segment. Use `rand()` from `<stdlib.h>`, seeded with a timer value at startup.
+- After `moveSnake()`, check if the new head position matches the fruit position. If it does, the fruit was eaten.
+- On eat: set `gHasFruit = false`, increment score, grow the snake, spawn a new fruit.
+- `DrawGame()` draws the fruit cell in red when `gHasFruit` is true.
+
+#### Algorithm for spawning
+
+A simple rejection-sampling loop works well on a 16×16 grid: pick a random position, check if any snake segment occupies it, retry if it does. This terminates quickly because the snake is small for most of the game.
+
+<Aside type="caution" title="Mutex and fruit">
+`gFruit` and `gHasFruit` are read by `vRenderTask` and written by `vSnakeTask`. Protect them with the mutex.
+</Aside>
 
 <details>
-<summary>💡 Hint 1: Data Structure Setup (Click if stuck on variable declarations)</summary>
+<summary>💡 Hint: Spawning algorithm structure</summary>
 
-**In game.h, add these declarations:**
-```c
-// Score tracking
-extern uint16_t score;
-
-// Function declarations you'll need
-bool HasEatenFruit(void);
-void GrowSnake(void);
-```
-
-**In game.cpp, add these globals:**
-```c
-// Global score variable
-uint16_t score = 0;
-```
-
-**In display.cpp, update DrawGame() to show score:**
-```c
-void DrawGame(const SnakeGameState* state)
-{
-    // ... existing drawing code ...
-    
-    // Draw score at top-left
-    char scoreText[16];
-    snprintf(scoreText, sizeof(scoreText), "Score: %u", score);
-    GrContextForegroundSet(&gContext, ClrWhite);
-    GrStringDraw(&gContext, scoreText, -1, 2, 2, false);
-    
-    // ... rest of function ...
-}
-```
-
-</details>
-
-<details>
-<summary>💡 Hint 2: Eating Detection Logic (Click if stuck on position comparison)</summary>
-
-**Eating detection function:**
-```c
-bool HasEatenFruit(void)
-{
-    // Check if fruit exists AND head position matches fruit
-    return hasFruit && 
-           (snake[0].x == fruit.x && snake[0].y == fruit.y);
-    //     ^^^^^^^^^^^   Head position coordinates
-    //                   ^^^^^^^^^^^^^^^^^^^^^^^ Fruit position coordinates
-}
-```
-
-**Integration in vSnakeTask:**
-```c
-static void vSnakeTask(void *pvParameters)
-{
-    // ... existing code ...
-    
-    for(;;) {
-        // ... reset logic ...
-        
-        if (gameState.isRunning) {
-            moveSnake();  // Move first
-            
-            // THEN check if fruit was eaten
-            if (HasEatenFruit()) {
-                score++;              // Increment score
-                GrowSnake();          // Make snake longer
-                hasFruit = false;     // Remove current fruit
-                SpawnFruit();         // Create new fruit
-                // Add sound here (Step 6)
-            }
-            
-            // Check other conditions (collision, etc.)
-        }
-        
-        vTaskDelay(pdMS_TO_TICKS(150));
-    }
-}
-```
-
-</details>
-
-<details>
-<summary>💡 Hint 3: Snake Growth Algorithm (Click if snake growth acts weird)</summary>
-
-**The tricky part - growing the snake:**
-```c
-void GrowSnake(void)
-{
-    if (snakeLength < MAX_LEN) {
-        // IMPORTANT: Duplicate the tail segment
-        snake[snakeLength] = snake[snakeLength - 1];
-        //    ^^^^^^^^^^^^^   ^^^^^^^^^^^^^^^^^^^^
-        //    New tail        Copy of old tail
-        
-        snakeLength++;  // Increase length
-        
-        // The duplicated segment will move to correct position
-        // on the next moveSnake() call
-    }
-}
-```
-
-**Why this works:**
-1. Before: `snake = [head, body1, body2, tail]` (length = 4)
-2. Eat fruit: `snake = [head, body1, body2, tail, tail]` (length = 5)
-3. Next move: `snake = [newHead, head, body1, body2, tail]` (length = 5)
-
-The "extra" tail becomes the new body segment!
-
-</details>
-
-<details>
-<summary>💡 Hint 4: Reset Integration (Click if score doesn't reset properly)</summary>
-
-**Update ResetGame() function:**
-```c
-void ResetGame(void)
-{
-    // Reset snake position and length
-    snakeLength = 4;
-    uint8_t cx = GRID_SIZE / 2;
-    uint8_t cy = GRID_SIZE / 2;
-    
-    for (uint8_t i = 0; i < snakeLength; ++i) {
-        snake[i].x = (uint8_t)(cx - i);
-        snake[i].y = cy;
-    }
-    
-    // Reset game state
-    gameState.currentDirection = RIGHT;
-    gameState.isRunning = true;
-    gameState.needsReset = false;
-    gameState.loose = false;  // Important for Step 7!
-    
-    // Reset score and spawn fruit
-    score = 0;        // Reset score to zero
-    SpawnFruit();     // Create new fruit
-}
-```
+Think through the function signature and the loop condition. The check "is this position occupied?" requires scanning the snake array from index 0 to `snakeLength - 1` and comparing coordinates. Write that helper first, then build the spawning loop around it.
 
 </details>
 
 ---
 
-### Step 6: Design Audio Feedback (8 points)
+### Step 5: Design Score System (10 points)
 
-**Goal:** Analyze requirements and implement satisfying audio feedback when eating fruit.
+**Goal:** Think through and implement scoring, snake growth, and speed scaling.
 
-#### 🎵 Design Questions 
+#### Design questions
 
-1. **What kind of sound should play when eating fruit?**
-   - High pitched? Low pitched? Long? Short? Why?
-   - How should it differ from button press sounds?
+Answer these before writing code:
 
-2. **When exactly should the sound play?**
-   - Before eating? During eating? After eating?
-   - What if multiple fruits are eaten quickly?
+1. When exactly should the score increment? On every game tick? Only when fruit is eaten?
+2. How does growth work? Which line of code in `moveSnake()` effectively keeps the tail?
+3. The game tick is currently a fixed 150 ms `vTaskDelay`. How do you make it decrease as score increases? What is a reasonable minimum (fastest the game can get)?
+4. Where does the score display on screen? Does it overlap the snake area?
 
-3. **What frequency range feels "good" for eating?**
-   - Reward sounds are typically higher frequency (1200-2000 Hz)
-   - Duration should be noticeable but not annoying (50-150ms)
+#### Implementation requirements
 
-4. **How does this integrate with existing buzzer system?**
-   - Can you reuse `Buzzer_Post()`? 
-   - Where should you call it from?
-
-#### Implementation Challenge
-
-Using your existing buzzer system, add audio feedback for fruit eating:
-
-1. **Choose your sound parameters:**
-   - Frequency: ___ Hz (experiment to find what sounds good!)
-   - Duration: ___ ms
-
-2. **Integrate with eating logic:**
-   - Add the buzzer call to your fruit eating detection
-   - Make sure it only plays once per fruit
-
-3. **Test different sounds:**
-   - Try 3-4 different frequency/duration combinations
-   - Pick the one that feels most satisfying
-
-**Testing:**
-- Pleasant tone plays every time you eat fruit
-- Different from button press sounds
-- No repeated sounds for same fruit
-
-<Aside type="tip">
-Experiment with different frequencies (800-2000 Hz) to find a satisfying "eat" sound! Sound design is part of game feel.
-</Aside>
-
-
-#### 🤔 Need Help?
+- Add a `uint16_t gScore` variable to `game.h / game.cpp`.
+- Increment score each time fruit is eaten.
+- Grow the snake by one segment each time fruit is eaten.
+- Reduce the game tick period by a fixed amount each time fruit is eaten (for example, 5 ms per fruit, minimum 60 ms).
+- Display the score on screen at all times.
+- Reset the score and speed on `ResetGame()`.
 
 <details>
-<summary>🔊 Hint 1: Sound Integration Location (Click if sound doesn't play when eating)</summary>
+<summary>💡 Hint: Speed scaling</summary>
 
-**Where to add the sound call:**
-```c
-// In vSnakeTask, inside the eating detection:
-if (HasEatenFruit()) {
-    score++;
-    GrowSnake();
-    hasFruit = false;
-    SpawnFruit();
-    
-    // Add eating sound HERE
-    Buzzer_Post(1500, 80);  // 1500Hz for 80ms
-    //           ^^^^  ^^
-    //           High  Short duration
-    //           pitch (rewarding sound)
-}
-```
-
-**Different sounds for comparison:**
-```c
-// In vInputTask, existing button sounds:
-if (btnPause.wasPressed()) {
-    gameState.isRunning = !gameState.isRunning && !gameState.loose;
-    Buzzer_Post(1000, 50);  // 1kHz beep for pause
-}
-
-if (btnReset.wasPressed()) {
-    gameState.needsReset = true;
-    Buzzer_Post(500, 100);  // 500Hz beep for reset
-}
-
-// Your eating sound should be different:
-Buzzer_Post(1500, 80);      // Higher pitch = more rewarding
-```
+The tick period controls snake speed. Store it in a local variable inside `vSnakeTask` and pass it to `vTaskDelay`. After an eat event, decrease the variable by your chosen step. Clamp it so it never goes below the minimum period.
 
 </details>
 
 <details>
-<summary>🔊 Hint 2: Frequency Experimentation (Click for sound design guidance)</summary>
+<summary>💡 Hint: Snake growth</summary>
 
-**Try these different eating sounds:**
-```c
-// Option 1: Bright and quick
-Buzzer_Post(1800, 60);   
+Look at the body-shift loop in `moveSnake()`. It copies `snake[i - 1]` into `snake[i]` for every `i` from `snakeLength` down to `1`. That means `snake[snakeLength]` already gets a copy of the old tail. If you increment `snakeLength` after calling `moveSnake()` (and the head did not eat fruit), the extra segment is already in place.
 
-// Option 2: Musical note (A6)
-Buzzer_Post(1760, 100);  
+</details>
 
-// Option 3: Classic arcade style
-Buzzer_Post(1200, 120);  
+---
 
-// Option 4: Very rewarding
-Buzzer_Post(2000, 80);   
+### Step 6: Event Groups — Game Event Coordination (10 points)
+
+**Goal:** Create an event group that signals when food is eaten or the game ends, and add a buzzer task that plays a distinct tone for each event.
+
+#### What to implement
+
+Define two event bits:
+
+```cpp
+#define EVT_FOOD_EATEN  (1 << 0)
+#define EVT_GAME_OVER   (1 << 1)
 ```
 
-**Test each one and pick what feels best!**
+Declare `EventGroupHandle_t xGameEvents` in `app_objects.h` and define and create it in `main.cpp` before the scheduler starts.
 
-**Human perception guide:**
-- **200-400 Hz**: Deep, warning, negative
-- **500-800 Hz**: Neutral, informational
-- **1000-1500 Hz**: Positive, attention
-- **1500+ Hz**: Very positive, reward, success
+In `vSnakeTask`:
+- Set `EVT_FOOD_EATEN` when the snake eats fruit.
+- Set `EVT_GAME_OVER` when self-collision is detected (Step 7).
+
+Add a `vBuzzerTask` (in a new `buzzer.h / buzzer.cpp`) that:
+
+1. Blocks on `xEventGroupWaitBits` waiting for either bit.
+2. When `EVT_FOOD_EATEN` arrives, plays a short high-pitched tone.
+3. When `EVT_GAME_OVER` arrives, plays a longer low-pitched tone.
+4. Uses `vTaskDelay` (not `SysCtlDelay`) for the tone duration.
+
+You implemented PWM buzzer code in Lab 1. Reuse that hardware initialization here.
+
+#### Design questions (answer in report)
+
+1. Could you implement the same behavior with two binary semaphores instead of one event group? What is the difference if both events occur before the buzzer task wakes up?
+2. Why should the buzzer task have lower priority than the game tasks?
+3. The event group wakes the buzzer task; the buzzer task uses `vTaskDelay` for the tone duration. During that delay, can the game still run? Why?
+
+<details>
+<summary>💡 Hint: Buzzer task structure</summary>
+
+The task loop has one pattern: wait → inspect which bits were set → play the appropriate tone → repeat. Both `if` branches can run in the same iteration if both bits were set simultaneously — check each bit independently, do not use `else if`.
 
 </details>
 
 <details>
-<summary>🔊 Hint 3: Sound Timing Validation (Click if multiple sounds overlap)</summary>
+<summary>💡 Hint: xEventGroupWaitBits parameters</summary>
 
-**Debugging overlapping sounds:**
-```c
-// Add this debug code temporarily:
-if (HasEatenFruit()) {
-    score++;
-    GrowSnake();
-    hasFruit = false;
-    SpawnFruit();
-    
-    // Debug: Print to verify this only happens once per fruit
-    // Remove this after testing
-    printf("Fruit eaten! Score: %d\n", score);
-    
-    Buzzer_Post(1500, 80);
-}
-```
-
-**If you hear multiple beeps for one fruit:**
-- Check that `hasFruit = false` happens immediately
-- Verify `SpawnFruit()` moves fruit to different location
-- Ensure `HasEatenFruit()` checks `hasFruit` flag
+Four key parameters: which bits to watch, whether to clear them on exit (`pdTRUE` = auto-clear), whether to require all bits or any bit (`pdFALSE` = any), and how long to wait. For this task you want: watch both bits, clear matched bits, wake on any bit, wait forever.
 
 </details>
+
 ---
 
 ### Step 7: Design Game Rules (15 points)
 
-**Goal:** Reason about and implement realistic movement constraints and game over conditions.
+**Goal:** Reason about and implement realistic movement constraints and collision detection.
 
-#### 🧠 Problem Analysis
+#### Part A: Direction reversal prevention
 
-Real Snake games have these rules:
-1. **Cannot reverse direction instantly** (moving RIGHT then immediately LEFT is impossible)
-2. **Game ends when snake hits itself** (head touches any body segment)
-3. **Game over state needs to be handled** (stop game, show message, allow restart)
+**The problem:** if the snake is moving RIGHT and the player pushes LEFT, the head moves into the second body segment — an instant collision that is the player's fault but also a bad user experience.
 
-Let's think through each problem:
+**Your design challenge:** define what "opposite direction" means and enforce it in `vInputTask` before updating `gameState.currentDirection`. The new direction should only be accepted if it is not the exact opposite of the current direction.
 
-#### Part A: Movement Constraint Analysis
+Answer in your report: should diagonal joystick inputs (NW, NE, SW, SE) also be checked, or only cardinal directions?
 
-**The Problem:**
-Currently, if snake is moving RIGHT and player presses LEFT, the snake reverses instantly and "eats itself" in one frame.
+#### Part B: Self-collision detection
 
-**Questions to consider:**
-1. What directions should be forbidden based on current direction?
-2. When should direction changes be ignored vs. accepted?
-3. How can you determine if a direction is "opposite" to current direction?
+**The problem:** after `moveSnake()`, how do you know if the head hit the body?
 
-**Your Task:**
-- Design a function to determine opposite directions
-- Modify input handling to reject opposite direction changes
-- Think: Should diagonal inputs (NE, SW, etc.) be handled differently?
+**Your design challenge:**
+- Which indices in the `snake` array must you compare against the head?
+- Can the head ever match `snake[0]`? Why not?
+- When should you call this check — before or after the fruit check?
 
+**Important edge case:** with the starter's initial length of 4, is a self-collision possible on the first move? When does the minimum length for a possible self-collision occur?
 
-#### Part B: Collision Detection Design  
+#### Part C: Game over state management
 
-**The Problem:**
-How do you detect when the snake head has collided with its own body?
+**Your design challenge:**
+- Add a `bool loose` field to `SnakeGameState` (or similar). How does this interact with `isRunning`?
+- Which task sets `loose`? Which tasks read it?
+- `DrawGame()` must show a game-over overlay with the final score. Where does this drawing happen and how does it avoid conflicting with the normal game draw path?
+- S2 must restart the game. `ResetGame()` must clear all game-over state.
+- Pause (S1) should be ignored during game over. Where do you enforce this?
 
-**Analysis Questions:**
-1. What data do you have available? (snake array, positions, length)
-2. Which part of snake can collide with which other parts?
-3. When should collision be checked? (before move? after move?)
-4. What makes a collision vs. valid position?
+#### Testing scenarios
 
-**Your Design Challenge:**
-- Write pseudocode for collision detection BEFORE coding
-- Consider edge cases: Can head collide with position [0]? Why not?
-- Think about performance: Do you need to check all segments?
+Test each rule explicitly:
 
-#### Part C: Game Over State Management
-
-**The Problem:**
-When collision is detected, what should happen to game state?
-
-**System Design Questions:**
-1. Which task should detect collision?
-2. How should game state change when collision occurs?
-3. What feedback should player get? (visual, audio, both?)
-4. How does player restart after game over?
-
-**Integration Questions:**
-1. How does this work with existing pause/resume system?
-2. Should snake keep moving during game over? 
-3. What prevents multiple collision detections?
-
-#### Implementation Challenges
-
-Now implement your designs:
-
-**Challenge 1: Anti-Reverse Function**
-```c
-// Design and implement this function
-Direction GetOppositeDirection(Direction dir);
-
-// Use it in input handling to reject bad moves
-// Pseudocode:
-// newDirection = getDirectionFromJoystick();
-// IF newDirection != opposite(currentDirection):
-//     accept the direction change
-```
-
-**Challenge 2: Collision Detection**
-```c
-// Design and implement collision detection
-bool HasSelfCollision(void);
-
-// Think about:
-// - Which array indices to check?
-// - When to call this function?  
-// - What constitutes a collision?
-```
-
-**Challenge 3: Game Over Integration**
-- Modify your snake task to handle collision detection
-- Add appropriate state changes when collision occurs
-- Add audio/visual feedback for game over
-- Ensure restart mechanism works properly
-
-#### Testing Scenarios
-
-Test each rule thoroughly:
-
-**Movement Rules:**
-- Moving RIGHT then pressing LEFT immediately → should do nothing
-- Moving UP then pressing DOWN immediately → should do nothing  
-- Moving RIGHT then pressing UP → should turn up normally
-- All 8 joystick directions work as expected
-
-**Collision Detection:**
-- Snake with length 4: head at (5,5), body at (4,5),(3,5),(2,5) 
-- Move LEFT → head goes to (4,5) → collision detected ✓
-- Move UP → head goes to (5,4) → no collision ✓
-
-**Game Over Flow:**
-- Collision detected → game stops moving
-- Audio feedback plays once  
-- Game over message appears
-- S2 button restarts game properly
-- Score resets correctly
-
-#### Advanced Thinking (Optional)
-
-If you finish early, consider:
-- Should there be a short delay before allowing restart?
-- Could you add a "high score" that persists across games?
-- How would you make the game progressively faster as score increases?
-
-
-
-#### Part A Hints 
+- Moving RIGHT, press LEFT → snake continues right (reversal ignored)
+- Moving RIGHT, press UP → snake turns up (valid change accepted)
+- Create a situation where the snake loops back on itself → game over triggered
+- During game over, press S1 → nothing happens
+- During game over, press S2 → game resets cleanly
 
 <details>
-<summary>💡 Hint A1: Opposite Direction Function (Click for function implementation)</summary>
+<summary>💡 Hint: Direction check structure</summary>
 
-**Complete function implementation:**
-```c
-Direction GetOppositeDirection(Direction dir)
-{
-    switch (dir) {
-        case UP:    return DOWN;
-        case DOWN:  return UP;
-        case LEFT:  return RIGHT;
-        case RIGHT: return LEFT;
-        default:    return dir;  // Shouldn't happen, but safe
-    }
-}
-```
-
-**Add to game.h:**
-```c
-Direction GetOppositeDirection(Direction dir);
-```
+You need a way to determine if two directions are opposites. One approach: a function that returns the opposite of a given direction. Another: a lookup table of forbidden pairs. Either works — pick the one that is clearer in your code and explain your choice in the report.
 
 </details>
 
 <details>
-<summary>💡 Hint A2: Input Validation Logic (Click for joystick integration)</summary>
+<summary>💡 Hint: Self-collision check placement</summary>
 
-**Modify vInputTask in main.cpp:**
-```c
-static void vInputTask(void *pvParameters)
-{
-    // ... existing code ...
-    
-    for (;;) {
-        // ... button handling ...
-        
-        // Joystick direction mapping
-        Direction newDirection = gameState.currentDirection;  // Default: keep current
-        
-        switch (gJoystick.direction8()) {
-            case JoystickDir::N:
-            case JoystickDir::NE:
-            case JoystickDir::NW:
-                newDirection = UP;
-                break;
-            case JoystickDir::S:
-            case JoystickDir::SE:
-            case JoystickDir::SW:
-                newDirection = DOWN;
-                break;
-            case JoystickDir::E:
-                newDirection = RIGHT;
-                break;
-            case JoystickDir::W:
-                newDirection = LEFT;
-                break;
-            case JoystickDir::Center:
-            default:
-                // Keep current direction
-                break;
-        }
-        
-        // ANTI-REVERSE LOGIC: Only update if not opposite
-        if (newDirection != GetOppositeDirection(gameState.currentDirection)) {
-            gameState.currentDirection = newDirection;
-        }
-        // If it IS opposite, ignore the input completely
-        
-        vTaskDelay(pdMS_TO_TICKS(INPUT_TICK_MS));
-    }
-}
-```
+Move the snake first, then check for self-collision, then check for fruit. If you check for fruit before self-collision, a snake that both eats fruit and collides in the same tick will grow before dying — an inconsistent state. Order matters.
 
 </details>
 
-
-#### Part B Hints
-
-<details>
-<summary>💡 Hint B1: Collision Detection Function (Click for implementation)</summary>
-
-**Complete collision detection:**
-```c
-bool HasSelfCollision(void)
-{
-    // Check if head position matches any body segment
-    // NOTE: Start at index 1, not 0 (head can't collide with itself)
-    for (uint8_t i = 1; i < snakeLength; ++i) {
-        if (snake[0].x == snake[i].x && snake[0].y == snake[i].y) {
-            return true;  // Collision detected!
-        }
-    }
-    return false;  // No collision
-}
-```
-
-**Add declaration to game.h:**
-```c
-bool HasSelfCollision(void);
-```
-
-**Why start at index 1:**
-- `snake[0]` = head position
-- `snake[1]` to `snake[snakeLength-1]` = body segments
-- Head can't collide with itself, so skip index 0
-
-</details>
-
-<details>
-<summary>💡 Hint B2: Collision Integration (Click for vSnakeTask integration)</summary>
-
-**Add collision checking to vSnakeTask:**
-```c
-static void vSnakeTask(void *pvParameters)
-{
-    // ... existing setup ...
-    
-    for(;;) {
-        if (gameState.needsReset) {
-            ResetGame();
-        }
-        
-        if (gameState.isRunning) {
-            moveSnake();  // Move first
-            
-            // Check collision AFTER movement
-            if (HasSelfCollision()) {
-                gameState.loose = true;        // Mark as game over
-                gameState.isRunning = false;   // Stop movement
-                Buzzer_Post(200, 500);         // Low sad sound
-                // Player must press S2 to reset
-            }
-            
-            // Check fruit eating (only if still alive)
-            if (!gameState.loose && HasEatenFruit()) {
-                score++;
-                GrowSnake();
-                hasFruit = false;
-                SpawnFruit();
-                Buzzer_Post(1500, 80);  // Happy eating sound
-            }
-        }
-        
-        vTaskDelay(pdMS_TO_TICKS(150));
-    }
-}
-```
-
-</details>
-
-<details>
-<summary>💡 Hint B3: Testing Collision Scenarios (Click for test cases)</summary>
-
-**Manual test scenarios:**
-```c
-// Test case 1: Length 4 snake moving into itself
-// Snake: Head(5,5), Body(4,5), Body(3,5), Tail(2,5)
-// Move LEFT → Head goes to (4,5) → Collision with Body(4,5) ✓
-
-// Test case 2: Snake turning in a loop
-// Create a situation where snake curves back on itself
-
-// Test case 3: Rapid direction changes
-// UP→RIGHT→DOWN→LEFT quickly → Should hit body
-```
-
-**Debug prints (remove after testing):**
-```c
-if (HasSelfCollision()) {
-    printf("COLLISION! Head at (%d,%d), Snake length: %d\n", 
-           snake[0].x, snake[0].y, snakeLength);
-    // Print all snake positions for debugging
-    for (uint8_t i = 0; i < snakeLength; i++) {
-        printf("  Segment %d: (%d,%d)\n", i, snake[i].x, snake[i].y);
-    }
-}
-```
-
-</details>
-
-#### Part C Hints
-
-<details>
-<summary>💡 Hint C1: Game State Variables (Click if stuck on state management)</summary>
-
-**Update SnakeGameState in game.h:**
-```c
-typedef struct SnakeGameState {
-    Direction currentDirection;
-    bool isRunning;      // false = game paused/stopped
-    bool loose;          // true = game over (collision happened)  
-    bool needsReset;     // true = S2 was pressed, reset requested
-} SnakeGameState;
-```
-
-**State combinations:**
-- `isRunning = true, loose = false`: Normal gameplay
-- `isRunning = false, loose = false`: Paused (S1 pressed)
-- `isRunning = false, loose = true`: Game over (collision)
-- `needsReset = true`: Reset requested (S2 pressed)
-
-</details>
-
-<details>
-<summary>💡 Hint C2: Game Over Display (Click for display integration)</summary>
-
-**Update DrawGame() in display.cpp:**
-```c
-void DrawGame(const SnakeGameState* state)
-{
-    // Clear background
-    tRectangle full = {0, 0, 127, 127};
-    GrContextForegroundSet(&gContext, ClrBlack);
-    GrRectFill(&gContext, &full);
-    
-    // Draw snake
-    for (uint8_t i = 0; i < snakeLength; ++i) {
-        drawCell(snake[i].x, snake[i].y, i == 0 ? ClrGreen : ClrYellow);
-    }
-    
-    // Draw fruit
-    if (hasFruit) {
-        drawCell(fruit.x, fruit.y, ClrRed);
-    }
-    
-    // Draw score
-    char scoreText[16];
-    snprintf(scoreText, sizeof(scoreText), "Score: %u", score);
-    GrContextForegroundSet(&gContext, ClrWhite);
-    GrStringDraw(&gContext, scoreText, -1, 2, 2, false);
-    
-    // Show game over message
-    if (!state->isRunning && state->loose) {
-        GrContextForegroundSet(&gContext, ClrRed);
-        GrStringDrawCentered(&gContext, "GAME OVER", -1, 64, 50, false);
-        GrContextForegroundSet(&gContext, ClrWhite);
-        GrStringDrawCentered(&gContext, "Press S2 to Reset", -1, 64, 70, false);
-    }
-    
-#ifdef GrFlush
-    GrFlush(&gContext);
-#endif
-}
-```
-
-</details>
-
-<details>
-<summary>💡 Hint C3: Reset Logic Update (Click for complete reset function)</summary>
-
-**Update ResetGame() to handle all state:**
-```c
-void ResetGame(void)
-{
-    // Reset snake position and size
-    snakeLength = 4;
-    uint8_t cx = GRID_SIZE / 2;
-    uint8_t cy = GRID_SIZE / 2;
-    
-    for (uint8_t i = 0; i < snakeLength; ++i) {
-        snake[i].x = (uint8_t)(cx - i);
-        snake[i].y = cy;
-    }
-    
-    // Reset ALL game state flags
-    gameState.currentDirection = RIGHT;
-    gameState.isRunning = true;       // Resume game
-    gameState.needsReset = false;     // Clear reset request
-    gameState.loose = false;          // Clear game over state
-    
-    // Reset score and fruit
-    score = 0;
-    SpawnFruit();
-}
-```
-
-**Input handling for pause/reset:**
-```c
-// In vInputTask:
-if (btnPause.wasPressed()) {
-    // Only allow pause if not game over
-    gameState.isRunning = !gameState.isRunning && !gameState.loose;
-    Buzzer_Post(1000, 50);
-}
-
-if (btnReset.wasPressed()) {
-    gameState.needsReset = true;  // Request reset
-    Buzzer_Post(500, 100);
-}
-```
-</details>
 ---
 
 ## Final Testing Checklist
 
-Before submitting, verify all features work:
+Before demonstrating to a TA:
 
-- ✅ Step 1: Base game runs, snake controlled by joystick
-- ✅ Step 2: No visual glitches (mutex protecting display)  
-- ✅ Step 3: Buttons produce different beep sounds
-- ✅ Step 4: Red fruit appears at random positions
-- ✅ Step 5: Eating fruit increases score, snake grows, new fruit spawns
-- ✅ Step 6: Pleasant sound plays when eating fruit
-- ✅ Step 7: Cannot reverse instantly; self-collision stops game
+- [ ] Step 1: Starter runs; race conditions documented in report
+- [ ] Step 2: No display corruption under rapid input; mutex hold time is minimal
+- [ ] Step 3: Rendering only updates when the game state changes; render rate follows game speed
+- [ ] Step 4: Red fruit appears at startup; never spawns on the snake; disappears when eaten
+- [ ] Step 5: Score increments on eat; snake grows; game speeds up with score
+- [ ] Step 6: High tone plays when eating; low tone plays on game over; tones do not block game tasks
+- [ ] Step 7: Reverse direction ignored; self-collision stops game; S2 restarts cleanly
 
 ---
 
-## Code Quality Tips
+## Code Quality
 
-### File Organization
+Keep your project modular:
 
-Keep your code modular:
-- **buzzer.h/cpp** - Only buzzer/audio logic
-- **display.h/cpp** - Only LCD/drawing functions  
-- **game.h/cpp** - Only game rules and state
-- **main.cpp** - Only system setup and task coordination
+<FileTree>
+- main.cpp               # System init, task creation, shared object initialization
+- app_objects.h          # gContext, gSysClk, xMutexLCD, xGameEvents, task handles
+- game.h / game.cpp      # Snake state, food, score, ResetGame, moveSnake, collision
+- display.h / display.cpp# LCD_Init, DrawGame, drawCell
+- buzzer.h / buzzer.cpp  # vBuzzerTask, PWM init, tone functions
+- FreeRTOS.h / FreeRTOSConfig.h
+- startup_ccs.c
+- FreeRTOS/
+  - ...
+</FileTree>
+
+`main.cpp` should read like system glue: hardware init, object creation, task creation, `vTaskStartScheduler()`.
+
+---
+
+## Lab Report (25 points)
+
+Write in clear, professional English. Include code snippets only where they illustrate a specific point — do not paste entire files.
+
+### Required sections
+
+**1. Introduction (2 pts)** — What is this lab about and what did you build?
+
+**2. System Architecture (5 pts)** — A diagram showing all tasks, their priorities, all shared objects (mutex, event group, notification path), and the data each task reads and writes. Explain your priority assignment.
+
+**3. Analysis Questions (13 pts)**
+
+- **Q1 (3 pts):** Answer the four race-condition questions from the "Understanding the Starter Code" section. For Q2 and Q3, give a concrete example of what could go wrong without protection.
+
+- **Q2 (2 pts):** Compare the polling render (33 ms `vTaskDelayUntil`) with the task-notification render. Give one scenario where each approach is better.
+
+- **Q3 (3 pts):** Describe your mutex design: how many mutexes, what does each protect, and what is the longest time any task holds yours? What would happen if a task held it for 200 ms?
+
+- **Q4 (2 pts):** In Step 6, if both `EVT_FOOD_EATEN` and `EVT_GAME_OVER` are set before `vBuzzerTask` wakes, what does `xEventGroupWaitBits` return? Does your buzzer task handle both events correctly in the same iteration?
+
+- **Q5 (3 pts):** Explain your game rules design from Step 7: how you detect self-collision, where in the tick sequence you check it, and why that order matters.
+
+**4. Design Decisions (3 pts)** — Explain three choices you made that the lab did not dictate. For each: what did you choose, what was the alternative, and why?
+
+**5. Conclusion (2 pts)** — What was the hardest part? What would break first if the system were extended with a second food item and a high-score display?
+
+---
+
+## Submitting Source Code
+
+1. Name your project `ece3849_lab3_<username>`.
+2. Right-click the project → `Export...` → `General` → `Archive File`.
+3. Filename: `ece3849_lab3_<username>.zip`.
+4. Upload the `.zip` and your lab report PDF to Canvas.
+
 ---
 
 ## Additional Resources
 
 <CardGrid>
 <LinkCard
-    title="FreeRTOS Mutex API"
-    description="Official documentation for semaphores and mutexes"
-    href="https://www.freertos.org/a00113.html"
-    icon="external"
+    title="Semaphores and Mutexes Guide"
+    description="Mutex vs. binary semaphore, priority inheritance, API reference."
+    href="/guides/freertos/semaphores-mutexes/"
+    icon="right-arrow"
 />
-
 <LinkCard
-    title="FreeRTOS Queue API"  
-    description="Learn about queue operations and best practices"
-    href="https://www.freertos.org/a00018.html"
-    icon="external"
+    title="Task Notifications Guide"
+    description="xTaskNotifyGive, ulTaskNotifyTake, and when to use them."
+    href="/guides/freertos/task-notifications/"
+    icon="right-arrow"
 />
-
 <LinkCard
-    title="Lab 2 Reference"
-    description="Review button handling and task creation"
-    href="/labs/lab2/"
-    icon="document"
+    title="Event Groups Guide"
+    description="xEventGroupCreate, xEventGroupSetBits, xEventGroupWaitBits."
+    href="/guides/freertos/event-groups/"
+    icon="right-arrow"
+/>
+<LinkCard
+    title="FreeRTOS Queues Guide"
+    description="Queue API reference — used in earlier labs."
+    href="/guides/freertos/queues/"
+    icon="right-arrow"
 />
 </CardGrid>
-
----
-
-## Self-Assessment: Do You Understand FreeRTOS?
-
-Before submitting, test your understanding with these questions:
-
-### Mutex Concepts
-
-1. **What happens if you forget to call `xSemaphoreGive()`?**
-   <details>
-   <summary>Click to check answer</summary>
-   The mutex remains locked forever. Any other task trying to take it will block indefinitely, causing a deadlock. The system appears frozen because critical tasks cannot access the shared resource.
-   </details>
-
-2. **Can you call `xSemaphoreTake()` from an interrupt?**
-   <details>
-   <summary>Click to check answer</summary>
-   **NO!** Mutexes can only be used in tasks, not interrupts. This is because mutexes implement priority inheritance, which doesn't make sense in ISR context. If you need synchronization in ISRs, use binary semaphores with `xSemaphoreTakeFromISR()`.
-   </details>
-
-3. **Why should you minimize the time a mutex is held?**
-   <details>
-   <summary>Click to check answer</summary>
-   While holding a mutex, other tasks that need it are blocked (cannot run). Long mutex hold times reduce system responsiveness and can cause priority inversion issues. Only hold the mutex for the minimum time needed to safely access the shared resource.
-   </details>
-
-### Queue Concepts
-
-4. **What's the difference between queue depth and item size?**
-   <details>
-   <summary>Click to check answer</summary>
-   - **Depth**: How many items the queue can hold (e.g., 10 events)
-   - **Item size**: Size in bytes of each item (e.g., sizeof(BuzzerEvent) = 8 bytes)
-   - Total queue memory = depth × item size (10 × 8 = 80 bytes)
-   </details>
-
-5. **What happens if you call `xQueueSend()` on a full queue with timeout 0?**
-   <details>
-   <summary>Click to check answer</summary>
-   It returns immediately with `errQUEUE_FULL` (not pdPASS). The item is NOT added to the queue. This is useful for non-critical events like audio feedback where dropping an event is acceptable.
-   </details>
-
-6. **Can multiple tasks send to the same queue safely?**
-   <details>
-   <summary>Click to check answer</summary>
-   **YES!** Queues are thread-safe by design. Multiple tasks can call `xQueueSend()` simultaneously without corruption. FreeRTOS handles the synchronization internally.
-   </details>
-
-### Task Concepts
-
-7. **What does `vTaskDelay(pdMS_TO_TICKS(100))` do?**
-   <details>
-   <summary>Click to check answer</summary>
-   Puts the task into the Blocked state for 100 milliseconds, allowing other tasks to run. The task does NOT consume CPU during this time. After 100ms, the task becomes Ready and will run when scheduler allows it.
-   </details>
-
-8. **What's the difference between `vTaskDelay()` and `vTaskDelayUntil()`?**
-   <details>
-   <summary>Click to check answer</summary>
-   - `vTaskDelay()`: Delays for a relative time from NOW
-   - `vTaskDelayUntil()`: Delays until an absolute time (maintains precise period)
-   
-   For periodic tasks, use `vTaskDelayUntil()` to avoid timing drift!
-   </details>
-
-9. **What happens if two tasks have the same priority?**
-   <details>
-   <summary>Click to check answer</summary>
-   They execute in **round-robin** fashion with time slicing. Each gets a time slice (tick period), then the scheduler switches to the other. Both get equal CPU time when they're ready to run.
-   </details>
-
-### System Design
-
-10. **Why use a separate buzzer task instead of playing sounds directly?**
-    <details>
-    <summary>Click to check answer</summary>
-    Playing a sound requires waiting (e.g., 100ms duration). If done directly in the game task, the entire game freezes. A separate buzzer task can block during sound playback without affecting other tasks. The queue allows async communication: "play this sound whenever you're ready."
-    </details>
-
-11. **Could you use a global variable instead of a queue for the buzzer?**
-    <details>
-    <summary>Click to check answer</summary>
-    **Not safely!** Race conditions could occur:
-    - Task A writes frequency
-    - Task B writes frequency (before Task A's sound plays)
-    - Buzzer task reads frequency (gets Task B's value)
-    - Task A's sound is lost!
-    
-    Queues handle this correctly by storing all events in order.
-    </details>
-
-12. **What would happen without the LCD mutex?**
-    <details>
-    <summary>Click to check answer</summary>
-    Display corruption! The LCD uses SPI communication which involves multiple sequential operations. If two tasks send SPI commands simultaneously:
-    - Commands get interleaved (half from Task A, half from Task B)
-    - LCD receives garbled data
-    - Display shows random pixels, crashes, or freezes
-    </details>
-
-<Aside type="tip">
-If you couldn't answer most of these confidently, review the "Core Concepts" section and experiment with the code before submitting!
-</Aside>
-
----
-
-Good luck building your Snake game! 🐍

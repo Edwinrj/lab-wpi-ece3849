@@ -1,0 +1,251 @@
+---
+title: "Event Groups"
+description: "Synchronize tasks on multiple boolean conditions using a single FreeRTOS object — without creating a separate semaphore for each flag."
+tags:
+  - freertos
+links:
+  - "/guides/freertos/"
+---
+import { Aside } from '@astrojs/starlight/components';
+
+## What Is an Event Group?
+
+An event group is a set of boolean flags (bits) held in a single FreeRTOS object. Any task can set, clear, or read any bit. Any task can block until one or more specific bits are set.
+
+Think of it as a register that tasks can read and write atomically, with the added ability to sleep until a specific pattern of bits appears.
+
+A single event group holds at least 8 user-accessible bits. On a 32-bit port, it holds 24 user bits (the upper 8 are reserved by FreeRTOS).
+
+---
+
+## When to Use Event Groups
+
+| Situation | Event group good fit? |
+| :-------- | :-------------------- |
+| Task must wait for *any one of several* conditions | Yes |
+| Task must wait for *all of several* conditions simultaneously | Yes |
+| Multiple tasks need to see the same event flag | Yes |
+| One task signals exactly one other task | Probably not — a task notification is simpler |
+| Ordered data must be passed | No — use a queue |
+| You need to count occurrences | No — use a counting semaphore |
+
+Event groups excel when a consumer cares about *which* events happened, not just *that* something happened. A single wait call can match any combination of bits.
+
+---
+
+## Core API
+
+### Create
+
+```c
+#include "FreeRTOS.h"
+#include "event_groups.h"
+
+EventGroupHandle_t xGameEvents = NULL;
+
+// Before the scheduler starts:
+xGameEvents = xEventGroupCreate();
+if (xGameEvents == NULL) { while (1) {} }  // heap exhausted
+```
+
+### Set bits (from a task)
+
+```c
+// Set bit 0 and bit 2; all other bits are unchanged
+xEventGroupSetBits(xGameEvents, (1 << 0) | (1 << 2));
+```
+
+From an ISR, use the `FromISR` variant:
+
+```c
+BaseType_t higher = pdFALSE;
+xEventGroupSetBitsFromISR(xGameEvents, (1 << 0), &higher);
+portYIELD_FROM_ISR(higher);
+```
+
+### Clear bits
+
+```c
+xEventGroupClearBits(xGameEvents, (1 << 0) | (1 << 2));
+```
+
+### Wait for bits
+
+```c
+EventBits_t xEventGroupWaitBits(
+    EventGroupHandle_t xEventGroup,
+    EventBits_t        uxBitsToWaitFor,  // which bits to watch
+    BaseType_t         xClearOnExit,     // pdTRUE: clear matched bits after wake-up
+    BaseType_t         xWaitForAllBits,  // pdFALSE: wake on ANY bit; pdTRUE: wake on ALL bits
+    TickType_t         xTicksToWait
+);
+```
+
+Returns the event group value **at the moment the condition was met**, which may include bits beyond those you waited for.
+
+### Read without blocking
+
+```c
+EventBits_t current = xEventGroupGetBits(xGameEvents);
+// inspect bits without blocking or modifying them
+```
+
+---
+
+## Defining Bit Names
+
+Always define bit positions as named constants. Bit numbers are easy to mix up.
+
+```c
+#define EVT_FOOD_EATEN   (1 << 0)
+#define EVT_GAME_OVER    (1 << 1)
+#define EVT_LEVEL_UP     (1 << 2)
+#define EVT_ALL_GAME     (EVT_FOOD_EATEN | EVT_GAME_OVER | EVT_LEVEL_UP)
+```
+
+---
+
+## Pattern: Wait for Any Event
+
+A task blocks until at least one of several events occurs, then handles each one that arrived.
+
+```c
+void BuzzerTask(void *pvParameters)
+{
+    (void)pvParameters;
+
+    for (;;) {
+        // Block until food is eaten OR the game ends
+        EventBits_t bits = xEventGroupWaitBits(
+            xGameEvents,
+            EVT_FOOD_EATEN | EVT_GAME_OVER,  // bits to watch
+            pdTRUE,                           // clear matched bits after returning
+            pdFALSE,                          // pdFALSE = wake on ANY bit
+            portMAX_DELAY
+        );
+
+        if (bits & EVT_FOOD_EATEN) {
+            playTone(2000, 50);   // high beep
+        }
+        if (bits & EVT_GAME_OVER) {
+            playTone(400, 500);   // low, long tone
+        }
+    }
+}
+```
+
+Notice that both `if` branches can execute in the same iteration. If both bits were set before the task woke up, both conditions are true. Always check each bit independently.
+
+---
+
+## Pattern: Wait for All Events (Rendezvous)
+
+A task blocks until every required bit is set. Useful when a result depends on multiple independent sources completing.
+
+```c
+#define SENSOR_A_READY  (1 << 0)
+#define SENSOR_B_READY  (1 << 1)
+#define SENSOR_C_READY  (1 << 2)
+#define ALL_SENSORS     (SENSOR_A_READY | SENSOR_B_READY | SENSOR_C_READY)
+
+void FusionTask(void *pvParameters)
+{
+    (void)pvParameters;
+
+    for (;;) {
+        // Block until all three sensors have new data
+        xEventGroupWaitBits(
+            xSensorEvents,
+            ALL_SENSORS,
+            pdTRUE,    // clear all three bits after returning
+            pdTRUE,    // pdTRUE = wake only when ALL bits are set
+            portMAX_DELAY
+        );
+
+        // All sensors are ready — run the fusion algorithm
+        fuse(sensorA, sensorB, sensorC);
+    }
+}
+
+// Each sensor task sets its own bit when data is ready
+void SensorATask(void *pvParameters) {
+    for (;;) {
+        sensorA = readSensorA();
+        xEventGroupSetBits(xSensorEvents, SENSOR_A_READY);
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+```
+
+---
+
+## Pattern: State Machine with Flags
+
+Multiple flags can encode a state machine without dedicated state variables.
+
+```c
+#define STATE_PLAYING  (1 << 0)
+#define STATE_PAUSED   (1 << 1)
+#define STATE_GAMEOVER (1 << 2)
+
+// Transition to game over
+xEventGroupClearBits(xGameState, STATE_PLAYING | STATE_PAUSED);
+xEventGroupSetBits(xGameState, STATE_GAMEOVER);
+
+// Check state non-blocking (e.g., in display task)
+EventBits_t state = xEventGroupGetBits(xGameState);
+if (state & STATE_GAMEOVER) {
+    drawGameOverScreen();
+} else if (state & STATE_PAUSED) {
+    drawPausedOverlay();
+} else {
+    drawPlayfield();
+}
+```
+
+<Aside type="caution" title="Atomicity of clear + set">
+`xEventGroupClearBits` and `xEventGroupSetBits` are two separate atomic operations. Between them, the event group is in a transient state. If a task reads the group at exactly that moment, it sees neither the old state nor the new state. For state machines where this matters, hold a mutex around the transition or use a single `xEventGroupSetBits` call that encodes the full new state.
+</Aside>
+
+---
+
+## `xClearOnExit` Explained
+
+This parameter controls what happens to the matched bits when `xEventGroupWaitBits` returns.
+
+| `xClearOnExit` | Effect |
+| :------------- | :----- |
+| `pdTRUE` | Matched bits are cleared automatically. Next call will block again. |
+| `pdFALSE` | Bits remain set. Multiple tasks can all wake on the same event. |
+
+Use `pdTRUE` (auto-clear) when a single task owns the event and should consume it.  
+Use `pdFALSE` when multiple tasks should all see the same event simultaneously.
+
+---
+
+## Event Groups vs. Multiple Semaphores
+
+Suppose you have three events. You could create three binary semaphores and call `xSemaphoreTake` on each in sequence. But this has a problem: you can only wait on one semaphore at a time. If event B arrives before A, your task blocks on A and misses B until A finally arrives.
+
+An event group solves this: one call to `xEventGroupWaitBits` can block until any combination of events arrives, in any order, with no missed events.
+
+| | Multiple semaphores | Event group |
+| :-- | :-- | :-- |
+| Wait for any one of N events | Requires polling or N tasks | One `xEventGroupWaitBits` call |
+| Wait for all of N events | Requires ordered Takes (can deadlock) | One call with `pdTRUE` for `xWaitForAllBits` |
+| Multiple tasks see same event | Separate semaphore per task | One group, all readers wake together |
+| Memory | N semaphore objects | One event group |
+| Code | N Take/Give pairs | One Set/Wait pair |
+
+---
+
+## Common Mistakes
+
+| Mistake | Consequence | Fix |
+| :------ | :---------- | :-- |
+| Forgetting `event_groups.h` | Compile error | Include `event_groups.h` alongside `FreeRTOS.h` |
+| Setting bits from an ISR with `xEventGroupSetBits` | Kernel corruption | Use `xEventGroupSetBitsFromISR` in ISRs |
+| Treating the return value as only the waited bits | Return may include extra bits that were already set | Always mask: `if (bits & EVT_FOO)` |
+| Assuming bits are exclusive (only one can be set) | Both bits can be set simultaneously | Always check each bit independently |
+| Using `xClearOnExit = pdFALSE` without realizing bits accumulate | Old events persist and wake the consumer on the next call | Use `pdTRUE` unless you explicitly need persistence |
+| Creating the event group after the scheduler starts in a race | Another task may set bits before the group exists | Create all synchronization objects in `main()` before `vTaskStartScheduler()` |

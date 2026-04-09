@@ -5,7 +5,6 @@ tags:
   - freertos
 links:
   - "/guides/freertos/"
-  - "/labs/lab2/"
 ---
 import { Aside } from '@astrojs/starlight/components';
 
@@ -137,28 +136,21 @@ void InitTimeout(void)
 
 `pdFALSE` means the timer does **not** reload automatically.
 
-## The Lab 2 Pattern
+## Pattern: Timer Wakes a Worker Task
 
-In Lab 2, the timer is not doing the full microphone processing. Instead, it is used as a **regular sample trigger**.
-
-The pattern is:
+The most common and correct pattern is to split work into two pieces:
 
 ```text
 software timer callback
-    -> read one sample
-    -> store it in a buffer
-    -> when buffer is full, signal MicTask
+    -> do the small time-critical step (read sensor, store sample)
+    -> when work is accumulated, signal the worker task
 
-MicTask
+Worker task
     -> waits for the signal
-    -> computes RMS
-    -> updates shared display values
+    -> does the heavier processing (math, display update, logging)
 ```
 
-That is a very typical FreeRTOS design:
-
-- the timer callback does the **small time-critical step**
-- the task does the **heavier work**
+This keeps callbacks short and leaves computation in tasks where blocking and longer runtimes are acceptable.
 
 ## Example: Timer Wakes A Task
 
@@ -262,4 +254,4 @@ Use a **software timer** when:
 
 ## Summary
 
-Software timers are best when you need a **small, regular trigger**. In Lab 2, the timer is not the whole microphone subsystem; it is the piece that creates a consistent sampling rhythm and wakes the real processing task when enough data has been collected.
+Software timers are best when you need a **small, regular trigger**. The timer callback creates a consistent rhythm; a dedicated worker task does the heavier processing when the callback signals that enough data or time has accumulated.

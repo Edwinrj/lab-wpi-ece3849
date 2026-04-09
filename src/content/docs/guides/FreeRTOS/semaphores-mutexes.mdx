@@ -1,223 +1,260 @@
 ---
 title: "Semaphores and Mutexes"
-description: "Use binary semaphores, counting semaphores, and mutexes to synchronize tasks and protect shared resources."
+description: "Use binary semaphores, counting semaphores, and mutexes to synchronize tasks and protect shared resources in FreeRTOS."
 tags:
   - freertos
 links:
   - "/guides/freertos/"
-  - "/labs/lab2/"
 ---
 import { Aside } from '@astrojs/starlight/components';
 
 ## Overview
 
-FreeRTOS gives you several tools for coordination. They do **not** all solve the same problem.
+FreeRTOS provides three coordination primitives. They are not interchangeable — each solves a different problem.
 
-At a high level:
+| Primitive | Purpose |
+| :-------- | :------ |
+| Binary semaphore | Signal that an event happened |
+| Counting semaphore | Count how many events happened, or how many resources remain |
+| Mutex | Ensure only one task accesses a shared resource at a time |
 
-- **Binary semaphore**: "an event happened"
-- **Counting semaphore**: "this happened N times" or "N resources are available"
-- **Mutex**: "only one task may use this shared resource at a time"
+Picking the wrong tool makes bugs harder to find and fixes more fragile. The first question to ask before touching any API is:
 
-If students confuse these three, designs quickly become harder to debug than they need to be.
+> **Am I signaling that something happened, or am I protecting shared access to something?**
 
-## First Question: Event Or Protection?
+- **Signaling** → semaphore  
+- **Protecting** → mutex
 
-Before picking an API, ask:
-
-1. Are you trying to **wake a task because something happened**?
-2. Or are you trying to **prevent two tasks from touching the same resource at once**?
-
-If the answer is:
-
-- **event** -> think semaphore
-- **resource protection** -> think mutex
-
-## Quick Decision Table
-
-| Need | Best tool | Why |
-| :--- | :-------- | :-- |
-| ISR wakes a task | Binary semaphore | Simple one-bit event signal |
-| A task counts multiple arrivals | Counting semaphore | Preserves event count |
-| Protect LCD, UART, I2C, SPI | Mutex | Ownership and priority inheritance |
+---
 
 ## Binary Semaphore
 
-A binary semaphore is best when the message is simply:
-
-```text
-something happened
-```
-
-Common uses:
-
-- button interrupt wakes a task
-- ADC or DMA completion wakes a task
-- one task tells another task that a window is ready
-
-### ISR -> Task Pattern
+A binary semaphore carries one bit of information: "this happened." The sender gives the semaphore. The receiver takes it and acts.
 
 ```c
 #include "FreeRTOS.h"
 #include "semphr.h"
 
-static SemaphoreHandle_t xBtnSem;
+static SemaphoreHandle_t xEventSem = NULL;
 
+// Sender (ISR or another task)
 void GPIO_InterruptHandler(void)
 {
     BaseType_t higher = pdFALSE;
 
-    // clear hardware interrupt flag here
-    xSemaphoreGiveFromISR(xBtnSem, &higher);
+    GPIOIntClear(GPIO_PORTJ_BASE, GPIO_PIN_0);
+
+    xSemaphoreGiveFromISR(xEventSem, &higher);
     portYIELD_FROM_ISR(higher);
 }
 
-static void ButtonTask(void *arg)
+// Receiver task
+void ButtonTask(void *pvParameters)
 {
-    (void)arg;
-
+    (void)pvParameters;
     for (;;) {
-        if (xSemaphoreTake(xBtnSem, portMAX_DELAY) == pdTRUE) {
-            // handle button event
-        }
+        xSemaphoreTake(xEventSem, portMAX_DELAY);
+        // Handle the button event
     }
 }
 
-int main(void)
+// Initialization (before the scheduler starts)
+void Setup(void)
 {
-    xBtnSem = xSemaphoreCreateBinary();
-    // create ButtonTask
-    // enable GPIO interrupt after semaphore exists
+    xEventSem = xSemaphoreCreateBinary();
+    // Enable the GPIO interrupt AFTER creating the semaphore
 }
 ```
 
 <Aside type="caution" title="ISR rule">
-Inside an ISR, use `xSemaphoreGiveFromISR()`, not `xSemaphoreGive()`.
+Inside an interrupt handler, always use `xSemaphoreGiveFromISR()`, not `xSemaphoreGive()`. Calling the non-ISR version from an ISR corrupts the kernel.
 </Aside>
 
-### What A Binary Semaphore Does Not Do
+### What a binary semaphore does not do
 
-A binary semaphore does **not** remember an unlimited number of events. If the same event happens repeatedly before the task takes the semaphore again, those extra events can collapse into one pending signal.
+A binary semaphore saturates at one. If the event fires ten times before the receiver takes it, the receiver only wakes up once. This is intentional when you only care that the event happened, not how many times.
 
-That is fine when:
+If every occurrence must be counted, use a counting semaphore instead.
 
-- you only care that the task wakes up
-- multiple arrivals before wake-up are equivalent
-
-That is not fine when:
-
-- every event must be counted individually
+---
 
 ## Counting Semaphore
 
-A counting semaphore is the right tool when the count matters.
+A counting semaphore tracks a count. Use it when the count itself matters:
 
-Examples:
-
-- there are 3 free buffers
-- 5 packets arrived
-- a producer can get ahead of a consumer and you must not lose that count
+- "five packets arrived and have not been processed yet"
+- "three of four buffers are in use; one is free"
 
 ```c
-SemaphoreHandle_t xPool = NULL;
+// Create a counting semaphore with:
+//   max count = 10
+//   initial count = 0  (nothing ready yet)
+SemaphoreHandle_t xCountSem = xSemaphoreCreateCounting(10, 0);
 
-void InitPool(void)
-{
-    xPool = xSemaphoreCreateCounting(3, 3);
-}
-
-void UserTask(void *p)
+// Producer: increments the count
+void ProducerTask(void *pvParameters)
 {
     for (;;) {
-        if (xSemaphoreTake(xPool, pdMS_TO_TICKS(50)) == pdTRUE) {
-            // got one token
-            // use one resource
-            xSemaphoreGive(xPool);
-        }
+        // ... produce an item ...
+        xSemaphoreGive(xCountSem);
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}
+
+// Consumer: decrements the count, blocks when count reaches 0
+void ConsumerTask(void *pvParameters)
+{
+    for (;;) {
+        xSemaphoreTake(xCountSem, portMAX_DELAY);
+        // ... consume one item ...
     }
 }
 ```
 
+---
+
 ## Mutex
 
-A mutex is for **mutual exclusion**, not event signaling.
+A mutex is for **mutual exclusion**: preventing two tasks from accessing a shared resource simultaneously.
 
-Use it when two or more tasks share:
+Use a mutex when:
 
-- LCD access
-- UART output
-- I2C bus
-- SPI bus
-- any non-reentrant driver or shared peripheral
+- two or more tasks write the same peripheral (LCD, UART, SPI, I2C)
+- two or more tasks update the same data structure
+- any shared state could be partially updated between tasks
+
+### Creating and using a mutex
 
 ```c
-SemaphoreHandle_t xUartMutex;
+#include "FreeRTOS.h"
+#include "semphr.h"
 
-void UartWrite(const char *s)
+static SemaphoreHandle_t xUartMutex = NULL;
+
+void Uart_Init(void)
+{
+    xUartMutex = xSemaphoreCreateMutex();
+    // Always check: if NULL, the heap was exhausted
+    if (xUartMutex == NULL) { while (1) {} }
+}
+
+void Uart_Print(const char *msg)
 {
     xSemaphoreTake(xUartMutex, portMAX_DELAY);
-    // send through UART
+    // --- critical section: only one task here at a time ---
+    HAL_UART_Transmit(msg);
+    // -------------------------------------------------------
     xSemaphoreGive(xUartMutex);
 }
 ```
 
-Why a mutex instead of a binary semaphore?
+Every code path that enters the critical section must release the mutex. Returning early while holding a mutex prevents any other task from ever acquiring it — a classic deadlock.
 
-- a mutex has **ownership**
-- a mutex supports **priority inheritance**
-- it is specifically designed for resource protection
+```c
+// WRONG — mutex leaked on early return
+void BadWrite(const uint8_t *data, size_t len)
+{
+    xSemaphoreTake(xUartMutex, portMAX_DELAY);
+    if (data == NULL) {
+        return;          // mutex still held — no other task can use UART now
+    }
+    HAL_UART_Transmit(data, len);
+    xSemaphoreGive(xUartMutex);
+}
 
-### Priority Inheritance
+// CORRECT — every path releases
+void GoodWrite(const uint8_t *data, size_t len)
+{
+    if (data == NULL) { return; }   // check BEFORE taking
 
-Suppose:
+    xSemaphoreTake(xUartMutex, portMAX_DELAY);
+    HAL_UART_Transmit(data, len);
+    xSemaphoreGive(xUartMutex);
+}
+```
 
-- a low-priority task holds the display lock
-- a high-priority task wants the display
-- a medium-priority task keeps preempting the low-priority one
+### Keep critical sections short
 
-Without protection against priority inversion, the high-priority task could wait far longer than expected. A mutex helps by temporarily boosting the priority of the low-priority owner so it can finish and release the resource.
+The mutex hold time directly affects how long other tasks wait. While one task holds the mutex, every other task that needs it is blocked — it cannot do useful work. Rules:
+
+- Do the minimum necessary inside the critical section.
+- **Never call `vTaskDelay()` while holding a mutex.**
+- **Never block on another synchronization object while holding a mutex.** This is the most common cause of deadlocks.
+
+```c
+// WRONG — task holds mutex across a long delay
+xSemaphoreTake(xUartMutex, portMAX_DELAY);
+DrawScreen();
+vTaskDelay(pdMS_TO_TICKS(1000));   // Other tasks wait 1 second for nothing
+xSemaphoreGive(xUartMutex);
+
+// CORRECT — release first, then delay
+xSemaphoreTake(xUartMutex, portMAX_DELAY);
+DrawScreen();
+xSemaphoreGive(xUartMutex);
+vTaskDelay(pdMS_TO_TICKS(1000));
+```
+
+### Mutex cannot be used from an ISR
+
+Unlike semaphores, a mutex cannot be given or taken from an ISR. Mutexes rely on scheduler services for priority inheritance — services that are unavailable in ISR context. Calling `xSemaphoreTake` on a mutex from an ISR will corrupt the kernel.
+
+If you need to signal a task from an ISR, use a binary semaphore. If you need to protect a resource touched by both tasks and an ISR, disable interrupts for the shortest possible time instead.
+
+---
+
+## Priority Inheritance
+
+Suppose three tasks exist: **High** (priority 3), **Medium** (priority 2), and **Low** (priority 1).
+
+1. **Low** acquires a mutex and starts working with a shared resource.
+2. **High** wakes up and wants the same mutex. It blocks, waiting for Low to release it.
+3. **Medium** wakes up. It does not need the mutex, so it runs and preempts **Low**.
+4. As long as **Medium** runs, **Low** cannot finish — and **High** stays blocked.
+
+This is **priority inversion**: a high-priority task is effectively blocked by a medium-priority task that has nothing to do with the mutex.
+
+FreeRTOS mutexes use **priority inheritance** to prevent this. When **High** blocks on the mutex, FreeRTOS temporarily raises **Low**'s priority to match **High**'s (priority 3). This prevents **Medium** from preempting **Low**, so **Low** finishes faster, releases the mutex, and **High** runs.
+
+Priority inheritance is one of the key reasons to use `xSemaphoreCreateMutex()` for resource protection instead of `xSemaphoreCreateBinary()`.
+
+---
 
 ## Timeouts
 
-`xSemaphoreTake(xSem, ticks)` lets you control how long a task waits.
+`xSemaphoreTake(xSem, timeout)` controls how long a task waits.
 
-Common options:
+| Timeout | Behavior |
+| :------ | :------- |
+| `0` | Non-blocking: return immediately if not available |
+| `pdMS_TO_TICKS(20)` | Wait up to 20 ms |
+| `portMAX_DELAY` | Block indefinitely |
 
-- `0` -> do not block
-- `pdMS_TO_TICKS(20)` -> wait up to 20 ms
-- `portMAX_DELAY` -> wait indefinitely
+Use `portMAX_DELAY` when the task has nothing else to do until the resource is available. Use a bounded timeout when a missing signal indicates a bug or overload condition that you want to detect.
 
-Use finite timeouts when:
+---
 
-- a missing event is possible
-- you want to detect overload or bugs
+## Decision Table
 
-Use `portMAX_DELAY` when:
+| Situation | Right tool |
+| :-------- | :--------- |
+| ISR wakes a task on a button press | Binary semaphore |
+| ADC completes and must notify a processing task | Binary semaphore |
+| Producer and consumer that can get ahead of each other | Counting semaphore |
+| N identical resources shared among tasks | Counting semaphore (initialized to N) |
+| LCD, UART, or SPI shared by multiple tasks | Mutex |
+| Any multi-field struct written by one task and read by another | Mutex |
+| Shared resource access needed from inside an ISR | Disable interrupts (not mutex) |
 
-- the task truly has nothing else to do until the event arrives
-
-## Lab 2 Interpretation
-
-For Lab 2, the intended reasoning is:
-
-- **Pushbuttons**: binary semaphore, because the interrupt just needs to wake `ButtonTask`
-- **Microphone window ready**: binary semaphore or queue, depending on whether you only need a wake-up or need to send extra data
-- **Display ownership**: no mutex yet, because the lab deliberately keeps one drawing task as the sole LCD owner
+---
 
 ## Common Mistakes
 
-- Using a mutex from ISR context
-- Using a binary semaphore when every event must be counted
-- Enabling an interrupt before creating the semaphore it will signal
-- Treating `volatile` as if it replaced synchronization
-- Using a semaphore for resource protection when a mutex is the right tool
-
-## Summary
-
-Pick the tool based on the problem:
-
-- event happened once -> binary semaphore
-- event count matters -> counting semaphore
-- shared resource must be locked -> mutex
-
-That small decision often determines whether a FreeRTOS design feels simple or fragile.
+| Mistake | Consequence | Fix |
+| :------ | :---------- | :-- |
+| `xSemaphoreTake`/`Give` on a mutex from an ISR | Kernel corruption | Use binary semaphore for ISR signaling |
+| Returning from a function while holding a mutex | Deadlock | Check preconditions before taking; always release on all paths |
+| `vTaskDelay()` inside a critical section | Blocks all other users of the resource | Release before delaying |
+| Blocking on a second primitive while holding a mutex | Deadlock | Acquire primitives in a consistent order, or redesign |
+| Enabling the interrupt before creating the semaphore it signals | ISR fires into a null handle | Create synchronization objects before enabling interrupts |
+| Using a binary semaphore for resource protection | No priority inheritance | Use `xSemaphoreCreateMutex()` |

@@ -1,0 +1,251 @@
+---
+title: "Task Notifications"
+description: "Send lightweight signals directly to a task without creating a semaphore or queue — and understand when to use them over heavier primitives."
+tags:
+  - freertos
+links:
+  - "/guides/freertos/"
+---
+import { Aside } from '@astrojs/starlight/components';
+
+## What Is a Task Notification?
+
+Every FreeRTOS task has a built-in 32-bit notification value. Another task (or an ISR) can write to that value and optionally wake the receiving task. The receiver blocks until a notification arrives, then reads it and continues.
+
+No object is created with `xSemaphoreCreate` or `xQueueCreate`. The notification mechanism is built into the task's control block and uses negligible extra memory.
+
+---
+
+## When to Use Task Notifications
+
+Task notifications are the right tool for **1:1 signaling** — exactly one sender, exactly one receiver.
+
+| Use case | Good fit? |
+| :------- | :-------- |
+| ISR wakes a processing task | Yes |
+| Task A tells Task B that new data is ready | Yes |
+| Multiple tasks all notifying one task | Yes (notifications accumulate) |
+| One task notifying multiple tasks | No — use an event group or semaphore |
+| Sending data along with the signal | Sometimes — the 32-bit value can carry a small payload |
+
+Compared to a binary semaphore used for the same purpose, task notifications are:
+
+- faster (no object to look up, fewer kernel instructions)
+- smaller (no heap allocation — the value lives in the TCB)
+- simpler to write in the common 1:1 pattern
+
+The trade-off: you cannot broadcast to multiple receivers, and you cannot inspect the notification state from outside the receiving task as easily as with a semaphore.
+
+---
+
+## Simplified API: `xTaskNotifyGive` / `ulTaskNotifyTake`
+
+For the common "signal that work is ready" pattern, FreeRTOS provides two simplified functions.
+
+### Sending a notification
+
+```c
+// From a task:
+xTaskNotifyGive(xTargetTaskHandle);
+
+// From an ISR:
+BaseType_t higher = pdFALSE;
+vTaskNotifyGiveFromISR(xTargetTaskHandle, &higher);
+portYIELD_FROM_ISR(higher);
+```
+
+Each call increments the receiver's notification count by one.
+
+### Waiting for a notification
+
+```c
+// Block until at least one notification arrives.
+// pdTRUE clears the count after returning (binary behavior).
+// portMAX_DELAY blocks forever.
+ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+```
+
+`ulTaskNotifyTake` returns the notification count at the moment it woke up. With `pdTRUE`, it clears the count before returning. With `pdFALSE`, it decrements the count by one (counting semaphore behavior).
+
+---
+
+## Full Example: Producer Notifies Consumer
+
+```c
+#include "FreeRTOS.h"
+#include "task.h"
+
+static TaskHandle_t xConsumerHandle = NULL;
+
+// Producer: does work, then tells the consumer new data is ready
+void ProducerTask(void *pvParameters)
+{
+    (void)pvParameters;
+    for (;;) {
+        prepareNextFrame();                    // fill the buffer
+        xTaskNotifyGive(xConsumerHandle);      // wake the consumer
+        vTaskDelay(pdMS_TO_TICKS(33));         // ~30 Hz production rate
+    }
+}
+
+// Consumer: blocks until notified, then processes
+void ConsumerTask(void *pvParameters)
+{
+    (void)pvParameters;
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);   // wait for notification
+        renderFrame();                              // process the buffer
+    }
+}
+
+int main(void)
+{
+    xTaskCreate(ConsumerTask, "Consumer", 512, NULL, 2, &xConsumerHandle);
+    xTaskCreate(ProducerTask, "Producer", 256, NULL, 2, NULL);
+    vTaskStartScheduler();
+    for (;;) {}
+}
+```
+
+The consumer blocks at `ulTaskNotifyTake` using zero CPU. It only runs when the producer calls `xTaskNotifyGive`. This is event-driven rendering: the consumer processes exactly when there is something to process.
+
+---
+
+## Example: ISR Wakes a Task
+
+```c
+static TaskHandle_t xProcessingHandle = NULL;
+
+// ADC conversion complete — signal the processing task
+void ADC0SS3_IRQHandler(void)
+{
+    ADCIntClear(ADC0_BASE, 3);
+
+    BaseType_t higher = pdFALSE;
+    vTaskNotifyGiveFromISR(xProcessingHandle, &higher);
+    portYIELD_FROM_ISR(higher);
+}
+
+void ProcessingTask(void *pvParameters)
+{
+    (void)pvParameters;
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        readAndProcessSample();
+    }
+}
+```
+
+This is equivalent to the binary semaphore ISR→task pattern, but without allocating or initializing a semaphore handle. The ISR is slightly faster and the code is more concise.
+
+---
+
+## Full API: `xTaskNotify` / `xTaskNotifyWait`
+
+The simplified pair (`xTaskNotifyGive` / `ulTaskNotifyTake`) is sufficient for most cases. For more control, use the full API.
+
+```c
+BaseType_t xTaskNotify(
+    TaskHandle_t xTaskToNotify,
+    uint32_t     ulValue,
+    eNotifyAction eAction       // how to update the notification value
+);
+```
+
+The `eAction` parameter controls what happens to the notification value:
+
+| `eAction` | Effect |
+| :-------- | :----- |
+| `eNoAction` | Wake the task; do not change the value |
+| `eSetBits` | OR `ulValue` into the notification value |
+| `eIncrement` | Increment the value by one (same as `xTaskNotifyGive`) |
+| `eSetValueWithOverwrite` | Unconditionally set the value to `ulValue` |
+| `eSetValueWithoutOverwrite` | Set the value only if the task has already consumed the previous one |
+
+The receiver uses `xTaskNotifyWait` to access the full 32-bit value:
+
+```c
+BaseType_t xTaskNotifyWait(
+    uint32_t      ulBitsToClearOnEntry,  // clear these bits when entering the wait
+    uint32_t      ulBitsToClearOnExit,   // clear these bits when waking up
+    uint32_t     *pulNotificationValue,  // receives the value at wake-up
+    TickType_t    xTicksToWait
+);
+```
+
+### Example: Passing a small value through the notification
+
+```c
+// Sender: encode a command as the notification value
+typedef enum { CMD_START = 1, CMD_STOP = 2, CMD_RESET = 3 } Command;
+
+xTaskNotify(xWorkerHandle, CMD_RESET, eSetValueWithOverwrite);
+
+// Receiver: read the command
+uint32_t cmd;
+xTaskNotifyWait(0, UINT32_MAX, &cmd, portMAX_DELAY);
+switch (cmd) {
+    case CMD_START: ... break;
+    case CMD_STOP:  ... break;
+    case CMD_RESET: ... break;
+}
+```
+
+<Aside type="caution" title="Value vs. count">
+When using `eSetValueWithOverwrite`, if the sender writes twice before the receiver wakes up, only the second value survives — the first is overwritten. This is intentional when you only want the latest command, but you must be aware of it.
+</Aside>
+
+---
+
+## Task Notification vs. Binary Semaphore
+
+| Property | Task notification | Binary semaphore |
+| :-------- | :---------------- | :--------------- |
+| Object required | No — built into TCB | Yes — must create and store a handle |
+| Heap allocation | None | Yes |
+| Speed | Faster | Slightly slower |
+| Number of receivers | Exactly one | Any number |
+| Can be given before receiver exists | No — need the TaskHandle | Yes — semaphore exists independently |
+| ISR support | `vTaskNotifyGiveFromISR` | `xSemaphoreGiveFromISR` |
+
+Use a task notification when you have one sender and one receiver and need the lightest possible mechanism. Use a semaphore when multiple tasks might wait on the same event, or when the sender runs before the receiver exists.
+
+---
+
+## Getting a Task Handle
+
+To notify a specific task, you need its `TaskHandle_t`. There are two ways:
+
+**Pass the handle at creation:**
+
+```c
+TaskHandle_t xRenderHandle = NULL;
+
+// Create the task and save the handle
+xTaskCreate(RenderTask, "Render", 512, NULL, 2, &xRenderHandle);
+
+// Later, from another task:
+xTaskNotifyGive(xRenderHandle);
+```
+
+**A task can also get its own handle:**
+
+```c
+void SomeTask(void *pvParameters)
+{
+    TaskHandle_t self = xTaskGetCurrentTaskHandle();
+    // pass 'self' somewhere so others can notify this task
+    ...
+}
+```
+
+---
+
+## Common Mistakes
+
+| Mistake | Consequence | Fix |
+| :------ | :---------- | :-- |
+| Notifying before `xTaskCreate` completes | Corrupt handle or crash | Create the task and save the handle before notifying |
+| Using `xTaskNotifyGive` from an ISR | Kernel corruption | Use `vTaskNotifyGiveFromISR` in ISRs |
+| Expecting multiple senders to work independently | One notification value — senders can overwrite each other | Use a queue or semaphore for multiple independent senders |
+| Forgetting `portYIELD_FROM_ISR` in ISR | Task wakes on next tick instead of immediately | Always call `portYIELD_FROM_ISR(higher)` after an ISR notification |
