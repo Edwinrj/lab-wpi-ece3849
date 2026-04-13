@@ -1,17 +1,25 @@
 ---
-
-title: Joystick Driver 
-description: Reference and usage guide for the analog joystick on the BOOSTXL‑EDUMKII with TM4C1294XL LaunchPad.
+title: Joystick Driver
+description: Reference and usage guide for the analog joystick on the BOOSTXL-EDUMKII with TM4C1294XL LaunchPad.
 links:
 - labs/lab1/
+- labs/lab2/
 tags:
 - libraries
 ---
-import { Badge, Icon, CardGrid, Card, LinkCard } from '@astrojs/starlight/components';
+import { Badge, CardGrid, LinkCard, Steps } from '@astrojs/starlight/components';
 
 ## Overview
 
-The **Joystick** class provides a high‑level interface for reading the analog joystick on the **BOOSTXL‑EDUMKII** BoosterPack. It supports X and Y analog axes, a push‑button, direction quantization (8‑way), smoothing, deadzone handling, and event callbacks for movement and clicks.
+The `Joystick` class provides a high-level interface for reading the analog joystick on the BOOSTXL-EDUMKII BoosterPack.
+
+It supports:
+
+- X/Y analog readings
+- center push button handling (inherits from `Button`)
+- 8-way direction quantization (`direction8()`)
+- configurable deadzone, smoothing, and hysteresis
+- callbacks for movement and direction events
 
 <Badge text="ADC0" variant="note" /> <Badge text="GPIO / Analog" variant="success" />
 
@@ -21,189 +29,194 @@ The **Joystick** class provides a high‑level interface for reading the analog 
 
 | Function | MCU Pin | Port  | Description                  |
 | :------- | :------ | :---- | :--------------------------- |
-| X‑Axis   | PD2     | GPIOD | Joystick horizontal movement |
-| Y‑Axis   | PK1     | GPIOK | Joystick vertical movement   |
+| X-Axis   | PD2     | GPIOD | Joystick horizontal movement |
+| Y-Axis   | PK1     | GPIOK | Joystick vertical movement   |
 | Button   | PA0     | GPIOA | Joystick center push button  |
 
 ---
 
-## Features
+## Quick Start
 
-* Analog input on two axes (12‑bit ADC resolution).
-* Direction quantization into 8 compass directions.
-* Adjustable **deadzone**, **smoothing**, and **hysteresis**.
-* Full event system for movement, tilt start/stop, direction change, repeat, and center press.
-* Inherits from the [`Button`](../button-driver) class for consistent click handling.
+<Steps>
+
+1. Construct `Joystick js(JSX, JSY, JS1);`
+2. Call `js.begin();`
+3. Optionally call `js.calibrateCenter(32);`
+4. In a periodic loop/task, call `js.tick();`
+5. Read `js.x()`, `js.y()`, or `js.direction8()`
+
+</Steps>
+
+```cpp
+#include "joystick.h"
+
+Joystick js(JSX, JSY, JS1);
+
+int main(void) {
+    uint32_t sysclk = SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
+        SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
+        120000000
+    );
+    (void)sysclk;
+
+    js.begin();
+    js.calibrateCenter(32);
+
+    while (1) {
+        js.tick();
+
+        JoystickDir dir = js.direction8();
+        if (dir == JoystickDir::E) {
+            // moved right
+        } else if (dir == JoystickDir::W) {
+            // moved left
+        }
+
+        SysCtlDelay((120000000 / 100) / 3); // ~10 ms
+    }
+}
+```
 
 ---
 
-## Example: Basic Usage
+## API Reference (Most Used)
+
+| Method | Purpose |
+| :----- | :------ |
+| `begin()` | Initializes ADC/GPIO and button support. |
+| `tick()` | Updates readings, direction state, and callbacks. Call periodically. |
+| `x()`, `y()` | Returns normalized axis values in `[-1, 1]`. |
+| `magnitude()` | Returns radial magnitude in `[0, 1]`. |
+| `angleDeg()` | Returns joystick angle in degrees. |
+| `direction8()` | Returns quantized direction (`N`, `NE`, `E`, `SE`, `S`, `SW`, `W`, `NW`, `Center`). |
+
+---
+
+## Configuration Parameters
+
+| Method | Description |
+| :----- | :---------- |
+| `setDeadzone(float dz)` | Sets neutral zone radius (`0..1`). |
+| `setSmoothingAlpha(float a)` | Sets IIR smoothing (`0..1`). |
+| `setDirectionThreshold(float magMin)` | Magnitude needed to enter a direction. |
+| `setDirectionHysteresis(float magBack, float degBack)` | Magnitude to return to center (hysteresis). |
+| `setMoveEpsilon(float eps)` | Minimum normalized movement to emit move events. |
+| `setRepeatIntervalMs(uint32_t ms)` | Repeat period while held in a direction. |
+| `setTickIntervalMs(uint32_t ms)` | Internal tick timebase; match your real polling period. |
+| `calibrateCenter(uint16_t samples)` | Averages centered joystick samples at startup. |
+
+Recommended defaults for Lab 2:
 
 ```cpp
-#include <stdint.h>
-{
-switch (dir)
-{
-case JoystickDir::Center: SetRGB(false, false, false); break;
-case JoystickDir::N: SetRGB(false, true, false); break;
-case JoystickDir::E: SetRGB(false, false, true ); break;
-case JoystickDir::S: SetRGB(true, false, false); break;
-case JoystickDir::W: SetRGB(true, true, false); break;
-case JoystickDir::NE: SetRGB(false, true, true ); break;
-case JoystickDir::SE: SetRGB(true, false, true ); break;
-case JoystickDir::SW: SetRGB(true, true, false); break;
-case JoystickDir::NW: SetRGB(true, true, true ); break;
-default: SetRGB(false, false, false); break;
-}
-}
-
-
-//-------------------------------------------------------------
-// Global Variables
-//-------------------------------------------------------------
-static bool ledState = false;
-static JoystickDir s_lastDir = JoystickDir::Center;
-
-
-//-------------------------------------------------------------
-// Callbacks
-//-------------------------------------------------------------
-static void OnDirectionChanged(Joystick &js)
-{
-s_lastDir = js.direction8();
-SetColorForDirection(s_lastDir);
-}
-
-
-static void OnClickCenter()
-{
-ledState = !ledState;
-SetLED(ledState);
-}
-
-
-//-------------------------------------------------------------
-// MAIN
-//-------------------------------------------------------------
-int main(void)
-{
-uint32_t sysclk = SysCtlClockFreqSet(
-SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
-SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
-120000000);
-
-
-ConfigureRGB();
-ConfigureLED();
-
-
-// --- Joystick from BoosterPack MKII ---
-// JS1 → PA_0 (button), JSX → PD_2, JSY → PK_1
-Joystick js(JSX, JSY, JS1);
-
-
-js.setTickIntervalMs(10); // Sampling every 10 ms
+js.setTickIntervalMs(10);
 js.setDeadzone(0.10f);
 js.setSmoothingAlpha(0.20f);
 js.setDirectionThreshold(0.30f);
 js.setDirectionHysteresis(0.22f, 15.0f);
 js.setRepeatIntervalMs(150);
-
-
-js.onDirectionChanged(&OnDirectionChanged);
-js.attachClick(&OnClickCenter); // Joystick click → toggle LED PN1
-
-
-js.begin();
-js.calibrateCenter(32);
-
-
-while (1)
-{
-js.tick(); // Reads axes, button, and triggers callbacks
-SysCtlDelay((sysclk / 100) / 3); // 10 ms delay
-}
-}
 ```
----
-
-
-## Configuration Parameters
-
-| Function                                               | Description                                                               |
-| :----------------------------------------------------- | :------------------------------------------------------------------------ |
-| `setDeadzone(float dz)`                                | Sets the minimum radius of the neutral zone (0–1).                        |
-| `setSmoothingAlpha(float a)`                           | Sets exponential smoothing factor (0 = no smoothing, 1 = full smoothing). |
-| `setDirectionThreshold(float magMin)`                  | Sets the magnitude required to enter a direction.                         |
-| `setDirectionHysteresis(float magBack, float degBack)` | Sets hysteresis for direction release.                                    |
-| `setRepeatIntervalMs(uint32_t ms)`                     | Sets how often repeat events are fired while tilted.                      |
-| `setTickIntervalMs(uint32_t ms)`                       | Defines the polling frequency (should match `tick()` period).             |
 
 ---
 
-## Event Callbacks
+## Events
 
-| Event                | Signature            | Trigger Condition                               |
-| :------------------- | :------------------- | :---------------------------------------------- |
-| `onMove`             | `void fn(Joystick&)` | Called when movement exceeds epsilon threshold. |
-| `onTiltStart`        | `void fn(Joystick&)` | When joystick moves out of deadzone.            |
-| `onTiltStop`         | `void fn(Joystick&)` | When joystick returns to center.                |
-| `onDirectionChanged` | `void fn(Joystick&)` | When the 8‑way direction changes.               |
-| `onRepeat`           | `void fn(Joystick&)` | Periodic repeat while tilted.                   |
-| `onCenter`           | `void fn(Joystick&)` | When joystick is released to center.            |
+| Event | Signature | Trigger |
+| :---- | :-------- | :------ |
+| `onMove` | `void fn(Joystick&)` | Movement exceeds epsilon. |
+| `onTiltStart` | `void fn(Joystick&)` | Exits center/deadzone. |
+| `onTiltStop` | `void fn(Joystick&)` | Returns to center/deadzone. |
+| `onDirectionChanged` | `void fn(Joystick&)` | Quantized direction changes. |
+| `onRepeat` | `void fn(Joystick&)` | Repeats while held away from center. |
+| `onCenter` | `void fn(Joystick&)` | Emits when centered after tilt. |
 
-Example:
+Example callback registration:
 
 ```cpp
-js.onDirectionChanged([](Joystick &js){
-    printf("Direction: %d\n", (int)js.direction8());
+static void OnDirectionChanged(Joystick& js) {
+    JoystickDir d = js.direction8();
+    // handle direction
+}
+
+js.onDirectionChanged(&OnDirectionChanged);
+js.attachClick([](){
+    // center button click
 });
 ```
 
 ---
 
-## Polar and Normalized Data
+## Lab 2 Pattern: One Move per Tilt
 
-* `x()`, `y()` → Normalized axis values in range **[-1, 1]**.
-* `magnitude()` → Radial distance (0–1).
-* `angleDeg()` → Joystick angle in degrees.
-* `direction8()` → Quantized direction (`N, NE, E, SE, S, SW, W, NW`).
-
-Example:
+This pattern prevents screen changes from repeating while the joystick is still held to one side.
 
 ```cpp
-float mag = js.magnitude();
-float ang = js.angleDeg();
-if (mag > 0.3) printf("Angle: %.1f deg\n", ang);
+bool readyForNextMove = true;
+
+for (;;) {
+    js.tick();
+    JoystickDir d = js.direction8();
+
+    if (d == JoystickDir::Center) {
+        readyForNextMove = true;
+    } else if (readyForNextMove && d == JoystickDir::E) {
+        gCurrentScreen = (gCurrentScreen + 1u < SCREEN_COUNT) ? (gCurrentScreen + 1u) : 0u;
+        readyForNextMove = false;
+    } else if (readyForNextMove && d == JoystickDir::W) {
+        gCurrentScreen = (gCurrentScreen > 0u) ? (gCurrentScreen - 1u) : (SCREEN_COUNT - 1u);
+        readyForNextMove = false;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(30));
+}
 ```
 
 ---
 
-## Typical Applications
+## Troubleshooting
 
-* Menu navigation using joystick direction.
-* Controlling RGB or on‑screen indicators.
-* 2D cursor control or game input.
-* Analog control for motor or servo systems.
+- No movement detected:
+Check pin mapping (`JSX`, `JSY`, `JS1`) and confirm ADC-capable pins.
+- Direction chatters near center:
+Increase deadzone or smoothing.
+- Left/right feels swapped:
+Use `setSwapXY(true)` for board variants and/or `setInvertX(true)`.
+- Too many repeated events:
+Increase `setRepeatIntervalMs(...)` or use the one-move-per-tilt pattern.
 
 ---
 
-## Calibration Tip
+## Related References
 
-Use `js.calibrateCenter(32);` at startup to average multiple samples when the joystick is centered, compensating for ADC offsets or mechanical bias.
+<CardGrid>
+  <LinkCard
+    title="Button Driver"
+    description="Base button API used by joystick click handling."
+    href="/reference/libraries/buttonsdriver/"
+    icon="right-arrow"
+  />
+  <LinkCard
+    title="Lab 2: Multi-Screen Dashboard"
+    description="How to use joystick navigation with screen state in FreeRTOS."
+    href="/labs/lab2/"
+    icon="right-arrow"
+  />
+</CardGrid>
 
 ---
 
 ## Dependencies
 
-* **driverlib** (ADC, GPIO, SysCtl)
-* [`button.h`]
-* [`pins.h`]
+- `driverlib/adc.h`
+- `driverlib/gpio.h`
+- `driverlib/sysctl.h`
+- `button.h`
+- `pins.h`
 
 ---
 
-## License
+## License and Credits
 
-Developed for **ECE3849 — Real‑Time Embedded Systems**.
+Developed for educational use in ECE3849 - Real-Time Embedded Systems.
 
-<Badge text="Author: Edwin R." variant="note" /> <Badge text="Version 1.0" variant="success" />
+<Badge text="Author: Edwin R." variant="note" /> <Badge text="Version 1.1" variant="success" />
