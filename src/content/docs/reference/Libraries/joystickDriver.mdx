@@ -2,8 +2,8 @@
 title: Joystick Driver
 description: Reference and usage guide for the analog joystick on the BOOSTXL-EDUMKII with TM4C1294XL LaunchPad.
 links:
-- labs/lab1/
-- labs/lab2/
+- /reference/libraries/buttonsdriver/
+- /reference/libraries/timerlib/
 tags:
 - libraries
 ---
@@ -106,7 +106,7 @@ int main(void) {
 | `setTickIntervalMs(uint32_t ms)` | Internal tick timebase; match your real polling period. |
 | `calibrateCenter(uint16_t samples)` | Averages centered joystick samples at startup. |
 
-Recommended defaults for Lab 2:
+Suggested baseline configuration:
 
 ```cpp
 js.setTickIntervalMs(10);
@@ -146,9 +146,9 @@ js.attachClick([](){
 
 ---
 
-## Lab 2 Pattern: One Move per Tilt
+## General Pattern: One Action per Deflection
 
-This pattern prevents screen changes from repeating while the joystick is still held to one side.
+This pattern is useful for any menu/UI navigation where you want one action per intentional move.
 
 ```cpp
 bool readyForNextMove = true;
@@ -160,14 +160,70 @@ for (;;) {
     if (d == JoystickDir::Center) {
         readyForNextMove = true;
     } else if (readyForNextMove && d == JoystickDir::E) {
-        gCurrentScreen = (gCurrentScreen + 1u < SCREEN_COUNT) ? (gCurrentScreen + 1u) : 0u;
+        menuIndex = (menuIndex + 1u < MENU_ITEMS) ? (menuIndex + 1u) : 0u;
         readyForNextMove = false;
     } else if (readyForNextMove && d == JoystickDir::W) {
-        gCurrentScreen = (gCurrentScreen > 0u) ? (gCurrentScreen - 1u) : (SCREEN_COUNT - 1u);
+        menuIndex = (menuIndex > 0u) ? (menuIndex - 1u) : (MENU_ITEMS - 1u);
         readyForNextMove = false;
     }
 
     vTaskDelay(pdMS_TO_TICKS(30));
+}
+```
+
+---
+
+## General Pattern: Continuous Analog Control
+
+Use normalized X and Y values for smooth control (cursor, camera, PWM setpoint, etc.).
+
+```cpp
+for (;;) {
+    js.tick();
+
+    float x = js.x();   // [-1, 1]
+    float y = js.y();   // [-1, 1]
+
+    // Example: map X to a signed command in [-100, 100]
+    int command = (int)(x * 100.0f);
+    ApplyCommand(command);
+
+    // Example: only act on strong upward movement
+    if (y > 0.7f) {
+        TriggerAction();
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(10));
+}
+```
+
+---
+
+## General Pattern: Event-Driven Direction Handling
+
+Use callbacks when you prefer event-style code over polling checks.
+
+```cpp
+static void OnDirectionChanged(Joystick& js) {
+    switch (js.direction8()) {
+        case JoystickDir::N: MoveUp(); break;
+        case JoystickDir::S: MoveDown(); break;
+        case JoystickDir::E: MoveRight(); break;
+        case JoystickDir::W: MoveLeft(); break;
+        default: break;
+    }
+}
+
+int main(void) {
+    Joystick js(JSX, JSY, JS1);
+    js.begin();
+    js.calibrateCenter(32);
+    js.onDirectionChanged(&OnDirectionChanged);
+
+    while (1) {
+        js.tick();
+        SysCtlDelay((120000000 / 100) / 3); // ~10 ms
+    }
 }
 ```
 
@@ -196,9 +252,9 @@ Increase `setRepeatIntervalMs(...)` or use the one-move-per-tilt pattern.
     icon="right-arrow"
   />
   <LinkCard
-    title="Lab 2: Multi-Screen Dashboard"
-    description="How to use joystick navigation with screen state in FreeRTOS."
-    href="/labs/lab2/"
+        title="Timer Library"
+        description="Use timer utilities when building fixed-rate joystick polling loops."
+        href="/reference/libraries/timerlib/"
     icon="right-arrow"
   />
 </CardGrid>
