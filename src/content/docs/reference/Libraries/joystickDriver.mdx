@@ -29,9 +29,9 @@ It supports:
 
 | Function | MCU Pin | Port  | Description                  |
 | :------- | :------ | :---- | :--------------------------- |
-| X-Axis   | PD2     | GPIOD | Joystick horizontal movement |
-| Y-Axis   | PK1     | GPIOK | Joystick vertical movement   |
-| Button   | PA0     | GPIOA | Joystick center push button  |
+| X‑Axis   | PE_4     | GPIOE | Joystick horizontal movement |
+| Y‑Axis   | PE_3     | GPIOE | Joystick vertical movement   |
+| Button   | PC_6     | GPIOC | Joystick center push button  |
 
 ---
 
@@ -50,6 +50,8 @@ It supports:
 ```cpp
 #include "joystick.h"
 
+// JSX, JSY, and JS1 are defined in pins.h for the LaunchPad
+//JSX = PE_4, JSY = PE_3, JS1 = PC_6
 Joystick js(JSX, JSY, JS1);
 
 int main(void) {
